@@ -2339,6 +2339,7 @@ export type Database = {
         Args: {
           p_branch_id: string;
           p_channel?: Database["public"]["Enums"]["sale_channel"];
+          p_client_uuid?: string;
           p_customer_id?: string;
           p_items: Json;
           p_notes?: string;

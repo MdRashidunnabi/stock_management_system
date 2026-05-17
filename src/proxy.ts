@@ -9,9 +9,16 @@ import { updateSession } from "@/lib/supabase/middleware";
  * protected routes.
  */
 export async function proxy(request: NextRequest) {
+  const path = request.nextUrl.pathname;
   if (
-    request.nextUrl.pathname.startsWith("/_next/") ||
-    request.nextUrl.pathname.startsWith("/api/health")
+    path.startsWith("/_next/") ||
+    path.startsWith("/api/health") ||
+    // Serwist serves the service worker + helper scripts under /serwist/.
+    path.startsWith("/serwist/") ||
+    // The PWA manifest must always be reachable, including for unauthenticated users.
+    path === "/manifest.webmanifest" ||
+    path === "/manifest.json" ||
+    path.startsWith("/icons/")
   ) {
     return NextResponse.next();
   }
@@ -26,7 +33,8 @@ export const config = {
      *  - _next/image (image optimisation)
      *  - favicon.ico, robots.txt, sitemap.xml
      *  - any path with a file extension (.js, .css, .png, ...)
+     *  - the Serwist service-worker route
      */
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\..*).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|serwist|.*\\..*).*)",
   ],
 };

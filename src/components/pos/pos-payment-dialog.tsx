@@ -40,6 +40,11 @@ interface Props {
   open: boolean;
   total: number;
   pending: boolean;
+  /**
+   * When true, only the `cash` tender is selectable. Used by the offline
+   * POS path because card terminals require network connectivity.
+   */
+  cashOnly?: boolean;
   onClose: () => void;
   onConfirm: (payments: { method: Method; amount: number }[]) => void;
 }
@@ -54,7 +59,11 @@ function buildInitialTenders(total: number): Tender[] {
   ];
 }
 
-export function PosPaymentDialog({ open, total, pending, onClose, onConfirm }: Props) {
+export function PosPaymentDialog({ open, total, pending, cashOnly, onClose, onConfirm }: Props) {
+  const tenderMethods = useMemo(
+    () => (cashOnly ? TENDER_METHODS.filter((m) => m.value === "cash") : TENDER_METHODS),
+    [cashOnly],
+  );
   // Reset the tender list each time the dialog opens. Using the "store info
   // from previous render" pattern (React docs) instead of an effect, so the
   // React Compiler doesn't flag a cascading-render setState-in-effect.
@@ -155,7 +164,7 @@ export function PosPaymentDialog({ open, total, pending, onClose, onConfirm }: P
                   onChange={(e) => update(t.id, { method: e.target.value as Method })}
                   className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
                 >
-                  {TENDER_METHODS.map((m) => (
+                  {tenderMethods.map((m) => (
                     <option key={m.value} value={m.value}>
                       {m.label}
                     </option>

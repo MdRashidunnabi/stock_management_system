@@ -108,7 +108,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-2">
           <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-xs">
-            Step 12 - Audit log & backups live
+            Step 13 - PWA + offline POS live
           </Badge>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Welcome back, {user.user_metadata?.full_name ?? user.email?.split("@")[0]}
@@ -295,12 +295,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <CardHeader>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="text-primary size-5" />
-            <CardTitle className="text-lg">Audit log + nightly backups are live</CardTitle>
+            <CardTitle className="text-lg">Offline POS is live</CardTitle>
           </div>
           <CardDescription>
-            Every create, update, and delete on the rows that matter is captured by a Postgres
-            trigger and viewable from the audit log. A nightly database backup script keeps a full
-            snapshot of the tenant data on disk. Up next: PWA shell + offline POS (Step 13).
+            ShopOS is installable as a PWA and the POS terminal keeps selling when the WiFi blips.
+            Cash sales taken offline land in a local queue and sync automatically when the
+            connection is back, with database-side idempotency so replays never charge twice. Up
+            next: Vitest unit tests + Playwright e2e for the POS critical path (Step 14).
           </CardDescription>
         </CardHeader>
         <CardContent>

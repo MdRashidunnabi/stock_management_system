@@ -44,6 +44,7 @@ export default async function PosPage() {
 
   const defaultBranchId = branches[0]?.id ?? null;
   const openSession = defaultBranchId ? await getOpenSessionForBranch(defaultBranchId) : null;
+  const tenantId = tenant.tenantId;
 
   return (
     <div className="space-y-4">
@@ -75,7 +76,7 @@ export default async function PosPage() {
         )}
       </div>
 
-      <PosTerminal branches={branches} defaultBranchId={defaultBranchId} />
+      <PosTerminal tenantId={tenantId} branches={branches} defaultBranchId={defaultBranchId} />
     </div>
   );
 }

@@ -58,6 +58,12 @@ export const commitSaleSchema = z.object({
     .transform((v) => (v ? v.trim() : v)),
   items: z.array(cartItemInputSchema).min(1, "Cart is empty").max(500, "Too many lines"),
   payments: z.array(tenderInputSchema).min(1, "At least one payment is required").max(10),
+  /**
+   * Optional idempotency key. The offline POS queue generates one per
+   * pending sale and replays the same value on reconnect; the server
+   * deduplicates so the cashier never charges twice.
+   */
+  clientUuid: z.string().uuid().optional(),
 });
 
 export type CommitSaleInput = z.input<typeof commitSaleSchema>;

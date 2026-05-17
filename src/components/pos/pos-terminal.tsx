@@ -23,6 +23,9 @@ import { cn, formatEuro } from "@/lib/utils";
 import { commitPosSaleAction, searchProductsForPos } from "@/lib/pos/actions";
 import type { CartLine, ProductSearchResult } from "@/lib/pos/schemas";
 import { PosPaymentDialog } from "@/components/pos/pos-payment-dialog";
+import { PosOfflineStatus } from "@/components/pos/offline-status";
+import { useOfflinePos } from "@/lib/pos/offline/use-offline-pos";
+import type { OfflineCatalogRow } from "@/lib/pos/offline/storage";
 
 const VAT_RATES: Record<string, number> = {
   STD: 0.23,
@@ -40,11 +43,12 @@ interface BranchOption {
 }
 
 interface Props {
+  tenantId: string;
   branches: BranchOption[];
   defaultBranchId: string | null;
 }
 
-export function PosTerminal({ branches, defaultBranchId }: Props) {
+export function PosTerminal({ tenantId, branches, defaultBranchId }: Props) {
   const [branchId, setBranchId] = useState<string>(defaultBranchId ?? branches[0]?.id ?? "");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [query, setQuery] = useState("");
@@ -53,7 +57,10 @@ export function PosTerminal({ branches, defaultBranchId }: Props) {
   const [showPayment, setShowPayment] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [committing, startCommit] = useTransition();
+  const [flushing, setFlushing] = useState(false);
   const searchRef = useRef<HTMLInputElement | null>(null);
+
+  const offline = useOfflinePos({ tenantId, branchId });
 
   /* ---------------------------- Totals math ---------------------------- */
 
@@ -100,15 +107,51 @@ export function PosTerminal({ branches, defaultBranchId }: Props) {
           setResults([]);
           return;
         }
+
+        // Offline path: search the IndexedDB snapshot.
+        if (!offline.online) {
+          const cached = await offline.offlineSearch(trimmed);
+          setResults(cached);
+          return;
+        }
+
         const res = await searchProductsForPos({ branchId, query: trimmed });
         if (res?.serverError) {
           toast.error(res.serverError);
+          // If the server hiccupped, try the offline cache so the cashier
+          // is not stuck staring at a blank list.
+          const cached = await offline.offlineSearch(trimmed);
+          if (cached.length > 0) setResults(cached);
           return;
         }
-        if (res?.data?.ok) setResults(res.data.rows);
+        if (res?.data?.ok) {
+          setResults(res.data.rows);
+
+          // Merge the hits into the offline cache so that the next time
+          // the network drops, the cashier still finds these products.
+          // Over time this organically builds a useful mirror without
+          // needing a separate snapshot endpoint.
+          if (res.data.rows.length > 0) {
+            const rows: OfflineCatalogRow[] = res.data.rows.map((p) => ({
+              id: p.id,
+              tenantId,
+              branchId,
+              name: p.name,
+              sku: p.sku,
+              barcode: p.barcode,
+              baseUnit: p.base_unit,
+              sellingPrice: p.selling_price,
+              vatCode: p.vat_code,
+              vatIncluded: p.vat_included,
+              availableAtSnapshot: p.available,
+              cachedAt: new Date().toISOString(),
+            }));
+            void offline.upsertCatalog(rows);
+          }
+        }
       });
     },
-    [branchId],
+    [branchId, offline, tenantId],
   );
 
   useEffect(() => {
@@ -211,6 +254,30 @@ export function PosTerminal({ branches, defaultBranchId }: Props) {
       return;
     }
     setServerError(null);
+
+    // Offline path: queue the sale and let the auto-sync handle it later.
+    if (!offline.online) {
+      const cashOnly = payments.every((p) => p.method === "cash");
+      if (!cashOnly) {
+        setServerError("Only cash is accepted while offline. Take a cash payment to queue it.");
+        return;
+      }
+      startCommit(async () => {
+        try {
+          await offline.enqueueSale(cart, totals.total);
+          toast.success(
+            "Sale queued offline. It will sync automatically when the connection is back.",
+          );
+          clearCart();
+          setShowPayment(false);
+          searchRef.current?.focus();
+        } catch (err) {
+          setServerError(err instanceof Error ? err.message : "Failed to queue sale");
+        }
+      });
+      return;
+    }
+
     startCommit(async () => {
       const res = await commitPosSaleAction({
         branchId,
@@ -241,6 +308,17 @@ export function PosTerminal({ branches, defaultBranchId }: Props) {
     });
   }
 
+  async function handleManualSync() {
+    setFlushing(true);
+    try {
+      const { synced, failed } = await offline.flushNow();
+      if (synced > 0) toast.success(`Synced ${synced} queued sale${synced === 1 ? "" : "s"}.`);
+      if (failed > 0) toast.error(`${failed} sale(s) still pending - will retry.`);
+    } finally {
+      setFlushing(false);
+    }
+  }
+
   const cartEmpty = cart.length === 0;
 
   return (
@@ -263,6 +341,14 @@ export function PosTerminal({ branches, defaultBranchId }: Props) {
               ))}
             </select>
           </div>
+
+          <PosOfflineStatus
+            online={offline.online}
+            pendingCount={offline.pendingCount}
+            cachedCount={offline.cachedCount}
+            flushing={flushing}
+            onFlush={handleManualSync}
+          />
 
           <div className="flex-1 space-y-1">
             <Label htmlFor="scan">Scan or search</Label>
@@ -372,6 +458,16 @@ export function PosTerminal({ branches, defaultBranchId }: Props) {
           </CardContent>
         </Card>
 
+        {!offline.online ? (
+          <Alert>
+            <AlertCircle className="size-4" />
+            <AlertDescription className="text-xs">
+              You are offline. Cash sales can still be taken and will sync automatically when the
+              connection is back.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
         {serverError ? (
           <Alert variant="destructive">
             <AlertCircle className="size-4" />
@@ -415,6 +511,7 @@ export function PosTerminal({ branches, defaultBranchId }: Props) {
         open={showPayment}
         total={totals.total}
         pending={committing}
+        cashOnly={!offline.online}
         onClose={() => setShowPayment(false)}
         onConfirm={(payments) => commit(payments)}
       />

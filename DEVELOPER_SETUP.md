@@ -1100,9 +1100,191 @@ Postgres custom-format archives. Expected:
 
 ---
 
+## Step 13 - PWA shell + offline POS cache (Serwist)
+
+The agent has shipped Step 13. ShopOS is now an installable Progressive
+Web App, the cashier's tablet keeps selling when the WiFi blips, and
+queued sales sync automatically the moment the connection comes back -
+without ever charging the customer twice.
+
+### Why this matters in a real shop
+
+Independent retailers in Ireland routinely have 30 - 90 second WiFi
+blips: PoE switches reboot, a 4G dongle drops, an electrician trips a
+breaker. With Step 13:
+
+- The cashier never sees a blank screen. The POS shell is a service
+  worker -cached single page; reloads always work.
+- Searches keep working because every product the cashier has
+  looked up before is mirrored to IndexedDB.
+- Cash sales keep happening. A queued sale shows "queued offline" in
+  the UI; the customer gets a paper-style receipt printed on the
+  next sync; the till total stays correct because it was always cash.
+- The same sale never lands in the database twice. Every queued sale
+  carries a stable `client_uuid`; the new `commit_pos_sale` RPC
+  short-circuits replays via `idempotency_keys`.
+
+### What got added
+
+- **Migration**
+  (`supabase/migrations/20260517170000_add_pos_sale_idempotency.sql`):
+  - DROPs the previous 9-arg `commit_pos_sale`.
+  - CREATEs a 10-arg version that takes an optional `p_client_uuid`.
+  - When supplied, the RPC checks `public.idempotency_keys` for that
+    key + tenant. A cache hit returns the original receipt; a cache
+    miss runs the sale and stores the response. The 24h TTL on
+    `idempotency_keys` (Step 4) is plenty for the queue flusher.
+
+- **Service worker** (Serwist 9 + Turbopack):
+  - `next.config.ts` now wraps the config with `withSerwist`
+    (`@serwist/turbopack`).
+  - `src/app/sw.ts` is the service-worker entrypoint. It uses
+    Serwist's `defaultCache` rules (precaches static assets,
+    NetworkFirst for HTML, never caches authenticated API calls).
+  - `src/app/serwist/[path]/route.ts` compiles the SW on demand and
+    serves it from `/serwist/sw.js`. The git HEAD is used as the
+    `revision` so a deploy invalidates stale precache entries.
+  - `src/app/~offline/page.tsx` is the offline fallback page used
+    when the cashier follows an uncached deep link while offline.
+
+- **PWA manifest** (`src/app/manifest.ts`):
+  - Installable as "ShopOS" with the cash-icon SVG, dark theme, and
+    `start_url=/pos` so taps on the home-screen icon land directly in
+    the till. iOS-grade raster PNG icons can be added before public
+    launch (Step 15 prep).
+
+- **Layout** (`src/app/layout.tsx`):
+  - `<SerwistProvider swUrl="/serwist/sw.js">` registers the SW.
+  - PWA-friendly `appleWebApp` metadata + icon links.
+
+- **Proxy** (`src/proxy.ts`):
+  - The proxy explicitly skips `/serwist/`, `/manifest.webmanifest`,
+    and `/icons/*` so unauthenticated requests can fetch the SW and
+    icons without going through the auth pipeline.
+
+- **Offline data layer** (`src/lib/pos/offline/`):
+  - `storage.ts` - typed `idb` wrapper. Two object stores:
+    - `catalog` (`product_id` PK, `[tenant, branch]` index), and
+    - `sale_queue` (auto-incremented PK, status / branch / client_uuid
+      indexes).
+  - `catalog-cache.ts` - `replaceCatalogSnapshot`,
+    `upsertCatalogRows`, `searchOfflineCatalog`,
+    `getCachedSnapshotCount`, `clearOfflineCatalog`.
+  - `sale-queue.ts` - `enqueueOfflineSale` (generates a UUID v4),
+    `listQueuedSales`, `countPendingSales`, `setSaleStatus`,
+    `flushOfflineQueue`, `deleteSyncedSales`.
+  - `use-offline-pos.ts` - React hook used by the POS terminal. Owns
+    network-state listeners, periodic background flushing, and the
+    public surface: `online`, `pendingCount`, `cachedCount`,
+    `saveCatalogSnapshot`, `upsertCatalog`, `offlineSearch`,
+    `enqueueSale`, `flushNow`.
+
+- **POS UI** (`src/components/pos/`):
+  - `offline-status.tsx` - status pill in the POS header showing
+    Online / Sync pending / Offline plus a "Sync now" button.
+  - `pos-terminal.tsx`:
+    - Wires up `useOfflinePos`.
+    - Search falls through to the IDB cache when offline; every
+      successful server search upserts the rows it returned.
+    - The payment dialog is forced to cash-only when offline.
+    - Going offline shows a banner above the "Take payment" button.
+    - Taking a payment offline calls `enqueueSale` and shows a toast
+      saying "Sale queued offline".
+  - `pos-payment-dialog.tsx` - new optional `cashOnly` prop that
+    filters the tender method list down to "Cash" only.
+
+- **`src/app/(protected)/pos/page.tsx`** now passes the `tenantId` so
+  the offline IDB stores can scope per tenant + branch.
+
+- **Smoke test** (`scripts/test-offline-pos.mjs` +
+  `npm run test:offline`):
+  - Runs against the local Supabase stack with `fake-indexeddb` so
+    IndexedDB works in Node.
+  - Asserts catalog snapshot, search by barcode / SKU / name,
+    upsert grow vs replace, queue enqueue + flush, idempotent replay
+    (same `client_uuid` returns the same sale and decrements stock
+    only once), synced sweep, and tenant-B RLS isolation on
+    `idempotency_keys`. 18 assertions.
+
+### MANUAL-13 - One-time tasks
+
+1. **Apply the new migration** (or do a clean reset):
+
+   ```bash
+   npx supabase db reset
+   ```
+
+   Verify the new function signature:
+
+   ```bash
+   psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+     -c "select pg_get_function_identity_arguments(p.oid)
+          from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname='public' and p.proname='commit_pos_sale';"
+   ```
+
+   You should see `p_client_uuid uuid` at the end.
+
+2. **First-time install** of the new dependencies:
+
+   ```bash
+   npm install
+   ```
+
+3. **Sanity-build** the production bundle:
+
+   ```bash
+   npm run build
+   ```
+
+   In the route summary, you should see:
+   - `○ /~offline` - static offline fallback page
+   - `○ /manifest.webmanifest` - PWA manifest
+   - `● /serwist/[path]` - the service-worker route
+   - `(serwist) NN precache entries (X KiB)` line in the Serwist log.
+
+### MANUAL-13 - Validate locally
+
+1. `npm run dev`, sign in as a cashier or owner, and visit `/pos`.
+2. Take any sale online to seed the offline catalog cache. The
+   "Online · NN cached · 0 queued" pill should show in the POS header.
+3. **Open Chrome DevTools** -> Application -> Service Workers and
+   check the box marked **Offline** (or use Network tab -> Offline).
+4. Refresh the POS page. It should still load (the shell is cached).
+   Search for the same product you just sold - it appears from IDB,
+   and the pill says "Offline".
+5. Add the product to the cart. Tap "Take payment". Only "Cash" is
+   selectable. Confirm. You see a toast saying "Sale queued offline".
+   The pill changes to "Offline · 1 queued".
+6. Uncheck **Offline** in DevTools. Within a few seconds, the queue
+   auto-flushes - the pill returns to "Online · 0 queued" and the
+   sale shows up under `/sales`.
+7. (Idempotency) repeat the previous offline sale, then go back
+   online. After it syncs, in DevTools -> Application -> IndexedDB
+   you can manually flip a `sale_queue` row from `synced` back to
+   `pending`, click **Sync now** in the POS pill: the sale is
+   accepted again but no second sale is created (verify on
+   `/sales`).
+8. **Install the PWA**: in Chrome's address bar you should now see
+   the "Install app" icon. Click it. ShopOS installs as a desktop
+   app whose start URL is `/pos`.
+
+You can also run the dedicated smoke test against the local stack:
+
+```bash
+npm run test:offline
+```
+
+`test:offline` boots a tenant, seeds two products with stock,
+mirrors the catalog into `fake-indexeddb`, queues a EUR 4.20 cash
+sale, replays it twice through `commit_pos_sale` with the same
+`client_uuid`, and asserts that exactly one sale exists and stock
+was decremented exactly once. Expected: `Done: 18 pass, 0 fail`.
+
+---
+
 ## What the agent will do automatically next
 
-- Step 13 - PWA shell + offline POS cache (Serwist)
 - Step 14 - Vitest unit tests + Playwright e2e for the POS critical path
 - Step 15 - Production deploy: Vercel + Supabase prod + custom domain
 

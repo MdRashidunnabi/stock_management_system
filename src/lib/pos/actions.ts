@@ -120,6 +120,7 @@ export const commitPosSaleAction = staffActionClient([...POS_ROLES])
         p_customer_id: parsedInput.customerId,
         p_rounding: parsedInput.rounding ?? 0,
         p_notes: parsedInput.notes,
+        p_client_uuid: parsedInput.clientUuid,
       })
       .single();
 

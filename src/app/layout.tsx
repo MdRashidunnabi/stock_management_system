@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { SerwistProvider } from "@serwist/turbopack/react";
 import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -27,6 +28,15 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "ShopOS",
+  },
+  icons: {
+    icon: "/icons/icon.svg",
+    apple: "/icons/icon.svg",
+  },
 };
 
 export const viewport: Viewport = {
@@ -44,7 +54,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en-IE" suppressHydrationWarning>
       <body>
-        <Providers>{children}</Providers>
+        <SerwistProvider swUrl="/serwist/sw.js">
+          <Providers>{children}</Providers>
+        </SerwistProvider>
         <Toaster richColors position="top-right" closeButton />
       </body>
     </html>

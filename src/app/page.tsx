@@ -70,9 +70,9 @@ export default function HomePage() {
         </div>
 
         <div className="border-border bg-muted/40 text-muted-foreground rounded-lg border border-dashed p-4 text-center text-xs">
-          Status: Step 12 complete (audit log via Postgres triggers on 13 tables, owner-only /audit
-          viewer with field-level diffs, pg_dump backup script + nightly GitHub Actions template).
-          Next: Step 13 - PWA shell + offline POS cache.
+          Status: Step 13 complete (installable PWA via Serwist, offline POS shell, IndexedDB
+          catalog cache, queued-sale flusher, idempotent commit_pos_sale so replays never charge
+          twice). Next: Step 14 - Vitest + Playwright e2e tests.
         </div>
       </div>
     </main>
