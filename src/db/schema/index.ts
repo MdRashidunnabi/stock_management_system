@@ -1,12 +1,14 @@
 /**
  * Drizzle schema entry point.
  *
- * Tables are split per domain in sibling files and re-exported here so that
- * `import * as schema from "@/db/schema"` gives Drizzle a single map.
- *
- * Step 4 will populate this with the real schema (tenants, users, branches,
- * products, suppliers, stock_ledger, sales, payments, pos_sessions, audit_logs).
+ * SQL is the source of truth (see supabase/migrations/*).
+ * These exports give Drizzle the table shapes for type-safe queries.
  */
 
-// Placeholder - real tables will be added in Step 4.
-export const _placeholder = true;
+export * from "./_shared";
+export * from "./tenants";
+export * from "./catalog";
+export * from "./suppliers";
+export * from "./inventory";
+export * from "./sales";
+export * from "./customers";

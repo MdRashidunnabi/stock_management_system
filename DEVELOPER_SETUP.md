@@ -224,15 +224,71 @@ project in the **eu-west-1 (Ireland)** region.
 
 ---
 
+---
+
+## 7. Apply database migrations (MANUAL, after Step 4 of the agent)
+
+Once the agent has shipped the schema (`supabase/migrations/*.sql`), run:
+
+```bash
+# 1. Make sure local Supabase is running
+npm run supabase:status
+# If not running:
+npm run supabase:start
+
+# 2. Apply all migrations and seed (dev only)
+npx supabase db reset
+```
+
+`db reset` recreates the local database from scratch and applies every
+migration plus `supabase/seed.sql`. It is safe to run repeatedly during dev.
+
+If you only want to apply NEW migrations (without wiping data), use:
+
+```bash
+npx supabase migration up
+```
+
+### Verify
+
+```bash
+npm run db:studio   # opens Drizzle Studio on http://localhost:4983
+```
+
+You should see ~25 tables including `tenants`, `branches`, `products`,
+`stock_ledger`, `stock_balances`, `sales`, `payments`, `pos_sessions`,
+`audit_logs`, and the rest.
+
+If any migration fails, paste the error to the agent and we will fix it.
+
+### Create the demo auth users (one-off)
+
+The seed file creates a demo tenant + 1 branch + 1 POS terminal + 5
+categories + 3 brands + 10 products + 2 suppliers, but **only links
+to two demo users IF those users exist in `auth.users`.** Create them
+via Supabase Studio:
+
+1. Open <http://127.0.0.1:54323> (the Studio URL printed by `supabase start`).
+2. Go to **Authentication -> Users -> Add user -> Create new user**.
+3. Create:
+   - Email: `owner@demo.shopos.local` Password: `DemoPass123!`
+   - Email: `cashier@demo.shopos.local` Password: `DemoPass123!`
+4. Re-apply seed to link the users:
+
+   ```bash
+   npx supabase db reset    # easiest; wipes and reapplies seed
+   ```
+
+We will replace this manual step with a real signup flow in Step 5.
+
+---
+
 ## What the agent will do automatically
 
-After you finish steps 1-4 above, the agent will continue with:
+After you finish steps 1-7 above, the agent will continue with:
 
-- Step 3 - Supabase clients (browser + server + admin)
-- Step 4 - Database schema v1 (tenants, users, branches, products, suppliers,
-  stock_ledger, sales, payments, pos_sessions, audit_logs) with RLS
-- Step 5 - Auth flow (login, signup, password reset, tenant context middleware)
-- Step 6 - Tenant onboarding wizard
+- Step 5 - Auth flow (login, signup, password reset, tenant context)
+- Step 6 - Tenant onboarding wizard (replaces the manual demo user creation)
 - Step 7 - Product CRUD
 - Step 8 - POS sale flow
 - Step 9 - Till open/close
