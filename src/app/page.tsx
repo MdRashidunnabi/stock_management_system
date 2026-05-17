@@ -70,8 +70,8 @@ export default function HomePage() {
         </div>
 
         <div className="border-border bg-muted/40 text-muted-foreground rounded-lg border border-dashed p-4 text-center text-xs">
-          Status: Step 8 complete (POS sale flow - cart, scan, split tender, atomic stock writes,
-          printable receipts). Next: Step 9 - till open/close + Z-report.
+          Status: Step 9 complete (till open/close, cash drawer movements, printable Z-report with
+          variance). Next: Step 10 - supplier receiving with weighted-average cost.
         </div>
       </div>
     </main>

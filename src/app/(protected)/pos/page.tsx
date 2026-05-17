@@ -1,7 +1,12 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { KeyRound } from "lucide-react";
 import { getCurrentTenant } from "@/lib/auth/tenant";
 import { listBranchesForCurrentTenant } from "@/lib/pos/actions";
+import { getOpenSessionForBranch } from "@/lib/pos/sessions/actions";
 import { PosTerminal } from "@/components/pos/pos-terminal";
+import { Badge } from "@/components/ui/badge";
+import { formatDateTimeIE, formatEuro } from "@/lib/utils";
 
 export const metadata = {
   title: "POS · ShopOS",
@@ -37,18 +42,40 @@ export default async function PosPage() {
     );
   }
 
+  const defaultBranchId = branches[0]?.id ?? null;
+  const openSession = defaultBranchId ? await getOpenSessionForBranch(defaultBranchId) : null;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Point of sale</h1>
           <p className="text-muted-foreground text-sm">
             Take payments, print receipts, and update stock - all in one tap.
           </p>
         </div>
+        {openSession ? (
+          <Link
+            href={`/sessions/${openSession.id}`}
+            className="border-border bg-card hover:bg-accent flex items-center gap-3 rounded-md border px-3 py-2 text-xs"
+          >
+            <Badge variant="default">Till open</Badge>
+            <span className="text-muted-foreground">
+              Since {formatDateTimeIE(openSession.opened_at)} · float{" "}
+              <strong>{formatEuro(openSession.opening_cash)}</strong>
+            </span>
+          </Link>
+        ) : (
+          <Link
+            href={`/sessions/open${defaultBranchId ? `?branch=${defaultBranchId}` : ""}`}
+            className="border-input bg-card hover:bg-accent inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium"
+          >
+            <KeyRound className="size-4" /> Open till
+          </Link>
+        )}
       </div>
 
-      <PosTerminal branches={branches} defaultBranchId={branches[0]?.id ?? null} />
+      <PosTerminal branches={branches} defaultBranchId={defaultBranchId} />
     </div>
   );
 }

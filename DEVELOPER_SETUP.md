@@ -564,10 +564,135 @@ commits a multi-line sale paid by cash + card, and asserts:
 
 ---
 
+## Step 9 - Till sessions (open / close), cash drawer movements, Z-report
+
+Step 8 sold things; Step 9 makes the till accountable. Every shift has a
+proper open and close, every cash movement is journalled, and the books
+balance at the end with a printable Z-report.
+
+### What's new
+
+- `/sessions` - list of every till session (open right now and closed
+  historical), with branch, cashier, opening cash, expected, counted, and
+  variance.
+- `/sessions/open` - one-screen form to open a till. Pick the branch, count
+  the cash already in the drawer, type a note, and click **Open till**.
+- `/sessions/[id]` - **live X-report** while the session is open (refresh
+  after each sale to see updated totals) plus two side-panels for the
+  cashier:
+  - **Record a cash movement** - cash drop to the safe, petty expense,
+    pay-out, or pay-in.
+  - **End the shift** - dialog to count the drawer, see expected vs counted,
+    surplus/shortage, and close the till.
+    When the session is closed the page becomes a **printable Z-report** with
+    receipts count, items sold, gross / net / VAT / discount, payment-method
+    breakdown, VAT breakdown by code, the full drawer ledger and the closing
+    variance.
+- New SECURITY DEFINER RPCs:
+  - `public.open_pos_session(branch_id, opening_cash, terminal_id?, note?)` -
+    rejects opening a second open till for the same cashier on the same
+    branch; writes an `opening` row to `cash_drawer_movements` with the
+    float amount.
+  - `public.record_cash_movement(session_id, type, amount, reason?)` -
+    writes a `pay_in`, `pay_out`, `cash_drop`, or `expense` movement on an
+    open session. Refuses `sale`, `refund_out`, `opening`, and `closing`
+    types (those are written by the sale / open / close flows).
+  - `public.close_pos_session(session_id, counted_cash, closing_note?)` -
+    computes the expected drawer balance from movements, stamps
+    `expected_cash`, `counted_cash`, `closed_at`, `closed_by`, and flips
+    status to `closed`. The generated column `cash_difference` then equals
+    `counted_cash - expected_cash` (positive = surplus, negative = shortage).
+- `commit_pos_sale` was tightened: when the caller passes an explicit
+  `session_id` we now require the session to be `open`. Sales on closed
+  tills are rejected (error code `22023`).
+- POS page (`/pos`) now shows a small badge in the top-right: "Till open"
+  with the opening time and float, or an **Open till** button if none is
+  open. Auto-open is still the safety net so legacy flows keep working.
+- Dashboard now shows the "Open tills" tile next to "Sales today".
+
+### Cash math (how the variance is computed)
+
+Expected drawer balance is the running sum of `cash_drawer_movements`:
+
+```
+expected = sum(amount where type in (opening, sale, pay_in))
+         - sum(amount where type in (refund_out, cash_drop, expense, pay_out, closing))
+```
+
+`opening` is stamped by `open_pos_session`. `sale` is stamped by every
+`commit_pos_sale` payment whose method is cash. `pay_in`, `pay_out`,
+`cash_drop`, and `expense` come from `record_cash_movement`. The X-report
+recomputes the same total live so you can spot discrepancies before closing.
+
+### MANUAL-9.1 - Apply the new migration
+
+A new migration was added in `supabase/migrations/`:
+
+- `20260517140000_init_pos_session_rpcs.sql`
+
+Either reset (`npm run supabase:start` or `npx supabase db reset`), or apply
+without resetting:
+
+```bash
+psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' \
+  -f supabase/migrations/20260517140000_init_pos_session_rpcs.sql
+```
+
+### Validate Step 9
+
+```bash
+npm run typecheck
+npm run lint
+npm run build
+npm run test:catalog
+npm run test:pos
+npm run test:sessions
+```
+
+`test:sessions` boots two tenants, opens a till with a EUR 100 float, runs a
+EUR 25 sale paid EUR 20 cash + EUR 5 card, records a EUR 5 pay-out, closes
+with EUR 115 counted, and asserts that variance is exactly zero. It also
+proves that:
+
+- a second open on the same branch is rejected,
+- `record_cash_movement` refuses `opening`/`closing` types,
+- a closed session cannot accept new sales,
+- closing twice is rejected,
+- another tenant cannot see or mutate the session.
+
+### Manual walkthrough for Step 9
+
+1. Sign in. Make sure you have at least one product with stock (Step 8
+   walkthrough covers seeding stock).
+2. Visit `/sessions/open`. Pick your branch, enter the cash you have in the
+   drawer right now (e.g. `100`), add a note like "Morning shift", and
+   click **Open till**.
+3. You're redirected to `/sessions/<id>` - the live X-report. The drawer
+   ledger shows one row: "Opening float +EUR 100".
+4. Click **Open POS** in the top-right and ring a sale paid by cash.
+   Refresh the X-report - the new sale appears in the drawer ledger and the
+   "Cash in" total goes up.
+5. Back on the X-report, in the right-hand panel, record a **Cash drop**
+   for some amount (e.g. `EUR 50` to the safe). Refresh again - you'll see
+   "Cash out" go up and the expected drawer go down.
+6. Click **Close till**. Type the cash you'd actually count in the drawer.
+   Watch the variance hint update in real time. Click **Close till**.
+7. The page becomes the printable Z-report. Click **Print** to send it to
+   the browser print dialog. The variance is highlighted (green = matched,
+   amber = surplus, red = shortage).
+8. Try opening a second sale on the same closed session via `/pos` - the
+   POS still works because it auto-opens a new till on the next sale, but
+   if you copy a closed session id and POST against it directly, the RPC
+   will reject the request with code `22023`.
+9. Sign in as another tenant and confirm `/sessions` and the session detail
+   page do not leak any of your data.
+
+---
+
 ## What the agent will do automatically next
 
-- Step 9 - Till open/close (POS sessions) + Z-report + cash drawer movements
-- Step 10 - Supplier receiving (purchase orders + goods receipts)
+- Step 10 - Supplier receiving (purchase orders + goods receipts) with
+  weighted-average cost
 - Step 11 - Owner dashboard
 - Step 12 - Audit log + backups
 - Step 13 - PWA shell + offline POS

@@ -2,13 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Boxes, FolderTree, Package, Receipt, ScanLine, Tag, Truck } from "lucide-react";
+import {
+  BarChart3,
+  Boxes,
+  FolderTree,
+  KeyRound,
+  Package,
+  Receipt,
+  ScanLine,
+  Tag,
+  Truck,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS: { href: string; label: string; icon: React.ReactNode }[] = [
   { href: "/dashboard", label: "Dashboard", icon: <BarChart3 className="size-4" /> },
   { href: "/pos", label: "POS", icon: <ScanLine className="size-4" /> },
   { href: "/sales", label: "Sales", icon: <Receipt className="size-4" /> },
+  { href: "/sessions", label: "Till", icon: <KeyRound className="size-4" /> },
   { href: "/products", label: "Products", icon: <Package className="size-4" /> },
   { href: "/categories", label: "Categories", icon: <FolderTree className="size-4" /> },
   { href: "/brands", label: "Brands", icon: <Tag className="size-4" /> },

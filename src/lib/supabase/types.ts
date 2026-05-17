@@ -2274,6 +2274,38 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      close_pos_session: {
+        Args: {
+          p_closing_note?: string;
+          p_counted_cash: number;
+          p_session_id: string;
+        };
+        Returns: {
+          cash_difference: number;
+          counted_cash: number;
+          expected_cash: number;
+          session_id: string;
+          status: Database["public"]["Enums"]["pos_session_status"];
+        }[];
+      };
+      open_pos_session: {
+        Args: {
+          p_branch_id: string;
+          p_note?: string;
+          p_opening_cash?: number;
+          p_terminal_id?: string;
+        };
+        Returns: string;
+      };
+      record_cash_movement: {
+        Args: {
+          p_amount: number;
+          p_reason?: string;
+          p_session_id: string;
+          p_type: Database["public"]["Enums"]["cash_movement_type"];
+        };
+        Returns: string;
+      };
       commit_pos_sale: {
         Args: {
           p_branch_id: string;

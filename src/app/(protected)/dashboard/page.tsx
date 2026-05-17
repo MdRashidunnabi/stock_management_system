@@ -3,9 +3,9 @@ import Link from "next/link";
 import {
   ArrowRight,
   BarChart3,
-  Boxes,
   CheckCircle2,
   FolderTree,
+  KeyRound,
   Package,
   Receipt,
   ScanLine,
@@ -30,7 +30,7 @@ async function loadCounts() {
   const since = new Date();
   since.setHours(0, 0, 0, 0);
 
-  const [products, categories, brands, suppliers, todaySales] = await Promise.all([
+  const [products, categories, brands, suppliers, todaySales, openSessions] = await Promise.all([
     supabase.from("products").select("id", { count: "exact", head: true }).eq("is_active", true),
     supabase.from("categories").select("id", { count: "exact", head: true }).eq("is_active", true),
     supabase.from("brands").select("id", { count: "exact", head: true }).eq("is_active", true),
@@ -40,6 +40,7 @@ async function loadCounts() {
       .select("total")
       .eq("status", "completed")
       .gte("created_at", since.toISOString()),
+    supabase.from("pos_sessions").select("id", { count: "exact", head: true }).eq("status", "open"),
   ]);
 
   const todaySalesRows = (todaySales.data ?? []) as Array<{ total: number }>;
@@ -52,6 +53,7 @@ async function loadCounts() {
     suppliers: suppliers.count ?? 0,
     salesToday: todaySalesRows.length,
     revenueToday: todayRevenue,
+    openSessions: openSessions.count ?? 0,
   };
 }
 
@@ -64,7 +66,7 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <div className="space-y-2">
         <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-xs">
-          Step 8 - POS sale flow live
+          Step 9 - Till sessions + Z-report live
         </Badge>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           Welcome back, {user.user_metadata?.full_name ?? user.email?.split("@")[0]}
@@ -83,6 +85,13 @@ export default async function DashboardPage() {
           label="Sales today"
           value={counts.salesToday.toString()}
           hint={formatEuro(counts.revenueToday)}
+        />
+        <StatCard
+          href="/sessions"
+          icon={<KeyRound className="size-4" />}
+          label="Open tills"
+          value={counts.openSessions.toString()}
+          hint={counts.openSessions === 0 ? "no shift in progress" : "shift in progress"}
         />
         <StatCard
           href="/products"
@@ -112,54 +121,44 @@ export default async function DashboardPage() {
           value={counts.suppliers.toString()}
           hint="active"
         />
-        <StatCard
-          href="/pos"
-          icon={<ScanLine className="size-4" />}
-          label="Open POS"
-          value="Sell"
-          hint="cash · card · split"
-        />
       </div>
 
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="text-primary size-5" />
-            <CardTitle className="text-lg">POS is ready</CardTitle>
+            <CardTitle className="text-lg">Till sessions are ready</CardTitle>
           </div>
           <CardDescription>
-            Take payments at the till - cash, card, contactless, or split. Each sale writes the
-            receipt, line items, payments and stock movements in one atomic transaction. Up next:
-            till open/close + Z-report (Step 9).
+            Open the till with a starting cash float, ring sales, record cash drops or pay-outs,
+            then close with a counted cash total. We compute the variance and produce a printable
+            Z-report. Up next: supplier receiving with weighted-average cost (Step 10).
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
             <Button asChild>
-              <Link href="/pos">
-                Open the till
+              <Link href="/sessions/open">
+                Open a till
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
             <Button asChild variant="outline">
+              <Link href="/pos">
+                <ScanLine className="size-4" /> Take payment
+              </Link>
+            </Button>
+            <Button asChild variant="ghost">
+              <Link href="/sessions">Past shifts</Link>
+            </Button>
+            <Button asChild variant="ghost">
               <Link href="/sales">Recent sales</Link>
-            </Button>
-            <Button asChild variant="ghost">
-              <Link href="/products/new">Add a product</Link>
-            </Button>
-            <Button asChild variant="ghost">
-              <Link href="/products/import">Bulk import</Link>
             </Button>
           </div>
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <ComingSoonCard
-          icon={<Boxes className="size-5" />}
-          title="Till sessions"
-          description="Open / close till, Z-reports, cash drawer movements - Step 9."
-        />
         <ComingSoonCard
           icon={<Truck className="size-5" />}
           title="Receiving"
