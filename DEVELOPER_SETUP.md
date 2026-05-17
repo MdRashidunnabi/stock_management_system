@@ -378,10 +378,91 @@ npm run test:onboarding:app  # full path through the running dev server
 
 ---
 
+## Step 7 - Product / category / brand / supplier CRUD + bulk import
+
+Step 7 is now live. Once you're signed in and have completed onboarding, the
+top navigation gives you four new routes:
+
+- `/products` - searchable, filterable, paginated list (active / archived / all)
+- `/categories` - flat list with inline add + edit dialog
+- `/brands` - same shape as categories
+- `/suppliers` - list with all the IE-specific fields (Eircode, VAT number,
+  payment terms, lead time...)
+
+Plus `/products/import` for the CSV bulk import.
+
+### What the agent built
+
+Each entity is split into:
+
+- `src/lib/<entity>/schemas.ts` - Zod schemas + types (importable from the
+  client, no `"use server"`)
+- `src/lib/<entity>/actions.ts` - server actions and queries
+  (`"use server"`, all exports are async)
+
+The shared `staffActionClient(roles)` in `src/lib/safe-action.ts` checks the
+caller's role before any mutation - this matches the RLS write policy for
+each table and gives users a friendly error if they don't have permission
+(without leaking the raw RLS denial).
+
+The product table uses three `LEFT JOIN`s so each row shows category, brand,
+and supplier names without an N+1.
+
+The bulk CSV importer:
+
+1. Validates row-by-row via `parseProductsCsvAction(csvText)`. Returns each
+   row tagged `ok: true` with a payload, or `ok: false` with an error string.
+2. After review, the client calls `commitProductsImportAction(rows)` which
+   inserts the valid rows in a single batch.
+3. References (`category`, `brand`, `supplier`) are looked up by slug or name
+   and resolved to UUIDs server-side. Unknown references surface as readable
+   errors before any insert.
+
+### One small DB fix in this step
+
+The product price-history audit trigger used to run as the calling user, so
+its `INSERT` was blocked by RLS the first time anyone updated a product's
+price. Fixed in `supabase/migrations/20260517120000_fix_price_history_trigger.sql`
+by switching the trigger function to `SECURITY DEFINER`.
+
+### Validate Step 7
+
+```bash
+# fast checks
+npm run typecheck
+npm run lint
+npm run build
+
+# smoke test - DB-level CRUD + RLS for all four entities
+npm run test:catalog
+```
+
+`test:catalog` boots two fresh tenants, exercises CRUD on every catalog
+table, verifies the price-history trigger works, runs a 5-row bulk insert,
+and asserts that one tenant cannot read or update the other's data.
+
+### Try it manually
+
+1. Sign in to `/dashboard` (any owner account; `owner@demo.shopos.local`
+   / `Owner123!` if you ran `npm run db:seed:auth`).
+2. Visit `/categories` and add **Beverages** and **Snacks**.
+3. Visit `/brands` and add **Tayto**.
+4. Visit `/suppliers` and click **New supplier** - fill in code `WS`, name
+   "Demo Wholesale", VAT `IE1234567T`, Eircode `D07 XY12`, payment terms
+   `Net 30`. Save.
+5. Visit `/products/new` and add a product. Pick the category, brand, and
+   supplier you just created. Set selling price `1.20`, VAT `STD`. Save.
+6. Visit `/products/import`, click **Load example**, **Validate CSV**, then
+   **Import** - you'll see the rows added to your catalog.
+7. Switch to the `cashier@demo.shopos.local` user (different password) and
+   confirm you can read but not write the catalog (the **New product** /
+   **Add** buttons disappear).
+
+---
+
 ## What the agent will do automatically next
 
-- Step 7 - Product CRUD
-- Step 8 - POS sale flow
+- Step 8 - POS sale flow (cart + scan + payment + receipt + stock writes)
 - Step 9 - Till open/close
 - Step 10 - Supplier receiving
 - Step 11 - Owner dashboard

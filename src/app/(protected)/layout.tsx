@@ -4,6 +4,7 @@ import { Store } from "lucide-react";
 import { getCurrentUser, getCurrentTenant, getUserTenants } from "@/lib/auth/tenant";
 import { TenantSwitcher } from "@/components/auth/tenant-switcher";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { TopNav } from "@/components/layout/top-nav";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 /**
@@ -50,6 +51,10 @@ export default async function ProtectedLayout({ children }: { children: React.Re
           <SignOutButton />
         </div>
       </header>
+
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+        <TopNav />
+      </div>
 
       <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">{children}</main>
     </div>

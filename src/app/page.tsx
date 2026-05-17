@@ -70,8 +70,8 @@ export default function HomePage() {
         </div>
 
         <div className="border-border bg-muted/40 text-muted-foreground rounded-lg border border-dashed p-4 text-center text-xs">
-          Status: Step 6 complete (tenant onboarding wizard). Next: Step 7 - product / supplier
-          CRUD.
+          Status: Step 7 complete (catalog CRUD + bulk import - products, categories, brands,
+          suppliers). Next: Step 8 - POS sale flow.
         </div>
       </div>
     </main>
