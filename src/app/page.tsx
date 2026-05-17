@@ -70,9 +70,9 @@ export default function HomePage() {
         </div>
 
         <div className="border-border bg-muted/40 text-muted-foreground rounded-lg border border-dashed p-4 text-center text-xs">
-          Status: Step 11 complete (owner dashboard: daily revenue, gross profit, top movers,
-          low-stock alerts, cash variance, period selector with vs prior-period deltas). Next: Step
-          12 - audit log + nightly backups.
+          Status: Step 12 complete (audit log via Postgres triggers on 13 tables, owner-only /audit
+          viewer with field-level diffs, pg_dump backup script + nightly GitHub Actions template).
+          Next: Step 13 - PWA shell + offline POS cache.
         </div>
       </div>
     </main>

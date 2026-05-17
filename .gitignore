@@ -67,3 +67,7 @@ venv/
 env/
 *-env/
 __pycache__/
+
+# database backups (produced by `npm run backup`)
+backups/*
+!backups/.gitkeep

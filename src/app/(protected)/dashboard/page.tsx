@@ -11,6 +11,7 @@ import {
   PackagePlus,
   Receipt,
   ScanLine,
+  ShieldCheck,
   ShoppingCart,
   Sparkles,
   TrendingUp,
@@ -107,7 +108,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-2">
           <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-xs">
-            Step 11 - Owner dashboard live
+            Step 12 - Audit log & backups live
           </Badge>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Welcome back, {user.user_metadata?.full_name ?? user.email?.split("@")[0]}
@@ -294,11 +295,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <CardHeader>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="text-primary size-5" />
-            <CardTitle className="text-lg">Owner dashboard is ready</CardTitle>
+            <CardTitle className="text-lg">Audit log + nightly backups are live</CardTitle>
           </div>
           <CardDescription>
-            Daily revenue, gross profit, cash variance, top movers, and low-stock alerts - scoped to
-            your shop and the period you pick. Up next: full audit log + nightly backups (Step 12).
+            Every create, update, and delete on the rows that matter is captured by a Postgres
+            trigger and viewable from the audit log. A nightly database backup script keeps a full
+            snapshot of the tenant data on disk. Up next: PWA shell + offline POS (Step 13).
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -323,6 +325,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                 <Receipt className="size-4" /> Recent sales
               </Link>
             </Button>
+            {(tenant.role === "owner" || tenant.role === "accountant") && (
+              <Button asChild variant="ghost">
+                <Link href="/audit">
+                  <ShieldCheck className="size-4" /> View audit log
+                </Link>
+              </Button>
+            )}
           </div>
           {salesSummary.paymentsByMethod.length > 0 ? (
             <div className="text-muted-foreground mt-4 flex flex-wrap items-center gap-3 text-xs">

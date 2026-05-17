@@ -12,6 +12,7 @@ import {
   PackagePlus,
   Receipt,
   ScanLine,
+  ShieldCheck,
   Tag,
   Truck,
 } from "lucide-react";
@@ -28,6 +29,7 @@ const NAV_ITEMS: { href: string; label: string; icon: React.ReactNode }[] = [
   { href: "/suppliers", label: "Suppliers", icon: <Truck className="size-4" /> },
   { href: "/purchase-orders", label: "Orders", icon: <FilePlus2 className="size-4" /> },
   { href: "/goods-receipts", label: "Receiving", icon: <PackagePlus className="size-4" /> },
+  { href: "/audit", label: "Audit", icon: <ShieldCheck className="size-4" /> },
 ];
 
 export function TopNav() {

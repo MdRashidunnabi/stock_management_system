@@ -922,9 +922,186 @@ through PostgREST. Expected: `Done: 25 pass, 0 fail`.
 
 ---
 
+## Step 12 - Audit log everywhere + nightly database backup
+
+The agent has shipped Step 12. Every business-meaningful row now generates
+a tamper-resistant audit entry in `public.audit_logs`, and there is an
+ops-ready `pg_dump` wrapper for taking on-disk database snapshots.
+
+### Why a database trigger (and not just app-layer logging)
+
+The audit entries are written by a `SECURITY DEFINER` trigger function in
+Postgres. That means an entry is created the moment the row is mutated,
+even if the change came from:
+
+- a server action (`@/lib/...`),
+- a direct SQL session,
+- a Supabase service-role tool,
+- or a future job we have not yet imagined.
+
+There is no way for a tenant member to bypass it without removing the
+trigger, which RLS does not let them do.
+
+### What got added
+
+- **Migration**
+  (`supabase/migrations/20260517160000_init_audit_triggers.sql`):
+  - `app.audit_row_change(entity_type)` - generic trigger function. It
+    serialises NEW (and OLD on UPDATE / DELETE) into `jsonb`, strips
+    `updated_at` so we only log meaningful diffs, resolves the tenant
+    from the row (or the row id, when the entity is a tenant), reads
+    the user from `auth.uid()` (which still works inside SECURITY
+    DEFINER RPCs), and inserts into `audit_logs`.
+  - 13 `after insert or update or delete` triggers attached to:
+    `tenants`, `branches`, `products`, `suppliers`, `categories`,
+    `brands`, `customers`, `purchase_orders`, `goods_receipts`,
+    `pos_sessions`, `sales`, `cash_drawer_movements`, and
+    `product_branch_settings`.
+  - High-frequency / already-audit tables (`stock_ledger`, `stock_balances`,
+    `sale_items`, `payments`, `purchase_order_items`,
+    `goods_receipt_items`, `product_price_history`, `audit_logs`,
+    `idempotency_keys`, `notifications`, `outbox`, `profiles`,
+    `user_tenants`) are intentionally NOT triggered to avoid noise.
+
+- **Library** (`src/lib/audit/`):
+  - `schemas.ts` - `AUDIT_ENTITY_TYPES`, `AUDIT_ACTION_VERBS`,
+    `auditFilterSchema` (Zod), `AuditLogRow`, and a `diffSnapshots`
+    helper that returns only fields that actually changed.
+  - `queries.ts` - `listAuditEntries(filter)`. Server-only, RLS-scoped,
+    resolves cashier / user labels via `public.profiles`.
+
+- **UI** (`src/app/(protected)/audit/page.tsx`):
+  - Owner / accountant / super-admin / support-admin only.
+  - Filters by entity type, action verb (created / updated / deleted),
+    and free-text search across action keyword or entity uuid.
+  - Click-to-expand rows show a clean `Field | Before | After` diff,
+    omitting timestamps. Long values are truncated to 80 chars.
+
+- **Top-nav + dashboard hooks**: a "View audit log" link on the dashboard
+  for owners + accountants, and an "Audit" tab in the top nav.
+
+- **Backup script** (`scripts/backup-db.mjs`):
+  - Wraps `pg_dump` (custom format by default; `--plain` outputs a
+    gzipped SQL file).
+  - Excludes the Supabase-managed schemas (`auth`, `storage`,
+    `realtime`, `supabase_functions`, `vault`, `graphql`, `extensions`,
+    etc.) so the dump can be restored cleanly into another Supabase
+    project.
+  - `--clean --if-exists` so re-running the dump on the target database
+    drops + recreates objects atomically.
+  - Reads `DATABASE_URL` from the env; defaults to the local Supabase
+    URL for development.
+  - Verifies the resulting file is at least 256 bytes and aborts if
+    not (catches "pg_dump silently produced an empty file" failures).
+  - Output lands in `./backups/<UTC-timestamp>.dump`. The directory is
+    git-ignored (only `.gitkeep` is committed).
+
+- **`npm run backup`** is the entry point. Add it to your local cron
+  if you want a daily snapshot:
+
+  ```cron
+  30 2 * * * cd /path/to/repo && /usr/bin/node scripts/backup-db.mjs >> /var/log/shopos-backup.log 2>&1
+  ```
+
+- **GitHub Actions template**
+  (`.github/workflows/backup.yml.example`): rename to `backup.yml`,
+  add the `DATABASE_URL`, `BACKUP_S3_BUCKET`, and AWS secrets, and
+  the workflow will produce a nightly dump and upload it to S3.
+
+### MANUAL-12 - One-time tasks
+
+1. **Apply the audit-triggers migration on a fresh DB**:
+
+   ```bash
+   npx supabase db reset
+   ```
+
+   This re-runs every migration including
+   `20260517160000_init_audit_triggers.sql`. If you applied the change
+   without a reset, verify the triggers exist:
+
+   ```bash
+   psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+     -c "select tgname from pg_trigger where tgname like 'audit_%' order by tgname;"
+   ```
+
+   You should see 13 triggers.
+
+2. **Verify pg_dump is installed**:
+
+   ```bash
+   pg_dump --version
+   ```
+
+   On Ubuntu: `sudo apt-get install -y postgresql-client`. On macOS:
+   `brew install libpq && brew link --force libpq`. On Windows the
+   Postgres installer ships `pg_dump.exe`.
+
+3. **Take your first backup**:
+
+   ```bash
+   npm run backup
+   ```
+
+   You should see something like:
+
+   ```text
+   ==> Dumping postgresql://postgres:***@127.0.0.1:54322/postgres
+   ==> Output  backups/shopos-2026-05-17-220000.dump
+   ==> Done. 332,711 bytes written.
+   ```
+
+   The file is in Postgres custom format. Restore it with:
+
+   ```bash
+   pg_restore --clean --if-exists --no-owner --no-privileges \
+     --dbname "$DATABASE_URL" backups/shopos-2026-05-17-220000.dump
+   ```
+
+4. **(Production prep)** When you are ready, copy
+   `.github/workflows/backup.yml.example` to
+   `.github/workflows/backup.yml`, add the secrets in the file
+   header, and push. The first run will trigger via
+   `workflow_dispatch`; afterwards it will run nightly at 02:30 UTC.
+
+### MANUAL-12 - Validate locally
+
+1. Sign in as a tenant owner.
+2. Visit `/audit`. You should see at least three entries from the
+   onboarding wizard (`tenant.created`, `branch.created`,
+   `tenant.updated`).
+3. Click any row - it expands to show the `Field | Before | After`
+   diff. For `.created` rows, "Before" is empty.
+4. Open `/products/new`, save a product, then visit `/audit?entity=product`.
+   The new row appears with `product.created` and a populated `after`.
+5. Edit the product (change the name and save). Refresh `/audit`. You
+   see a `product.updated` row whose diff shows only the `name` field
+   changing.
+6. Sign in as a non-owner role (e.g. cashier) and try to load `/audit`.
+   You are redirected to `/dashboard?error=forbidden`.
+7. Sign in as a different tenant. `/audit` shows only that tenant's
+   entries, never the previous tenant's.
+
+You can also run the dedicated smoke test:
+
+```bash
+npm run test:audit
+```
+
+`test:audit` bootstraps two tenants, mutates suppliers / categories /
+brands as tenant A, opens + closes a POS session, then asserts that
+every audit row exists with the right `entity_type`, action verb,
+before/after diff, and `user_id`. It then verifies tenant B sees zero
+of A's rows but does see its own. Finally it spawns
+`scripts/backup-db.mjs --output <tmp>` and asserts the resulting file
+is non-empty and starts with the `PGDMP` magic header used by
+Postgres custom-format archives. Expected:
+`Done: 14 pass, 0 fail`.
+
+---
+
 ## What the agent will do automatically next
 
-- Step 12 - Audit log + automated daily backup script
 - Step 13 - PWA shell + offline POS cache (Serwist)
 - Step 14 - Vitest unit tests + Playwright e2e for the POS critical path
 - Step 15 - Production deploy: Vercel + Supabase prod + custom domain

@@ -1,0 +1,75 @@
+# =============================================================================
+# ShopOS - Step 12 - Nightly Postgres backup workflow (template)
+# =============================================================================
+#
+# To enable:
+#   1. Rename this file to `backup.yml`.
+#   2. In repository settings, add the following secrets:
+#        DATABASE_URL          - Supabase production Postgres URL
+#                                (use the Pooler connection string from Supabase)
+#        BACKUP_S3_BUCKET      - bucket where the dump should land
+#        AWS_ACCESS_KEY_ID     - account with PutObject on that bucket
+#        AWS_SECRET_ACCESS_KEY
+#        AWS_REGION            - e.g. eu-west-1
+#   3. Adjust the cron schedule below if needed.
+#   4. (Optional) wire alerts in your runner so a failed backup pages you.
+#
+# Where the dump goes:
+#   s3://$BACKUP_S3_BUCKET/shopos/<YYYY-MM-DD>/shopos-<YYYY-MM-DD-HHMMSS>.dump
+#
+# Restoring later:
+#   aws s3 cp s3://.../shopos-2026-05-17-220000.dump ./
+#   pg_restore --clean --if-exists --no-owner --no-privileges \
+#     --dbname "$DATABASE_URL" shopos-2026-05-17-220000.dump
+#
+# Cost note: a typical small-shop dump is < 5 MB compressed; a year of
+#            daily dumps is ~2 GB which sits well under most free tiers.
+
+name: nightly-backup
+
+on:
+  schedule:
+    # 02:30 UTC = 03:30 Dublin (winter) / 02:30 (summer) - off-peak.
+    - cron: "30 2 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install postgresql-client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client gzip
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run backup
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node scripts/backup-db.mjs
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload dump to S3
+        run: |
+          DUMP_FILE=$(ls -t backups/*.dump | head -n 1)
+          DAY=$(date -u +%Y-%m-%d)
+          aws s3 cp "$DUMP_FILE" "s3://${{ secrets.BACKUP_S3_BUCKET }}/shopos/$DAY/$(basename $DUMP_FILE)" \
+            --storage-class STANDARD_IA
+
+      - name: Prune local artifact
+        if: always()
+        run: rm -f backups/*.dump

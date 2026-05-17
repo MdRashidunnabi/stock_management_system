@@ -34,6 +34,8 @@
     "test:sessions": "node scripts/test-sessions-flow.mjs",
     "test:purchasing": "node scripts/test-purchasing-flow.mjs",
     "test:reports": "node scripts/test-reports-flow.mjs",
+    "test:audit": "node scripts/test-audit-flow.mjs",
+    "backup": "node scripts/backup-db.mjs",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
