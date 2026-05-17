@@ -1,0 +1,15 @@
+node_modules
+.next
+.turbo
+out
+dist
+build
+coverage
+playwright-report
+test-results
+supabase/.branches
+supabase/.temp
+src/db/migrations
+*.lock
+package-lock.json
+pnpm-lock.yaml
