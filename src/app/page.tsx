@@ -70,8 +70,8 @@ export default function HomePage() {
         </div>
 
         <div className="border-border bg-muted/40 text-muted-foreground rounded-lg border border-dashed p-4 text-center text-xs">
-          Status: Step 7 complete (catalog CRUD + bulk import - products, categories, brands,
-          suppliers). Next: Step 8 - POS sale flow.
+          Status: Step 8 complete (POS sale flow - cart, scan, split tender, atomic stock writes,
+          printable receipts). Next: Step 9 - till open/close + Z-report.
         </div>
       </div>
     </main>

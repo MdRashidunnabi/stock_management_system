@@ -7,7 +7,8 @@ import {
   CheckCircle2,
   FolderTree,
   Package,
-  ShoppingCart,
+  Receipt,
+  ScanLine,
   Tag,
   Truck,
   Users,
@@ -17,6 +18,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatEuro } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -24,17 +26,32 @@ export const metadata: Metadata = {
 
 async function loadCounts() {
   const supabase = await createClient();
-  const [products, categories, brands, suppliers] = await Promise.all([
+
+  const since = new Date();
+  since.setHours(0, 0, 0, 0);
+
+  const [products, categories, brands, suppliers, todaySales] = await Promise.all([
     supabase.from("products").select("id", { count: "exact", head: true }).eq("is_active", true),
     supabase.from("categories").select("id", { count: "exact", head: true }).eq("is_active", true),
     supabase.from("brands").select("id", { count: "exact", head: true }).eq("is_active", true),
     supabase.from("suppliers").select("id", { count: "exact", head: true }).eq("is_active", true),
+    supabase
+      .from("sales")
+      .select("total")
+      .eq("status", "completed")
+      .gte("created_at", since.toISOString()),
   ]);
+
+  const todaySalesRows = (todaySales.data ?? []) as Array<{ total: number }>;
+  const todayRevenue = todaySalesRows.reduce((sum, row) => sum + Number(row.total ?? 0), 0);
+
   return {
     products: products.count ?? 0,
     categories: categories.count ?? 0,
     brands: brands.count ?? 0,
     suppliers: suppliers.count ?? 0,
+    salesToday: todaySalesRows.length,
+    revenueToday: todayRevenue,
   };
 }
 
@@ -47,7 +64,7 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <div className="space-y-2">
         <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-xs">
-          Step 7 - Catalog CRUD live
+          Step 8 - POS sale flow live
         </Badge>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           Welcome back, {user.user_metadata?.full_name ?? user.email?.split("@")[0]}
@@ -59,30 +76,48 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <StatCard
+          href="/sales"
+          icon={<Receipt className="size-4" />}
+          label="Sales today"
+          value={counts.salesToday.toString()}
+          hint={formatEuro(counts.revenueToday)}
+        />
         <StatCard
           href="/products"
           icon={<Package className="size-4" />}
           label="Products"
-          value={counts.products}
+          value={counts.products.toString()}
+          hint="active"
         />
         <StatCard
           href="/categories"
           icon={<FolderTree className="size-4" />}
           label="Categories"
-          value={counts.categories}
+          value={counts.categories.toString()}
+          hint="active"
         />
         <StatCard
           href="/brands"
           icon={<Tag className="size-4" />}
           label="Brands"
-          value={counts.brands}
+          value={counts.brands.toString()}
+          hint="active"
         />
         <StatCard
           href="/suppliers"
           icon={<Truck className="size-4" />}
           label="Suppliers"
-          value={counts.suppliers}
+          value={counts.suppliers.toString()}
+          hint="active"
+        />
+        <StatCard
+          href="/pos"
+          icon={<ScanLine className="size-4" />}
+          label="Open POS"
+          value="Sell"
+          hint="cash · card · split"
         />
       </div>
 
@@ -90,40 +125,36 @@ export default async function DashboardPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="text-primary size-5" />
-            <CardTitle className="text-lg">Catalog is ready</CardTitle>
+            <CardTitle className="text-lg">POS is ready</CardTitle>
           </div>
           <CardDescription>
-            You can now manage products, categories, brands, and suppliers, and bulk-import products
-            from a CSV. Up next: POS sale flow with stock ledger writes (Step 8).
+            Take payments at the till - cash, card, contactless, or split. Each sale writes the
+            receipt, line items, payments and stock movements in one atomic transaction. Up next:
+            till open/close + Z-report (Step 9).
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
             <Button asChild>
-              <Link href="/products/new">
-                Add a product
+              <Link href="/pos">
+                Open the till
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
             <Button asChild variant="outline">
+              <Link href="/sales">Recent sales</Link>
+            </Button>
+            <Button asChild variant="ghost">
+              <Link href="/products/new">Add a product</Link>
+            </Button>
+            <Button asChild variant="ghost">
               <Link href="/products/import">Bulk import</Link>
-            </Button>
-            <Button asChild variant="ghost">
-              <Link href="/categories">Manage categories</Link>
-            </Button>
-            <Button asChild variant="ghost">
-              <Link href="/suppliers">Manage suppliers</Link>
             </Button>
           </div>
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <ComingSoonCard
-          icon={<ShoppingCart className="size-5" />}
-          title="POS"
-          description="Tablet POS with scanner, payments, and stock writes - Step 8."
-        />
         <ComingSoonCard
           icon={<Boxes className="size-5" />}
           title="Till sessions"
@@ -154,11 +185,13 @@ function StatCard({
   icon,
   label,
   value,
+  hint,
 }: {
   href: string;
   icon: React.ReactNode;
   label: string;
-  value: number;
+  value: string;
+  hint?: string;
 }) {
   return (
     <Link href={href}>
@@ -171,7 +204,7 @@ function StatCard({
         </CardHeader>
         <CardContent>
           <p className="text-2xl font-semibold">{value}</p>
-          <p className="text-muted-foreground text-xs">active in this shop</p>
+          {hint ? <p className="text-muted-foreground text-xs">{hint}</p> : null}
         </CardContent>
       </Card>
     </Link>

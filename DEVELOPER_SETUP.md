@@ -460,15 +460,119 @@ and asserts that one tenant cannot read or update the other's data.
 
 ---
 
+## Step 8 - POS sale flow (cart, scan, payment, receipt, stock writes)
+
+Step 8 turns the catalog into a working point-of-sale terminal. Every sale
+flows through one atomic Postgres function (`public.commit_pos_sale`), so the
+sale header, line items, payments, stock ledger writes, balance updates, and
+cash-drawer movements either ALL commit together or none of them do.
+
+### What's new
+
+- `/pos` - full-screen POS terminal with scan/search, cart, and payment dialog
+  (cash, card, contactless, and arbitrary split tenders).
+- `/sales` - last 100 receipts across every branch (clickable receipt links).
+- `/sales/[id]` - printable receipt: items, totals, VAT breakdown, and
+  payments. The print stylesheet hides the back link and print button so
+  thermal printers and A5 sheets get a clean output.
+- `commit_pos_sale` RPC - SECURITY DEFINER, signed in to `authenticated`. The
+  caller passes `[{product_id, qty, discount?}]` and `[{method, amount, ...}]`;
+  the function reloads each product's price + VAT from the catalog (so the
+  client cannot tamper with prices), computes line totals, generates a
+  per-branch sequential receipt number, and writes everything in one
+  transaction.
+- `app.next_receipt_number` - locked + atomic counter per (tenant, branch)
+  with format `<BRANCHCODE>-NNNNNN` (e.g. `MAIN-000017`).
+- `app.ensure_open_pos_session` - returns or auto-opens a till session for the
+  cashier. When Step 9 ships, that step's UI will open the session ahead of
+  time and this helper becomes a fallback. For now you can sell without
+  thinking about sessions.
+- `receipt_counters` table - per-branch counter, RLS read-only for tenant
+  members, written only by the SECURITY DEFINER RPC.
+- Stock writes go through the existing `app.apply_stock_movement` helper
+  with `from_state='available'` and `to_state=NULL` (i.e. inventory is
+  decremented; the sales table is the source of truth for what was sold).
+- Bug fix: `stock_balances` now uses `UNIQUE NULLS NOT DISTINCT`, so products
+  without variants no longer end up with duplicate balance rows on each sale.
+
+### MANUAL-8.1 - Apply the new migrations to your local database
+
+If your local Supabase is already running (Step 4) just keep it running. Two
+new migrations were added in `supabase/migrations/`:
+
+- `20260517130000_init_pos_sale_rpc.sql`
+- `20260517130100_fix_stock_balances_nulls.sql`
+
+A clean `npm run supabase:start` (or `npx supabase db reset`) will pick them
+up. If you want to apply them to a database that is already running without
+resetting the data, run them once with psql:
+
+```bash
+psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' \
+  -f supabase/migrations/20260517130000_init_pos_sale_rpc.sql
+psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' \
+  -f supabase/migrations/20260517130100_fix_stock_balances_nulls.sql
+```
+
+### Validate Step 8
+
+```bash
+npm run typecheck
+npm run lint
+npm run build
+npm run test:catalog
+npm run test:pos
+```
+
+`test:pos` boots two fresh tenants, seeds two products with starting stock,
+commits a multi-line sale paid by cash + card, and asserts:
+
+- the receipt + items + payments + cash-drawer movement all land,
+- the stock ledger gets one outbound row per item,
+- the stock balances are correctly decremented,
+- a follow-up sale reuses the same open POS session,
+- receipt numbers are sequential per branch,
+- a different tenant cannot see or write any of the new rows,
+- empty carts and under-payments are rejected with clear messages.
+
+### Manual walkthrough for Step 8
+
+1. Sign in to your demo tenant. Make sure you have at least one product in the
+   catalog (Step 7). New shops with no products will see an empty search.
+2. Visit `/products/new` and create a couple of products with sensible
+   selling prices and VAT codes (e.g. one `STD` 23 % and one `ZER`).
+3. Because we don't yet have a goods-receipt UI (that's Step 10), the easiest
+   way to give the products some starting stock is via Supabase Studio:
+   - Open `http://127.0.0.1:54323`, table `stock_balances`.
+   - Insert one row per product: pick your tenant, branch, product, leave
+     `variant_id` null, set `state = available`, `quantity = 50`.
+4. Visit `/pos`. The branch picker should show your branch. The scan box is
+   focused by default - type part of a product name and click a result to add
+   it to the cart, or paste a barcode and hit Enter for a one-tap add.
+5. Use **+** / **-** to adjust quantity, type a discount in EUR if you want a
+   per-line discount.
+6. Click **Take payment**. The dialog opens with one cash tender prefilled at
+   the total. Try the **Exact card** shortcut, or click **Add another
+   tender** to split between cash and card. Click **Complete sale**.
+7. The receipt opens in a new tab at `/sales/<id>`. Click **Print** in the
+   top-right to use the browser print dialog (the back link and Print button
+   are hidden in the print stylesheet).
+8. Visit `/sales` to see the receipt in the recent-sales list. Open it again,
+   refresh the dashboard, and you'll see today's sales count + revenue.
+9. Sign in as a cashier-only user from a different tenant and confirm you
+   cannot see any of those sales (RLS is doing its job).
+
+---
+
 ## What the agent will do automatically next
 
-- Step 8 - POS sale flow (cart + scan + payment + receipt + stock writes)
-- Step 9 - Till open/close
-- Step 10 - Supplier receiving
+- Step 9 - Till open/close (POS sessions) + Z-report + cash drawer movements
+- Step 10 - Supplier receiving (purchase orders + goods receipts)
 - Step 11 - Owner dashboard
 - Step 12 - Audit log + backups
 - Step 13 - PWA shell + offline POS
 - Step 14 - Tests
+- Step 15 - Production deploy
 
 Each module will tell you any new MANUAL step you need (e.g. running a
 migration, granting a permission, configuring a webhook).

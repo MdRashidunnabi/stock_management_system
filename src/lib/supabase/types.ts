@@ -1556,6 +1556,42 @@ export type Database = {
           },
         ];
       };
+      receipt_counters: {
+        Row: {
+          branch_id: string;
+          last_seq: number;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          branch_id: string;
+          last_seq?: number;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          branch_id?: string;
+          last_seq?: number;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "receipt_counters_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "receipt_counters_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sale_items: {
         Row: {
           batch_id: string | null;
@@ -2238,6 +2274,26 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      commit_pos_sale: {
+        Args: {
+          p_branch_id: string;
+          p_channel?: Database["public"]["Enums"]["sale_channel"];
+          p_customer_id?: string;
+          p_items: Json;
+          p_notes?: string;
+          p_payments: Json;
+          p_rounding?: number;
+          p_session_id?: string;
+          p_terminal_id?: string;
+        };
+        Returns: {
+          pos_session_id: string;
+          receipt_number: string;
+          sale_id: string;
+          total: number;
+          vat_total: number;
+        }[];
+      };
       create_tenant_with_owner: {
         Args: {
           p_branch_address_line1?: string;

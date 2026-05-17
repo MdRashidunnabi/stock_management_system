@@ -30,6 +30,7 @@
     "test:onboarding": "node scripts/test-onboarding-flow.mjs",
     "test:onboarding:app": "node scripts/test-onboarding-via-app.mjs",
     "test:catalog": "node scripts/test-catalog-flow.mjs",
+    "test:pos": "node scripts/test-pos-flow.mjs",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
