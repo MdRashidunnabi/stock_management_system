@@ -2238,6 +2238,29 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      create_tenant_with_owner: {
+        Args: {
+          p_branch_address_line1?: string;
+          p_branch_city?: string;
+          p_branch_code?: string;
+          p_branch_county?: string;
+          p_branch_eircode?: string;
+          p_branch_name?: string;
+          p_country?: string;
+          p_currency?: string;
+          p_display_name: string;
+          p_legal_name: string;
+          p_locale?: string;
+          p_slug: string;
+          p_timezone?: string;
+          p_vat_number?: string;
+        };
+        Returns: {
+          branch_id: string;
+          slug: string;
+          tenant_id: string;
+        }[];
+      };
       show_limit: { Args: never; Returns: number };
       show_trgm: { Args: { "": string }; Returns: string[] };
       unaccent: { Args: { "": string }; Returns: string };

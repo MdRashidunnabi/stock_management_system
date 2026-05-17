@@ -338,9 +338,48 @@ Production will have `enable_confirmations = true` permanently.
 
 ---
 
+## 9. Step 6 - Tenant onboarding wizard (already shipped)
+
+A fresh user that signs up but has no tenant memberships now lands on a real
+3-step wizard at `/onboarding` instead of the placeholder:
+
+1. **Your shop** - legal name, display name, URL handle (auto-derived,
+   editable; server auto-suffixes if taken), optional VAT number.
+2. **First branch** - branch code (default `MAIN`), branch name, optional
+   address + Eircode.
+3. **Review** - confirm everything, click "Create my shop".
+
+When the user submits, a server action calls a SECURITY DEFINER Postgres
+function (`public.create_tenant_with_owner`) that atomically:
+
+- inserts the tenant,
+- inserts the first branch,
+- inserts the calling user into `user_tenants` with role `owner`,
+- and returns `(tenant_id, branch_id, slug)`.
+
+The action then writes the active-tenant cookie and pushes the user to
+`/dashboard`. The whole flow is covered by three live smoke tests:
+
+```bash
+npm run test:auth            # /api/health, sign-in, RLS, password reset
+npm run test:onboarding      # RPC contract, 42501 on second call, slug auto-suffixing
+npm run test:onboarding:app  # full path through the running dev server
+```
+
+### Try it manually
+
+1. `npm run dev` and open <http://localhost:3000/signup>.
+2. Sign up with a brand-new email (anything, e.g. `me@example.com` /
+   `MyPass123!`). With the local default of `enable_confirmations = false`,
+   you'll be signed in straight away.
+3. You'll be redirected to `/onboarding`. Walk through the 3 steps.
+4. Click **Create my shop** - you land on `/dashboard` with your shop name in
+   the tenant switcher and your role as `owner`.
+
+---
+
 ## What the agent will do automatically next
 
-- Step 6 - Tenant onboarding wizard (real /onboarding page)
 - Step 7 - Product CRUD
 - Step 8 - POS sale flow
 - Step 9 - Till open/close

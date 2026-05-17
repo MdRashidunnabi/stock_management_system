@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { Sparkles } from "lucide-react";
-import { AuthShell } from "@/components/auth/auth-shell";
+import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { getCurrentTenant, requireUser } from "@/lib/auth/tenant";
 
@@ -11,12 +9,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * Onboarding placeholder. Step 6 will turn this into a real wizard
- * (create shop, first branch, first user, IVA defaults, currency).
- *
- * For now: if the signed-in user already has a tenant, send them to the
- * dashboard. Otherwise show a friendly "we're not done yet" message so they
- * don't hit a redirect loop.
+ * Onboarding wizard. Reached when a signed-in user has no active tenant
+ * (e.g. just signed up and hasn't created a shop yet). If they already have
+ * a tenant, send them to the dashboard.
  */
 export default async function OnboardingPage() {
   const user = await requireUser();
@@ -24,27 +19,18 @@ export default async function OnboardingPage() {
   if (tenant) redirect("/dashboard");
 
   return (
-    <AuthShell>
-      <div className="space-y-6 text-center">
-        <div className="bg-primary/10 text-primary mx-auto flex size-12 items-center justify-center rounded-full">
-          <Sparkles className="size-6" />
-        </div>
-        <div className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight">You&apos;re almost there</h1>
-          <p className="text-muted-foreground text-sm">
-            You&apos;re signed in as{" "}
-            <span className="text-foreground font-medium">{user.email}</span> but you don&apos;t
-            belong to any shop yet. The tenant onboarding wizard ships in Step 6 - until then, ask
-            an existing owner to invite you, or sign out and pick a different account.
-          </p>
-        </div>
-        <div className="flex items-center justify-center gap-3">
-          <Link href="/" className="text-foreground text-sm underline-offset-2 hover:underline">
-            Back to home
-          </Link>
-          <SignOutButton />
-        </div>
-      </div>
-    </AuthShell>
+    <div className="bg-background min-h-dvh">
+      <header className="border-border bg-card/40 sticky top-0 z-30 flex h-14 items-center justify-between border-b px-4 backdrop-blur sm:px-6">
+        <div className="text-muted-foreground text-xs">ShopOS - Ireland</div>
+        <SignOutButton />
+      </header>
+
+      <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6 lg:py-12">
+        <OnboardingWizard
+          ownerEmail={user.email ?? "you"}
+          ownerName={(user.user_metadata?.full_name as string | undefined) ?? null}
+        />
+      </main>
+    </div>
   );
 }

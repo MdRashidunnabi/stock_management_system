@@ -39,3 +39,21 @@ export function formatDateTimeIE(date: Date | string | number) {
 export function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
+
+/**
+ * Convert a free-form display name into a URL-safe slug.
+ *  - lowercase
+ *  - strip diacritics ("Café" -> "cafe")
+ *  - replace runs of non-alphanumerics with a single dash
+ *  - trim leading/trailing dashes
+ *  - clamp to 60 chars (matches our DB column comfort)
+ */
+export function slugify(input: string): string {
+  return input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
