@@ -1592,6 +1592,35 @@ export type Database = {
           },
         ];
       };
+      purchasing_counters: {
+        Row: {
+          tenant_id: string;
+          kind: string;
+          last_seq: number;
+          updated_at: string;
+        };
+        Insert: {
+          tenant_id: string;
+          kind: string;
+          last_seq?: number;
+          updated_at?: string;
+        };
+        Update: {
+          tenant_id?: string;
+          kind?: string;
+          last_seq?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "purchasing_counters_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sale_items: {
         Row: {
           batch_id: string | null;
@@ -2324,6 +2353,51 @@ export type Database = {
           sale_id: string;
           total: number;
           vat_total: number;
+        }[];
+      };
+      create_purchase_order: {
+        Args: {
+          p_branch_id: string;
+          p_supplier_id: string;
+          p_items: Json;
+          p_expected_at?: string | null;
+          p_notes?: string | null;
+          p_currency?: string;
+        };
+        Returns: {
+          po_id: string;
+          po_number: string;
+          subtotal: number;
+          vat_total: number;
+          total: number;
+        }[];
+      };
+      create_goods_receipt: {
+        Args: {
+          p_branch_id: string;
+          p_supplier_id: string;
+          p_items: Json;
+          p_purchase_order_id?: string | null;
+          p_invoice_number?: string | null;
+          p_invoice_total?: number | null;
+          p_received_at?: string | null;
+          p_notes?: string | null;
+        };
+        Returns: {
+          gr_id: string;
+          gr_number: string;
+        }[];
+      };
+      finalise_goods_receipt: {
+        Args: {
+          p_gr_id: string;
+        };
+        Returns: {
+          gr_id: string;
+          gr_number: string;
+          po_id: string | null;
+          po_status: Database["public"]["Enums"]["purchase_order_status"] | null;
+          items_count: number;
         }[];
       };
       create_tenant_with_owner: {

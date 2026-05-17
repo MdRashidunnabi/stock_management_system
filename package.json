@@ -32,6 +32,7 @@
     "test:catalog": "node scripts/test-catalog-flow.mjs",
     "test:pos": "node scripts/test-pos-flow.mjs",
     "test:sessions": "node scripts/test-sessions-flow.mjs",
+    "test:purchasing": "node scripts/test-purchasing-flow.mjs",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",

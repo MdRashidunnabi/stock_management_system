@@ -70,8 +70,9 @@ export default function HomePage() {
         </div>
 
         <div className="border-border bg-muted/40 text-muted-foreground rounded-lg border border-dashed p-4 text-center text-xs">
-          Status: Step 9 complete (till open/close, cash drawer movements, printable Z-report with
-          variance). Next: Step 10 - supplier receiving with weighted-average cost.
+          Status: Step 10 complete (purchase orders, goods receipts, weighted-average cost on every
+          finalised receipt, automatic PO status sync). Next: Step 11 - owner reports with daily
+          profit, cash variance, and top movers.
         </div>
       </div>
     </main>

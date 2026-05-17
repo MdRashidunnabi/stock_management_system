@@ -5,9 +5,11 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Boxes,
+  FilePlus2,
   FolderTree,
   KeyRound,
   Package,
+  PackagePlus,
   Receipt,
   ScanLine,
   Tag,
@@ -24,6 +26,8 @@ const NAV_ITEMS: { href: string; label: string; icon: React.ReactNode }[] = [
   { href: "/categories", label: "Categories", icon: <FolderTree className="size-4" /> },
   { href: "/brands", label: "Brands", icon: <Tag className="size-4" /> },
   { href: "/suppliers", label: "Suppliers", icon: <Truck className="size-4" /> },
+  { href: "/purchase-orders", label: "Orders", icon: <FilePlus2 className="size-4" /> },
+  { href: "/goods-receipts", label: "Receiving", icon: <PackagePlus className="size-4" /> },
 ];
 
 export function TopNav() {

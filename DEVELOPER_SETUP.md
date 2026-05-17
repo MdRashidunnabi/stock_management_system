@@ -689,15 +689,132 @@ proves that:
 
 ---
 
+## Step 10 - Supplier receiving (purchase orders + goods receipts) with weighted-average cost
+
+The agent has shipped Step 10. The shop now has a complete supplier-receiving
+loop: a manager can write a purchase order, a warehouse user can record a
+goods receipt against that PO (or stand-alone), and **finalising** the
+receipt atomically:
+
+1. Pushes the goods into the right branch's stock (state: `available`).
+2. Updates each product's `purchase_price` using a **weighted-average cost**
+   (WAC) formula:
+
+   ```
+   new_cost = (current_qty * current_cost + received_qty * receipt_unit_cost)
+              / (current_qty + received_qty)
+   ```
+
+   so margin reports stay accurate when supplier prices move.
+
+3. Increments `qty_received` on the matching PO lines and rolls the PO
+   header status to `partially_received` or `received`.
+4. Locks the receipt - it cannot be edited or finalised again.
+
+### What got added
+
+- **DB**: `purchasing_counters` (per-tenant `PO-NNNNNN` and `GR-NNNNNN`
+  sequences) and three `SECURITY DEFINER` RPCs in
+  `supabase/migrations/20260517150000_init_purchasing_rpcs.sql`:
+  - `public.create_purchase_order(branch, supplier, items, ...)`
+  - `public.create_goods_receipt(branch, supplier, items, ?po, ?invoice, ...)`
+  - `public.finalise_goods_receipt(gr_id)` - the heavy one (WAC + stock +
+    PO sync).
+- **Library**: `src/lib/purchasing/schemas.ts`,
+  `src/lib/purchasing/orders/actions.ts`,
+  `src/lib/purchasing/receipts/actions.ts`. All mutations go through the
+  `staffActionClient` and are restricted to `owner` / `manager` /
+  `warehouse`.
+- **UI**:
+  - `/purchase-orders` - list with status filtering.
+  - `/purchase-orders/new` - dynamic line-item grid, auto-pulled VAT codes
+    - last cost, live subtotal/VAT/total preview.
+  - `/purchase-orders/[id]` - PO header + lines, status actions (mark
+    submitted / cancel), and **Receive goods** button.
+  - `/goods-receipts`, `/goods-receipts/new`, `/goods-receipts/[id]`
+    (with **Finalise & update stock** confirm-first button).
+- **Top nav**: `Orders` and `Receiving` links wired in.
+- **Dashboard**: tiles for `Open POs` and `Draft receipts`, status-banner
+  copy moved to Step 10.
+
+### MANUAL-10 - Validate locally
+
+Restart the dev server if it is running:
+
+```bash
+npm run dev
+```
+
+then walk through this end-to-end flow:
+
+1. Sign in as the owner of an existing pilot tenant.
+2. **Open** `/suppliers/new` and create at least one supplier
+   (e.g. _Acme Wholesale_, code `ACME`).
+3. **Open** `/purchase-orders/new`:
+   - Pick a branch and the supplier.
+   - Add a line for one of your products: qty `10`, unit cost `1.00`, VAT
+     `Standard 23%`.
+   - Add a second line for another product: qty `5`, unit cost `2.00`.
+   - The footer should show subtotal `EUR 20.00`, VAT `EUR 4.60`, total
+     `EUR 24.60`.
+   - Click **Create purchase order**. You land on the PO detail page with
+     status `draft`, all lines `outstanding`.
+4. On the detail page click **Mark as ordered**. The badge flips to
+   `ordered` (DB enum value `submitted`) and `ordered_at` is stamped.
+5. Click **Receive goods**. The new GR form is pre-filled with the
+   outstanding quantities. Change the first line to qty `8` (partial
+   delivery) and bump its unit cost to `1.10` (price went up). Save the
+   draft.
+6. On the GR detail page (status `draft`), open `/products` in another
+   tab and note your product's current `purchase_price`. Click
+   **Finalise & update stock** twice (confirm step).
+7. Verify in the UI:
+   - GR status flips to `finalised`.
+   - PO status flips to `partially_received`.
+   - On the PO detail page, line 1 shows `received: 8 / outstanding: 2`,
+     line 2 shows `received: 5 / outstanding: 0`.
+   - Refresh `/products` - line 1's product purchase price is now
+     `1.1000` (we had no prior stock at that branch).
+8. Click **Receive goods** again from the same PO. The form is now
+   pre-filled with only the remaining 2 of line 1. Bump the unit cost to
+   `1.50`, save and finalise.
+9. The PO status flips to `received` and the product purchase price is
+   now `1.1800` - i.e. `(8 * 1.10 + 2 * 1.50) / 10` (weighted average
+   blend).
+10. Sanity-check stock: open Supabase Studio (or `supabase db psql`) and
+    run
+
+    ```sql
+    select product_id, branch_id, state, quantity
+      from public.stock_balances
+     order by product_id;
+    ```
+
+    The line-1 product should be at exactly `10` at that branch.
+
+You can also run the full smoke test against the local stack:
+
+```bash
+npm run test:purchasing
+```
+
+`test:purchasing` boots two tenants, creates a PO with two lines, marks
+it as submitted, files a partial GR, finalises it (asserting WAC + stock
+ledger + PO line sync), files a second GR for the rest at a higher
+price (asserting the WAC blend formula and that the PO rolls to
+`received`), then verifies that another tenant cannot see or modify any
+of it via RLS. Expected output: `Done: 29 pass, 0 fail`.
+
+---
+
 ## What the agent will do automatically next
 
-- Step 10 - Supplier receiving (purchase orders + goods receipts) with
-  weighted-average cost
-- Step 11 - Owner dashboard
-- Step 12 - Audit log + backups
-- Step 13 - PWA shell + offline POS
-- Step 14 - Tests
-- Step 15 - Production deploy
+- Step 11 - Owner dashboard (daily sales, profit, low-stock, cash
+  variance, top movers)
+- Step 12 - Audit log + automated daily backup script
+- Step 13 - PWA shell + offline POS cache (Serwist)
+- Step 14 - Vitest unit tests + Playwright e2e for the POS critical path
+- Step 15 - Production deploy: Vercel + Supabase prod + custom domain
 
 Each module will tell you any new MANUAL step you need (e.g. running a
 migration, granting a permission, configuring a webhook).

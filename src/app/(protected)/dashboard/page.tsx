@@ -4,12 +4,12 @@ import {
   ArrowRight,
   BarChart3,
   CheckCircle2,
-  FolderTree,
+  FilePlus2,
   KeyRound,
   Package,
+  PackagePlus,
   Receipt,
   ScanLine,
-  Tag,
   Truck,
   Users,
 } from "lucide-react";
@@ -30,30 +30,40 @@ async function loadCounts() {
   const since = new Date();
   since.setHours(0, 0, 0, 0);
 
-  const [products, categories, brands, suppliers, todaySales, openSessions] = await Promise.all([
-    supabase.from("products").select("id", { count: "exact", head: true }).eq("is_active", true),
-    supabase.from("categories").select("id", { count: "exact", head: true }).eq("is_active", true),
-    supabase.from("brands").select("id", { count: "exact", head: true }).eq("is_active", true),
-    supabase.from("suppliers").select("id", { count: "exact", head: true }).eq("is_active", true),
-    supabase
-      .from("sales")
-      .select("total")
-      .eq("status", "completed")
-      .gte("created_at", since.toISOString()),
-    supabase.from("pos_sessions").select("id", { count: "exact", head: true }).eq("status", "open"),
-  ]);
+  const [products, suppliers, todaySales, openSessions, openOrders, draftReceipts] =
+    await Promise.all([
+      supabase.from("products").select("id", { count: "exact", head: true }).eq("is_active", true),
+      supabase.from("suppliers").select("id", { count: "exact", head: true }).eq("is_active", true),
+      supabase
+        .from("sales")
+        .select("total")
+        .eq("status", "completed")
+        .gte("created_at", since.toISOString()),
+      supabase
+        .from("pos_sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "open"),
+      supabase
+        .from("purchase_orders")
+        .select("id", { count: "exact", head: true })
+        .in("status", ["draft", "submitted", "partially_received"]),
+      supabase
+        .from("goods_receipts")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "draft"),
+    ]);
 
   const todaySalesRows = (todaySales.data ?? []) as Array<{ total: number }>;
   const todayRevenue = todaySalesRows.reduce((sum, row) => sum + Number(row.total ?? 0), 0);
 
   return {
     products: products.count ?? 0,
-    categories: categories.count ?? 0,
-    brands: brands.count ?? 0,
     suppliers: suppliers.count ?? 0,
     salesToday: todaySalesRows.length,
     revenueToday: todayRevenue,
     openSessions: openSessions.count ?? 0,
+    openOrders: openOrders.count ?? 0,
+    draftReceipts: draftReceipts.count ?? 0,
   };
 }
 
@@ -66,7 +76,7 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <div className="space-y-2">
         <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-xs">
-          Step 9 - Till sessions + Z-report live
+          Step 10 - Supplier receiving + weighted-average cost live
         </Badge>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           Welcome back, {user.user_metadata?.full_name ?? user.email?.split("@")[0]}
@@ -94,24 +104,24 @@ export default async function DashboardPage() {
           hint={counts.openSessions === 0 ? "no shift in progress" : "shift in progress"}
         />
         <StatCard
+          href="/purchase-orders"
+          icon={<FilePlus2 className="size-4" />}
+          label="Open POs"
+          value={counts.openOrders.toString()}
+          hint="awaiting goods"
+        />
+        <StatCard
+          href="/goods-receipts"
+          icon={<PackagePlus className="size-4" />}
+          label="Draft receipts"
+          value={counts.draftReceipts.toString()}
+          hint="not yet finalised"
+        />
+        <StatCard
           href="/products"
           icon={<Package className="size-4" />}
           label="Products"
           value={counts.products.toString()}
-          hint="active"
-        />
-        <StatCard
-          href="/categories"
-          icon={<FolderTree className="size-4" />}
-          label="Categories"
-          value={counts.categories.toString()}
-          hint="active"
-        />
-        <StatCard
-          href="/brands"
-          icon={<Tag className="size-4" />}
-          label="Brands"
-          value={counts.brands.toString()}
           hint="active"
         />
         <StatCard
@@ -127,32 +137,35 @@ export default async function DashboardPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="text-primary size-5" />
-            <CardTitle className="text-lg">Till sessions are ready</CardTitle>
+            <CardTitle className="text-lg">Supplier receiving is ready</CardTitle>
           </div>
           <CardDescription>
-            Open the till with a starting cash float, ring sales, record cash drops or pay-outs,
-            then close with a counted cash total. We compute the variance and produce a printable
-            Z-report. Up next: supplier receiving with weighted-average cost (Step 10).
+            Order stock from your suppliers, then log a goods receipt when the boxes arrive.
+            Finalising a receipt updates inventory and recalculates each product&apos;s
+            weighted-average cost - so margin reports stay accurate even when supplier prices move.
+            Up next: owner reports (Step 11).
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
             <Button asChild>
-              <Link href="/sessions/open">
-                Open a till
+              <Link href="/purchase-orders/new">
+                Create purchase order
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href="/pos">
-                <ScanLine className="size-4" /> Take payment
+              <Link href="/goods-receipts/new">
+                <PackagePlus className="size-4" /> Receive goods
               </Link>
             </Button>
             <Button asChild variant="ghost">
-              <Link href="/sessions">Past shifts</Link>
+              <Link href="/purchase-orders">Open POs</Link>
             </Button>
             <Button asChild variant="ghost">
-              <Link href="/sales">Recent sales</Link>
+              <Link href="/pos">
+                <ScanLine className="size-4" /> Take payment
+              </Link>
             </Button>
           </div>
         </CardContent>
@@ -160,9 +173,9 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <ComingSoonCard
-          icon={<Truck className="size-5" />}
-          title="Receiving"
-          description="POs and goods receipts with weighted-average cost - Step 10."
+          icon={<BarChart3 className="size-5" />}
+          title="Owner reports"
+          description="Daily profit, cash variance, top movers - Step 11."
         />
         <ComingSoonCard
           icon={<Users className="size-5" />}
@@ -170,9 +183,9 @@ export default async function DashboardPage() {
           description="Loyalty, accounts, store credit - later in MVP."
         />
         <ComingSoonCard
-          icon={<BarChart3 className="size-5" />}
-          title="Owner reports"
-          description="Daily profit, cash variance, top movers - Step 11."
+          icon={<CheckCircle2 className="size-5" />}
+          title="Audit + backups"
+          description="Full audit log + nightly backup script - Step 12."
         />
       </div>
     </div>
