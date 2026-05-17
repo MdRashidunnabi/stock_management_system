@@ -60,3 +60,10 @@ logs/
 
 # OS
 Thumbs.db
+
+# python virtualenvs (in case someone creates one alongside the project)
+.venv/
+venv/
+env/
+*-env/
+__pycache__/

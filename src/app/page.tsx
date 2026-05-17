@@ -70,9 +70,9 @@ export default function HomePage() {
         </div>
 
         <div className="border-border bg-muted/40 text-muted-foreground rounded-lg border border-dashed p-4 text-center text-xs">
-          Status: Step 10 complete (purchase orders, goods receipts, weighted-average cost on every
-          finalised receipt, automatic PO status sync). Next: Step 11 - owner reports with daily
-          profit, cash variance, and top movers.
+          Status: Step 11 complete (owner dashboard: daily revenue, gross profit, top movers,
+          low-stock alerts, cash variance, period selector with vs prior-period deltas). Next: Step
+          12 - audit log + nightly backups.
         </div>
       </div>
     </main>

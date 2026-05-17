@@ -807,10 +807,123 @@ of it via RLS. Expected output: `Done: 29 pass, 0 fail`.
 
 ---
 
+## Step 11 - Owner dashboard (daily sales, profit, low-stock, cash variance, top movers)
+
+The agent has shipped Step 11. The shop owner now has a real dashboard
+at `/dashboard` instead of just a few counts. Everything is scoped to the
+current tenant by RLS and to a configurable period (today / last 7 days
+/ last 30 days). A "vs prior period" delta is shown on every revenue,
+profit, basket and sales-count tile so the owner sees momentum, not
+just absolutes.
+
+### What got added
+
+- **Library** (`src/lib/reports/queries.ts`):
+  - `getPeriodRange(period)` - converts `today` / `week` / `month` to
+    Europe/Dublin timestamps (DST-safe).
+  - `getPriorPeriodRange(...)` - the matching prior window for delta
+    comparisons.
+  - `getSalesSummary(...)` - count, gross + net + VAT + discounts, cost
+    of goods (sum of `sale_items.unit_cost * quantity` for completed
+    sales), gross profit, gross margin %, average basket, payment mix.
+  - `getDailySalesSeries(days)` - one bucket per day (Dublin time) for
+    the last N days.
+  - `getTopProducts(period, limit)` - aggregated per product with
+    qty/revenue/profit/margin.
+  - `getLowStockRows(limit)` - any
+    `product_branch_settings.min_stock > 0` whose live
+    `stock_balances.quantity` is at or below the threshold.
+  - `getSessionVarianceSummary(period, limit)` - closed shifts in the
+    window with their cash variance, including total variance for the
+    period.
+  - `getOutstandingPosSummary()` - count + total value of POs awaiting
+    receipt.
+
+- **Components** (`src/components/dashboard/`):
+  - `period-tabs.tsx` - server component with three `?period=` links.
+  - `kpi-tile.tsx` - colored emphasis (good / warn / bad / default) with
+    a trend badge.
+  - `sales-chart.tsx` - server-rendered, dependency-free CSS bar chart
+    for daily revenue.
+  - `top-products.tsx`, `low-stock-list.tsx`, `recent-shifts.tsx`.
+
+- **Page** (`src/app/(protected)/dashboard/page.tsx`): full rewrite into
+  hero + period selector + 8 KPI tiles + 14-day chart + top movers +
+  low stock + recent shifts + quick actions.
+
+- **Misc**: `.gitignore` and `eslint.config.mjs` now ignore stray Python
+  virtualenvs (`venv/`, `.venv/`, `*-env/`) so unrelated tooling next to
+  the project does not pollute lint runs.
+
+### MANUAL-11 - Validate locally
+
+Restart the dev server if it is running:
+
+```bash
+npm run dev
+```
+
+then walk through the dashboard:
+
+1. Sign in as a tenant owner who has at least one closed sale and a
+   closed shift (you can quickly create them with the POS + Till flows
+   from Steps 8 + 9).
+2. Open `/dashboard`. You should see:
+   - A "Today" period tab is selected by default. Click **Last 7 days**
+     and **Last 30 days** to widen the window.
+   - The first row of KPI tiles shows Revenue, Gross profit, Avg basket,
+     and Cash variance, each with a "vs prior period" arrow + percent.
+   - The second row shows Sales count, Open tills, Open POs and Draft
+     receipts.
+   - The "Daily revenue" card shows a 14-day bar chart with the most
+     recent bar highlighted.
+   - "Top movers" lists best-selling products by gross revenue with
+     qty / revenue / profit / margin.
+   - "Low stock" lists any product whose `min_stock` per branch is
+     greater than the available stock for that branch.
+   - "Recent shifts" shows closed tills with their cash variance, color
+     coded.
+3. (Optional) Set a `min_stock` on a product to test the low-stock
+   list. From a `psql` shell:
+
+   ```sql
+   insert into public.product_branch_settings
+     (tenant_id, product_id, branch_id, min_stock)
+   values (
+     '<tenant>',
+     '<product>',
+     '<branch>',
+     100
+   ) on conflict (product_id, branch_id) do update set min_stock = 100;
+   ```
+
+   Refresh `/dashboard` - the product appears under "Low stock" with the
+   shortfall.
+
+4. Sign in as a different tenant: the dashboard must show only that
+   tenant's numbers. Sales / sessions / POs from the previous tenant
+   must not leak in.
+
+You can also run the full smoke test against the local stack:
+
+```bash
+npm run test:reports
+```
+
+`test:reports` boots two tenants, seeds 2 products with stock, sets
+`min_stock=100` on one, opens a till, files two sales (5xP1 cash + 3xP2
+card), closes the till with a EUR 1 shortage, then re-implements every
+report query in plain JS and asserts the numbers line up: gross EUR 31,
+net EUR 25.20, cost EUR 6.50, profit EUR 18.70, margin ~74%, average
+basket EUR 15.50, top movers ordered by revenue, P1 shortfall = 55, cash
+variance = -EUR 1, today bucket = EUR 31 with the prior 13 days at 0.
+It also asserts that the second tenant cannot see any of these numbers
+through PostgREST. Expected: `Done: 25 pass, 0 fail`.
+
+---
+
 ## What the agent will do automatically next
 
-- Step 11 - Owner dashboard (daily sales, profit, low-stock, cash
-  variance, top movers)
 - Step 12 - Audit log + automated daily backup script
 - Step 13 - PWA shell + offline POS cache (Serwist)
 - Step 14 - Vitest unit tests + Playwright e2e for the POS critical path

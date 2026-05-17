@@ -53,6 +53,11 @@ const config = [
       "test-results/**",
       "coverage/**",
       "next-env.d.ts",
+      // Python virtualenvs that may appear next to the project.
+      ".venv/**",
+      "venv/**",
+      "env/**",
+      "*-env/**",
     ],
   },
 ];
