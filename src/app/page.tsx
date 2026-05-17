@@ -61,16 +61,16 @@ export default function HomePage() {
             <div className="text-muted-foreground text-xs">Owners, managers, and cashiers</div>
           </Link>
           <Link
-            href="/onboarding"
+            href="/signup"
             className="border-border bg-card hover:border-primary rounded-lg border p-4 transition hover:shadow-sm"
           >
-            <div className="text-sm font-medium">Create a shop</div>
+            <div className="text-sm font-medium">Create an account</div>
             <div className="text-muted-foreground text-xs">30-day pilot, no card required</div>
           </Link>
         </div>
 
         <div className="border-border bg-muted/40 text-muted-foreground rounded-lg border border-dashed p-4 text-center text-xs">
-          Status: Step 2 complete (UI primitives ready). Next: Supabase clients and database schema.
+          Status: Step 5 complete (auth flow live). Next: Step 6 - tenant onboarding wizard.
         </div>
       </div>
     </main>

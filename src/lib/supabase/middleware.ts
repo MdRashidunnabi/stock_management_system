@@ -12,10 +12,7 @@ const PUBLIC_PATHS = [
   "/login",
   "/signup",
   "/forgot-password",
-  "/reset-password",
-  "/auth/callback",
-  "/auth/confirm",
-  "/onboarding",
+  "/verify-email",
   "/legal/privacy",
   "/legal/terms",
 ];
@@ -23,6 +20,7 @@ const PUBLIC_PATHS = [
 const PUBLIC_PREFIXES = [
   "/api/health",
   "/api/auth/",
+  "/auth/",
   "/_next/",
   "/favicon",
   "/icons/",
@@ -30,14 +28,26 @@ const PUBLIC_PREFIXES = [
   "/static/",
 ];
 
+/**
+ * Routes signed-in users should be redirected AWAY from. Keeps people from
+ * landing on /login when they already have a session.
+ */
+const SIGNED_IN_REDIRECT_AWAY = new Set(["/login", "/signup", "/forgot-password"]);
+
+/**
+ * Routes that require a real session AND a recovery/email link to land on.
+ * Public users hitting these should be sent to /forgot-password.
+ */
+const RECOVERY_REQUIRED = new Set(["/reset-password"]);
+
 function isPublicPath(pathname: string) {
   if (PUBLIC_PATHS.includes(pathname)) return true;
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
 /**
- * Refreshes the user's Supabase session cookies on every request and
- * redirects unauthenticated users away from protected pages.
+ * Refreshes the user's Supabase session cookies on every request and routes
+ * users based on auth state.
  *
  * This is THE ONLY place that should set Supabase auth cookies during
  * navigation. Server Components must use the read-only `createClient` from
@@ -74,7 +84,24 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  if (!user && !isPublicPath(pathname)) {
+  // 1. Public path + signed in + on a "signed-out only" route -> /dashboard
+  if (user && SIGNED_IN_REDIRECT_AWAY.has(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  // 2. Recovery-required path with no session -> /forgot-password
+  if (!user && RECOVERY_REQUIRED.has(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/forgot-password";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  // 3. Protected path with no session -> /login?next=...
+  if (!user && !isPublicPath(pathname) && !RECOVERY_REQUIRED.has(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);

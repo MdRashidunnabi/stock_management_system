@@ -261,34 +261,86 @@ You should see ~25 tables including `tenants`, `branches`, `products`,
 
 If any migration fails, paste the error to the agent and we will fix it.
 
-### Create the demo auth users (one-off)
+### Create the demo auth users (one command)
 
 The seed file creates a demo tenant + 1 branch + 1 POS terminal + 5
 categories + 3 brands + 10 products + 2 suppliers, but **only links
-to two demo users IF those users exist in `auth.users`.** Create them
-via Supabase Studio:
+to two demo users IF those users exist in `auth.users`.**
 
-1. Open <http://127.0.0.1:54323> (the Studio URL printed by `supabase start`).
-2. Go to **Authentication -> Users -> Add user -> Create new user**.
-3. Create:
-   - Email: `owner@demo.shopos.local` Password: `DemoPass123!`
-   - Email: `cashier@demo.shopos.local` Password: `DemoPass123!`
-4. Re-apply seed to link the users:
+Just run:
 
-   ```bash
-   npx supabase db reset    # easiest; wipes and reapplies seed
-   ```
+```bash
+npm run db:seed:auth
+```
 
-We will replace this manual step with a real signup flow in Step 5.
+That script (`src/db/seed-auth.ts`) is idempotent. It uses the service-role
+key from `.env.local` to create or update two confirmed users:
+
+| Email                     | Password     | Role    |
+| ------------------------- | ------------ | ------- |
+| owner@demo.shopos.local   | DemoPass123! | owner   |
+| cashier@demo.shopos.local | DemoPass123! | cashier |
+
+It then re-applies `supabase/seed.sql` so the `user_tenants` rows get
+attached to the freshly-created auth users.
+
+You can also create users by hand via Studio at <http://127.0.0.1:54323>
+(Authentication -> Users -> Add user) and then run `npx supabase db reset`
+to re-link them - but the script above is faster.
 
 ---
 
-## What the agent will do automatically
+## 8. Step 5 - Auth flow (already shipped)
 
-After you finish steps 1-7 above, the agent will continue with:
+When this step lands you have a real auth flow:
 
-- Step 5 - Auth flow (login, signup, password reset, tenant context)
-- Step 6 - Tenant onboarding wizard (replaces the manual demo user creation)
+| Path               | Who                          | What                                     |
+| ------------------ | ---------------------------- | ---------------------------------------- |
+| `/login`           | signed-out                   | Email + password sign in                 |
+| `/signup`          | signed-out                   | Email + password + name sign up          |
+| `/forgot-password` | signed-out                   | Request a password reset email           |
+| `/reset-password`  | signed-in (recovery session) | Set a new password                       |
+| `/verify-email`    | anyone                       | "Check your inbox" landing after sign-up |
+| `/auth/callback`   | Supabase redirects here      | Exchanges PKCE code for a session        |
+| `/dashboard`       | signed-in + has a tenant     | Tenant-scoped landing                    |
+| `/onboarding`      | signed-in + no tenant        | Stub - real wizard ships in Step 6       |
+
+### Test it locally
+
+1. Start the dev server: `npm run dev`
+2. Visit <http://localhost:3000/login>
+3. Sign in as `owner@demo.shopos.local` / `DemoPass123!`
+4. You'll land at `/dashboard` with a "Greenway Mini Market" tenant switcher in
+   the header and your role shown as `owner`.
+
+### Test the email flows
+
+Local Supabase ships with a built-in email server (Mailpit) on
+<http://127.0.0.1:54324>. Every email sent during local dev (password reset,
+sign-up confirmation when enabled) is captured there - no real emails leave
+your machine.
+
+### Enabling email confirmation locally
+
+By default `supabase/config.toml` has `[auth.email] enable_confirmations =
+false`, which is fast for local dev (sign-ups skip the email step). To test
+the full email-confirmation path:
+
+1. Open `supabase/config.toml`.
+2. Find `[auth.email]` and set `enable_confirmations = true`.
+3. Restart the stack: `npx supabase stop && npm run supabase:start`.
+4. Sign up at `/signup` with a fresh email; you'll be redirected to
+   `/verify-email`. Open Mailpit (<http://127.0.0.1:54324>), copy the link
+   from the latest message, and open it - you'll be sent through
+   `/auth/callback` and land on `/dashboard`.
+
+Production will have `enable_confirmations = true` permanently.
+
+---
+
+## What the agent will do automatically next
+
+- Step 6 - Tenant onboarding wizard (real /onboarding page)
 - Step 7 - Product CRUD
 - Step 8 - POS sale flow
 - Step 9 - Till open/close
