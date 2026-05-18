@@ -21,6 +21,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # NEXT_PUBLIC_* vars are baked into the client bundle at build time.
+      # Keep these in sync with the values in .env.production.
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: "${NEXT_PUBLIC_SUPABASE_URL}"
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: "${NEXT_PUBLIC_SUPABASE_ANON_KEY}"
+        NEXT_PUBLIC_APP_URL: "${NEXT_PUBLIC_APP_URL}"
+        NEXT_PUBLIC_APP_ENV: "production"
+        NEXT_PUBLIC_DEFAULT_LOCALE: "en-IE"
+        NEXT_PUBLIC_DEFAULT_CURRENCY: "EUR"
+        NEXT_PUBLIC_DEFAULT_TIMEZONE: "Europe/Dublin"
+        NEXT_PUBLIC_DEFAULT_COUNTRY: "IE"
     container_name: shopos-app
     restart: unless-stopped
     # Read all env vars from the production env file.
