@@ -26,15 +26,7 @@ import { PosPaymentDialog } from "@/components/pos/pos-payment-dialog";
 import { PosOfflineStatus } from "@/components/pos/offline-status";
 import { useOfflinePos } from "@/lib/pos/offline/use-offline-pos";
 import type { OfflineCatalogRow } from "@/lib/pos/offline/storage";
-
-const VAT_RATES: Record<string, number> = {
-  STD: 0.23,
-  RED: 0.135,
-  SEC: 0.09,
-  LIV: 0.048,
-  ZER: 0,
-  EXE: 0,
-};
+import { computeCartTotals, VAT_RATES } from "@/lib/pos/totals";
 
 interface BranchOption {
   id: string;
@@ -64,38 +56,7 @@ export function PosTerminal({ tenantId, branches, defaultBranchId }: Props) {
 
   /* ---------------------------- Totals math ---------------------------- */
 
-  const totals = useMemo(() => {
-    let subtotal = 0;
-    let vat = 0;
-    let total = 0;
-    let discount = 0;
-    for (const line of cart) {
-      const rate = VAT_RATES[line.vatCode] ?? 0;
-      const grossBase = line.unitPrice * line.qty;
-      let lineGross: number;
-      let lineNet: number;
-      let lineVat: number;
-      if (line.vatIncluded) {
-        lineGross = round4(grossBase) - line.discount;
-        lineNet = round4(lineGross / (1 + rate));
-        lineVat = round4(lineGross - lineNet);
-      } else {
-        lineNet = round4(grossBase) - line.discount;
-        lineVat = round4(lineNet * rate);
-        lineGross = round4(lineNet + lineVat);
-      }
-      subtotal += lineNet;
-      vat += lineVat;
-      total += lineGross;
-      discount += line.discount;
-    }
-    return {
-      subtotal: round2(subtotal),
-      vat: round2(vat),
-      total: round2(total),
-      discount: round2(discount),
-    };
-  }, [cart]);
+  const totals = useMemo(() => computeCartTotals(cart), [cart]);
 
   /* ------------------------------ Search ------------------------------ */
 
@@ -623,11 +584,4 @@ function Row({ label, value }: { label: string; value: string }) {
       <span className="font-mono">{value}</span>
     </div>
   );
-}
-
-function round4(n: number) {
-  return Math.round(n * 10000) / 10000;
-}
-function round2(n: number) {
-  return Math.round(n * 100) / 100;
 }

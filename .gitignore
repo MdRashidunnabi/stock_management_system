@@ -9,6 +9,7 @@ coverage/
 playwright-report/
 test-results/
 .playwright/
+e2e/.results/
 
 # next.js
 .next/

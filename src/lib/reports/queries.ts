@@ -1,5 +1,13 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import {
+  dublinStartOfDay,
+  getPeriodRange,
+  getPriorPeriodRange,
+  toDublinIsoDate,
+  type PeriodRange,
+  type ReportPeriod,
+} from "@/lib/reports/period";
 
 /**
  * All read-only report queries used by the owner dashboard.
@@ -7,108 +15,11 @@ import { createClient } from "@/lib/supabase/server";
  * They run with the user's RLS context (tenant-scoped automatically), so
  * no extra `eq("tenant_id", ...)` filters are needed.
  *
- * Time periods are computed in Europe/Dublin so an Irish owner sees their
- * "today" the way they expect.
+ * Time periods are computed in Europe/Dublin (see `./period.ts`) so an
+ * Irish owner sees their "today" the way they expect.
  */
 
-export type ReportPeriod = "today" | "week" | "month";
-
-export interface PeriodRange {
-  /** ISO timestamp at the start of the period (Europe/Dublin), inclusive. */
-  fromIso: string;
-  /** ISO timestamp at the end of the period (Europe/Dublin), exclusive. */
-  toIso: string;
-  /** Human-readable label for the period. */
-  label: string;
-  /** Number of full days the period spans (used for delta % vs prior period). */
-  days: number;
-}
-
-const TIMEZONE = "Europe/Dublin";
-
-/**
- * Compute the start-of-period in the local Irish timezone, regardless of
- * what timezone the server runs in.
- *
- * For "today" we want 00:00 in Dublin.
- * For "week" we want midnight 7 days ago.
- * For "month" we want midnight 30 days ago.
- *
- * We do this by formatting `Date.now()` into Dublin parts then re-building
- * a Date from those parts at midnight, using the offset of that local time.
- */
-function dublinStartOfDay(date: Date): Date {
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: TIMEZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = fmt.formatToParts(date);
-  const get = (name: string) => parts.find((p) => p.type === name)?.value ?? "00";
-  // ISO 8601 date in Dublin local time
-  const dublinDate = `${get("year")}-${get("month")}-${get("day")}`;
-  // Build a "naive" UTC midnight then shift by the timezone offset for that
-  // particular date (handles DST: IE switches between IST/BST and GMT).
-  const utcMidnight = new Date(`${dublinDate}T00:00:00Z`);
-  const offsetMin = getDublinOffsetMinutes(utcMidnight);
-  return new Date(utcMidnight.getTime() - offsetMin * 60_000);
-}
-
-function getDublinOffsetMinutes(at: Date): number {
-  const dtf = new Intl.DateTimeFormat("en-GB", {
-    timeZone: TIMEZONE,
-    timeZoneName: "shortOffset",
-  });
-  const tzPart = dtf.formatToParts(at).find((p) => p.type === "timeZoneName")?.value;
-  // tzPart is something like "GMT+1" or "GMT" or "GMT-0".
-  if (!tzPart) return 0;
-  const m = tzPart.match(/GMT([+-]\d{1,2})(?::(\d{2}))?/);
-  if (!m) return 0;
-  const hours = Number(m[1]);
-  const minutes = Number(m[2] ?? 0);
-  return hours * 60 + (hours < 0 ? -minutes : minutes);
-}
-
-export function getPeriodRange(period: ReportPeriod, now = new Date()): PeriodRange {
-  const startOfToday = dublinStartOfDay(now);
-  if (period === "today") {
-    return {
-      fromIso: startOfToday.toISOString(),
-      toIso: now.toISOString(),
-      label: "Today",
-      days: 1,
-    };
-  }
-  if (period === "week") {
-    const start = new Date(startOfToday.getTime() - 6 * 86_400_000);
-    return {
-      fromIso: start.toISOString(),
-      toIso: now.toISOString(),
-      label: "Last 7 days",
-      days: 7,
-    };
-  }
-  const start = new Date(startOfToday.getTime() - 29 * 86_400_000);
-  return {
-    fromIso: start.toISOString(),
-    toIso: now.toISOString(),
-    label: "Last 30 days",
-    days: 30,
-  };
-}
-
-export function getPriorPeriodRange(period: PeriodRange): PeriodRange {
-  const fromMs = new Date(period.fromIso).getTime();
-  const toMs = new Date(period.toIso).getTime();
-  const span = toMs - fromMs;
-  return {
-    fromIso: new Date(fromMs - span).toISOString(),
-    toIso: period.fromIso,
-    label: `Prior ${period.days} day${period.days === 1 ? "" : "s"}`,
-    days: period.days,
-  };
-}
+export { getPeriodRange, getPriorPeriodRange, type ReportPeriod, type PeriodRange };
 
 /* =========================== Sales summary =========================== */
 
@@ -239,18 +150,6 @@ export async function getDailySalesSeries(days: number): Promise<DailySalesPoint
     revenue: round2(v.revenue),
     salesCount: v.count,
   }));
-}
-
-function toDublinIsoDate(d: Date): string {
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: TIMEZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = fmt.formatToParts(d);
-  const get = (name: string) => parts.find((p) => p.type === name)?.value ?? "00";
-  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 /* =========================== Top products =========================== */

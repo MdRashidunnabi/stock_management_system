@@ -108,7 +108,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-2">
           <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-xs">
-            Step 13 - PWA + offline POS live
+            Step 14 - regression-proof: 48 unit + 173 smoke + 2 e2e tests
           </Badge>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Welcome back, {user.user_metadata?.full_name ?? user.email?.split("@")[0]}
@@ -295,13 +295,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <CardHeader>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="text-primary size-5" />
-            <CardTitle className="text-lg">Offline POS is live</CardTitle>
+            <CardTitle className="text-lg">Regression-proof POS critical path</CardTitle>
           </div>
           <CardDescription>
-            ShopOS is installable as a PWA and the POS terminal keeps selling when the WiFi blips.
-            Cash sales taken offline land in a local queue and sync automatically when the
-            connection is back, with database-side idempotency so replays never charge twice. Up
-            next: Vitest unit tests + Playwright e2e for the POS critical path (Step 14).
+            Every release runs 48 Vitest unit tests (VAT maths, Dublin time periods incl. DST, audit
+            diffs, offline catalog ranking, sale-queue lifecycle), 173 smoke tests against the live
+            local Supabase, and 2 Playwright e2e specs that walk a real cashier through an online
+            sale and an offline-then-reconnect sale. Up next: production deploy on Vercel + Supabase
+            (Step 15).
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -120,10 +120,20 @@ export function getOfflineDb(): Promise<IDBPDatabase<ShopOsDB>> {
 }
 
 /**
- * Test seam: lets `scripts/test-offline-pos.mjs` swap in a different
- * `indexedDB` (provided by `fake-indexeddb`) and a different DB name so
- * tests don't collide with the real one in a browser.
+ * Test seam: lets `scripts/test-offline-pos.mjs` (and Vitest) swap in a
+ * different `indexedDB` (provided by `fake-indexeddb`) and a different
+ * DB name so tests don't collide with the real one in a browser. Closes
+ * the open connection so a subsequent `indexedDB.deleteDatabase()` does
+ * not block on a stale handle.
  */
-export function __resetOfflineDbForTesting(): void {
+export async function __resetOfflineDbForTesting(): Promise<void> {
+  if (dbPromise) {
+    try {
+      const db = await dbPromise;
+      db.close();
+    } catch {
+      // ignore - this only runs in tests
+    }
+  }
   dbPromise = null;
 }

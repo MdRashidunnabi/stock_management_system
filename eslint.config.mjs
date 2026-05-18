@@ -42,6 +42,18 @@ const config = [
     },
   },
 
+  // Playwright fixtures legitimately use a `use` callback parameter,
+  // which trips the React rules-of-hooks check (it sees "use" and
+  // assumes a React Hook). e2e specs are server-only Node code, so the
+  // React lint family is moot there.
+  {
+    files: ["e2e/**/*.{ts,tsx}"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
+      "react-hooks/exhaustive-deps": "off",
+    },
+  },
+
   {
     ignores: [
       ".next/**",

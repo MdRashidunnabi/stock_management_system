@@ -70,9 +70,9 @@ export default function HomePage() {
         </div>
 
         <div className="border-border bg-muted/40 text-muted-foreground rounded-lg border border-dashed p-4 text-center text-xs">
-          Status: Step 13 complete (installable PWA via Serwist, offline POS shell, IndexedDB
-          catalog cache, queued-sale flusher, idempotent commit_pos_sale so replays never charge
-          twice). Next: Step 14 - Vitest + Playwright e2e tests.
+          Status: Step 14 complete (Vitest unit tests for VAT maths, Dublin period maths, audit
+          diffs, offline catalog ranking, and the offline-sale queue; Playwright e2e for the POS
+          critical path online + offline). Next: Step 15 - production deploy on Vercel + Supabase.
         </div>
       </div>
     </main>

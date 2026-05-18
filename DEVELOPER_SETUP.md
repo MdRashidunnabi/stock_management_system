@@ -1283,9 +1283,132 @@ was decremented exactly once. Expected: `Done: 18 pass, 0 fail`.
 
 ---
 
+## Step 14 - Vitest unit tests + Playwright e2e for the POS critical path
+
+This step adds two layers of regression protection that complement
+the eight smoke tests already in place:
+
+- **Vitest** (`npm run test:unit`) - 48 fast, deterministic unit tests
+  covering the pure logic that the POS, dashboard, and audit pages
+  depend on. No Supabase or browser required; the suite runs in
+  jsdom + `fake-indexeddb`.
+- **Playwright** (`npm run test:e2e`) - 2 end-to-end specs that boot
+  Chrome against the local Next.js dev server, sign a real user in,
+  and walk the cashier through (a) an online sale and (b) an offline
+  sale that auto-syncs on reconnect.
+
+### What was wired up (AUTOMATIC)
+
+- Pure helpers extracted out of server-only / component code so they
+  are unit-testable:
+  - `src/lib/reports/period.ts` - `getPeriodRange`,
+    `getPriorPeriodRange`, `dublinStartOfDay`,
+    `getDublinOffsetMinutes`, `toDublinIsoDate`. The dashboard and
+    queries module re-export from here.
+  - `src/lib/pos/totals.ts` - `computeCartTotals`, `VAT_RATES`,
+    `round2`, `round4`. The POS terminal now imports the same
+    function the unit tests pin.
+- `vitest.config.ts` - jsdom env, threads pool (`maxWorkers: 1` so
+  `fake-indexeddb` state stays clean), `server-only` aliased to a
+  no-op stub so server modules can be imported in tests.
+- `src/test/setup.ts` - loads `@testing-library/jest-dom` matchers
+  and auto-starts `fake-indexeddb`.
+- `playwright.config.ts` - boots `npm run dev` automatically, runs
+  on `http://localhost:3000`, retains traces / videos /
+  screenshots only on failure, single Chromium worker.
+- `e2e/fixtures.ts` - shared fixture that creates a fresh test user
+  via the Supabase admin API, onboards the tenant via
+  `create_tenant_with_owner` (same RPC the wizard uses), seeds one
+  product with opening stock, and tears everything down at the end
+  of each test so the local DB stays clean.
+- `e2e/pos-critical-path.spec.ts` - sign in -> POS -> search SKU
+  -> add to cart -> Take payment -> Exact cash -> Complete sale ->
+  receipt toast.
+- `e2e/pos-offline.spec.ts` - same setup, then `setOffline(true)`,
+  search the cached row, queue a cash sale, `setOffline(false)`,
+  watch the queue drain.
+
+### MANUAL-14.1 - One-time Playwright browser install
+
+Playwright ships its own Chromium build. Install it once:
+
+```bash
+npm run test:e2e:install
+```
+
+> **Ubuntu 26.04 note**: at the time of writing Playwright does not
+> yet know about the 26.04 host. The script bakes in
+> `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64`, which is the
+> upstream-recommended workaround. Set the variable yourself if you
+> need a different fallback (e.g. `ubuntu22.04-x64`).
+
+System libs the bundled Chromium expects on Ubuntu 26.04 (only if
+`npm run test:e2e` complains about missing `.so` files):
+
+```bash
+sudo apt update
+sudo apt install -y \
+  libnss3 libnspr4 libatk1.0-0t64 libatk-bridge2.0-0t64 \
+  libatspi2.0-0t64 libcups2t64 libxkbcommon0 libxcomposite1 \
+  libxdamage1 libxfixes3 libxrandr2 libgbm1 libdrm2 \
+  libpango-1.0-0 libcairo2 libasound2t64 libwayland-client0
+```
+
+### MANUAL-14.2 - Run the tests locally
+
+Local Supabase must be running (`npm run supabase:start` or
+`docker ps` shows the `supabase_*` containers as healthy).
+
+```bash
+# 48 unit tests, ~3 seconds:
+npm run test:unit
+
+# 2 e2e specs, ~12 seconds (Playwright auto-starts the dev server):
+npm run test:e2e
+```
+
+Expected output:
+
+```text
+=== vitest ===
+ Test Files  5 passed (5)
+      Tests  48 passed (48)
+
+=== playwright ===
+  2 passed (~12s)
+```
+
+If the Playwright run fails with a TimeoutError on a locator, open
+the trace:
+
+```bash
+npx playwright show-trace e2e/.results/<spec-name>/trace.zip
+```
+
+The trace shows every action (click, fill, navigation), the page's
+DOM at each step, and the network log - everything you need to
+diagnose a flake.
+
+### What this protects against
+
+| Component              | What we lock in                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------ |
+| `computeCartTotals`    | Inclusive vs. exclusive VAT, multi-line carts, fractional kgs, line discounts, unknown VAT codes |
+| `getPeriodRange`       | Dublin midnight in winter (GMT) AND summer (IST), 7-day / 30-day windows, prior-period mirroring |
+| `dublinStartOfDay`     | DST spring-forward / fall-back boundary days                                                     |
+| `diffSnapshots`        | Audit log diff: ignores `created_at`/`updated_at`, sorts by field, deep-equality, null inputs    |
+| `searchOfflineCatalog` | barcode > exact SKU > SKU prefix > name-contains ranking, tenant scoping                         |
+| Sale queue lifecycle   | enqueue -> pending, flush success -> synced, flush failure -> retry, idempotency on replay       |
+| POS UI online          | Sign in, search, cart, payment dialog, receipt toast                                             |
+| POS UI offline         | Cached search, cash-only payment, queue-on-success, auto-sync on reconnect                       |
+
+If any of these regress, `npm run test:unit` or `npm run test:e2e`
+goes red and CI blocks the PR before it reaches production.
+
+---
+
 ## What the agent will do automatically next
 
-- Step 14 - Vitest unit tests + Playwright e2e for the POS critical path
 - Step 15 - Production deploy: Vercel + Supabase prod + custom domain
 
 Each module will tell you any new MANUAL step you need (e.g. running a
