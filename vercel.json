@@ -1,0 +1,19 @@
+{
+  "buildCommand": "npm run build",
+  "installCommand": "npm ci",
+  "framework": "nextjs",
+  "regions": ["dub1"],
+  "headers": [
+    {
+      "source": "/serwist/(.*)",
+      "headers": [
+        { "key": "Service-Worker-Allowed", "value": "/" },
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }]
+    }
+  ]
+}

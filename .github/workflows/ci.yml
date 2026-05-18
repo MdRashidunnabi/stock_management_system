@@ -1,0 +1,62 @@
+name: CI
+
+# Runs on every push to main and on every pull request.
+# Keeps the Vercel preview build honest by catching type errors,
+# lint warnings, and unit-test regressions before code merges.
+#
+# Secrets required (Settings → Secrets and variables → Actions):
+#   NEXT_PUBLIC_SUPABASE_URL         - your Supabase project URL
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY    - anon / public key
+#   SUPABASE_SERVICE_ROLE_KEY        - service role key (never expose this client-side)
+#   DATABASE_URL                     - connection string (Transaction mode pooler)
+#   DIRECT_URL                       - direct connection string (for migrations)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    name: Typecheck + Lint + Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      # Unit tests run in jsdom / fake-indexeddb - no real Supabase needed.
+      # We still need dummy values so Next.js config doesn't throw at import time.
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: placeholder-service-key
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_ENV: test
+      NEXT_PUBLIC_DEFAULT_LOCALE: en-IE
+      NEXT_PUBLIC_DEFAULT_CURRENCY: EUR
+      NEXT_PUBLIC_DEFAULT_TIMEZONE: Europe/Dublin
+      NEXT_PUBLIC_DEFAULT_COUNTRY: IE
+      AUTH_SECRET: ci-placeholder-secret-32-bytes-ok!
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests (Vitest)
+        run: npm run test:unit
