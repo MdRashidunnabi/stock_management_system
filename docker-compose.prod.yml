@@ -1,0 +1,85 @@
+# ============================================================
+#  ShopOS - Production Docker Compose
+#
+#  Services on this file:
+#    app    - Next.js 16 (standalone, built from Dockerfile)
+#    nginx  - Reverse proxy + SSL termination
+#    certbot - Let's Encrypt certificate renewal
+#
+#  Supabase runs in its OWN docker-compose stack in
+#  ~/supabase/docker/ - see scripts/server-setup.sh.
+#
+#  Usage:
+#    docker compose -f docker-compose.prod.yml up -d
+#    docker compose -f docker-compose.prod.yml build --no-cache app
+# ============================================================
+
+services:
+
+  # ---- Next.js application --------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shopos-app
+    restart: unless-stopped
+    # Read all env vars from the production env file.
+    # Create this file on the server from .env.production.example
+    env_file: .env.production
+    environment:
+      - NODE_ENV=production
+    # The app only talks to Nginx and Supabase; no ports exposed
+    # to the host directly (Nginx proxies in).
+    expose:
+      - "3000"
+    networks:
+      - shopos-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ---- Nginx reverse proxy + SSL --------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: shopos-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Nginx site config (edit the template to match your domain)
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      # SSL certificates managed by Certbot
+      - ./nginx/ssl:/etc/letsencrypt:ro
+      # Certbot webroot for ACME HTTP-01 challenge
+      - certbot-webroot:/var/www/certbot:ro
+    depends_on:
+      - app
+    networks:
+      - shopos-net
+
+  # ---- Certbot (Let's Encrypt certificate renewal) --------
+  certbot:
+    image: certbot/certbot:latest
+    container_name: shopos-certbot
+    volumes:
+      - certbot-webroot:/var/www/certbot
+      - ./nginx/ssl:/etc/letsencrypt
+    # Runs once and exits; re-run manually or via cron to renew.
+    # Initial issuance command is in scripts/server-setup.sh.
+    entrypoint: >
+      /bin/sh -c "trap exit TERM;
+        while :; do
+          certbot renew --quiet --webroot -w /var/www/certbot;
+          sleep 12h;
+        done"
+
+networks:
+  shopos-net:
+    driver: bridge
+
+volumes:
+  certbot-webroot:

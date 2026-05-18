@@ -40,6 +40,14 @@ yarn-error.log*
 .env.development
 .env.production
 !.env.example
+!.env.production.example
+
+# generated nginx config (created from template during server-setup.sh)
+nginx/conf.d/shopos.conf
+
+# SSL certs managed by Certbot on the VPS - never commit
+nginx/ssl/*
+!nginx/ssl/.gitkeep
 
 # vercel
 .vercel

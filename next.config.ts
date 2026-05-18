@@ -7,6 +7,13 @@ const nextConfig: NextConfig = {
 
   typedRoutes: true,
 
+  /**
+   * Standalone output bundles the server into a single self-contained
+   * directory (.next/standalone) so the Docker image does not need to
+   * copy all of node_modules - cuts the image size by ~80%.
+   */
+  output: "standalone",
+
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb",
