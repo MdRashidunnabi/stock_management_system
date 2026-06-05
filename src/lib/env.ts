@@ -12,6 +12,26 @@ import { z } from "zod";
 
 const isServer = typeof window === "undefined";
 
+/** Vercel sets VERCEL_URL / VERCEL_ENV automatically — use when NEXT_PUBLIC_* is unset. */
+function resolvePublicAppUrl(): string | undefined {
+  const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (explicit) return explicit;
+  const vercel = process.env.VERCEL_URL?.trim();
+  return vercel ? `https://${vercel}` : undefined;
+}
+
+function resolvePublicAppEnv(): "development" | "preview" | "production" | undefined {
+  const explicit = process.env.NEXT_PUBLIC_APP_ENV;
+  if (explicit === "development" || explicit === "preview" || explicit === "production") {
+    return explicit;
+  }
+  const vercel = process.env.VERCEL_ENV;
+  if (vercel === "production" || vercel === "preview" || vercel === "development") {
+    return vercel;
+  }
+  return undefined;
+}
+
 const clientSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url(),
   NEXT_PUBLIC_APP_ENV: z.enum(["development", "preview", "production"]).default("development"),
@@ -38,8 +58,8 @@ const serverSchema = z.object({
 });
 
 const clientEnv = {
-  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-  NEXT_PUBLIC_APP_ENV: process.env.NEXT_PUBLIC_APP_ENV,
+  NEXT_PUBLIC_APP_URL: resolvePublicAppUrl(),
+  NEXT_PUBLIC_APP_ENV: resolvePublicAppEnv(),
   NEXT_PUBLIC_DEFAULT_LOCALE: process.env.NEXT_PUBLIC_DEFAULT_LOCALE,
   NEXT_PUBLIC_DEFAULT_CURRENCY: process.env.NEXT_PUBLIC_DEFAULT_CURRENCY,
   NEXT_PUBLIC_DEFAULT_TIMEZONE: process.env.NEXT_PUBLIC_DEFAULT_TIMEZONE,
