@@ -19,7 +19,13 @@ const CATEGORY_SLUG = "fresh-vegetables";
 const CATEGORY_NAME = "Fresh Vegetables";
 const CATEGORY_POSITION = 2;
 
-const PUBLIC_DIR = path.join(process.cwd(), "public", "shops", "needscarlow", CATEGORY_FOLDER);
+const IMAGES_DIR = path.join(
+  process.cwd(),
+  "Shops",
+  "Needscarlow",
+  "needscarlow_images",
+  CATEGORY_FOLDER,
+);
 
 /** Fresh fruit & veg is typically 0% VAT in Ireland when unprocessed. */
 const VAT = "ZER" as const;
@@ -323,12 +329,12 @@ function imageUrl(filename: string): string {
 }
 
 function writePlaceholderImages() {
-  fs.mkdirSync(PUBLIC_DIR, { recursive: true });
+  fs.mkdirSync(IMAGES_DIR, { recursive: true });
   for (const item of VEGETABLES) {
-    const out = path.join(PUBLIC_DIR, item.imageFile);
+    const out = path.join(IMAGES_DIR, item.imageFile);
     fs.writeFileSync(out, svgPlaceholder(item.imageLabel, 95 + (item.seq % 40)), "utf8");
   }
-  console.info(`[needscarlow-veg] images in public/${path.relative(process.cwd(), PUBLIC_DIR)}`);
+  console.info(`[needscarlow-veg] images in ${path.relative(process.cwd(), IMAGES_DIR)}`);
 }
 
 async function main() {

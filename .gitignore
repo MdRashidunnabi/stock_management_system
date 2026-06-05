@@ -15,6 +15,8 @@ e2e/.results/
 .next/
 out/
 next-env.d.ts
+# Generated from Shops/Needscarlow/needscarlow_images (npm run sync:needscarlow-images)
+public/shops/needscarlow/
 
 # production
 build/

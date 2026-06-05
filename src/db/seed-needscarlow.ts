@@ -25,7 +25,6 @@ const TERMINAL_ID = "00000000-0000-0000-0000-000000000021";
 const SUPPLIER_ID = "00000000-0000-0000-0000-000000000201";
 
 const IMAGES_SRC = path.join(process.cwd(), "Shops", "Needscarlow", "needscarlow_images");
-const PUBLIC_LINK = path.join(process.cwd(), "public", "shops", "needscarlow");
 
 const DEMO_USERS = [
   {
@@ -79,17 +78,6 @@ function parseImageFile(folder: string, filename: string, globalIndex: number) {
   return { sku, name, imageUrl, barcode, seq: Number(seq) };
 }
 
-function ensurePublicSymlink() {
-  fs.mkdirSync(path.dirname(PUBLIC_LINK), { recursive: true });
-  if (fs.existsSync(PUBLIC_LINK)) {
-    const stat = fs.lstatSync(PUBLIC_LINK);
-    if (stat.isSymbolicLink() || stat.isDirectory()) return;
-    fs.rmSync(PUBLIC_LINK, { force: true });
-  }
-  const rel = path.relative(path.dirname(PUBLIC_LINK), IMAGES_SRC);
-  fs.symlinkSync(rel, PUBLIC_LINK);
-}
-
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -100,8 +88,7 @@ async function main() {
     throw new Error(`Images folder not found: ${IMAGES_SRC}`);
   }
 
-  ensurePublicSymlink();
-  console.info("[needscarlow] public image path:", PUBLIC_LINK);
+  console.info("[needscarlow] images served at /shops/needscarlow/* from", IMAGES_SRC);
 
   const admin = createClient(url, serviceRole, {
     auth: { autoRefreshToken: false, persistSession: false },
