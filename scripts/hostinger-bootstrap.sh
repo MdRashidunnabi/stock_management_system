@@ -51,7 +51,7 @@ NEXT_PUBLIC_DEFAULT_CURRENCY=EUR
 NEXT_PUBLIC_DEFAULT_TIMEZONE=Europe/Dublin
 NEXT_PUBLIC_DEFAULT_COUNTRY=IE
 AUTH_SECRET=${AUTH_SECRET}
-EMAIL_FROM=ShopOS <noreply@shopos.local>
+EMAIL_FROM="ShopOS <noreply@shopos.local>"
 EOF
 
 echo "==> Nginx config (HTTP)..."
@@ -83,9 +83,14 @@ if command -v ufw >/dev/null 2>&1; then
 fi
 
 echo "==> Building Docker image (5-10 min first time)..."
-set -a
-source .env.production
-set +a
+# Export only vars needed for Docker build args (avoid sourcing values with special chars).
+export NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY APP_URL
+export NEXT_PUBLIC_APP_URL="${APP_URL}"
+export NEXT_PUBLIC_APP_ENV=production
+export NEXT_PUBLIC_DEFAULT_LOCALE=en-IE
+export NEXT_PUBLIC_DEFAULT_CURRENCY=EUR
+export NEXT_PUBLIC_DEFAULT_TIMEZONE=Europe/Dublin
+export NEXT_PUBLIC_DEFAULT_COUNTRY=IE
 docker compose -f docker-compose.prod.yml build --no-cache app
 
 echo "==> Starting stack..."
