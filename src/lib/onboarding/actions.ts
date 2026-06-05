@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { authActionClient, ActionError } from "@/lib/safe-action";
-import { createTenantSchema } from "@/lib/onboarding/schemas";
+import { createTenantSchema, monthlyCentsFromPlanInput } from "@/lib/onboarding/schemas";
+import { getBillingAccountForOwner, listOwnerShops } from "@/lib/billing/account-queries";
 import {
   DEFAULT_COUNTRY,
   DEFAULT_CURRENCY,
@@ -63,7 +64,9 @@ export const createTenantAction = authActionClient
       // tenant or is unauthenticated. Friendlier surface for the UI.
       if (error.code === "42501") {
         throw new ActionError(
-          "Your account already belongs to a shop. Try signing out and back in.",
+          error.message.includes("shop limit")
+            ? error.message
+            : "You cannot create this shop with your current plan.",
         );
       }
       throw new ActionError("Could not create your shop. Please try again.");

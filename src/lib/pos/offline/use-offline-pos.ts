@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { commitPosSaleAction } from "@/lib/pos/actions";
 import {
   getCachedSnapshotCount,
@@ -16,6 +16,7 @@ import {
   listQueuedSales,
 } from "@/lib/pos/offline/sale-queue";
 import type { OfflineCatalogRow, OfflineSaleRow } from "@/lib/pos/offline/storage";
+import { cartLineToCommitItem } from "@/lib/pos/misc-product";
 import type { CartLine } from "@/lib/pos/schemas";
 
 export interface UseOfflinePosArgs {
@@ -47,25 +48,40 @@ export interface UseOfflinePosResult {
  *   - expose helpers the UI can call directly.
  */
 export function useOfflinePos({ tenantId, branchId }: UseOfflinePosArgs): UseOfflinePosResult {
-  // Lazy initial-state callback runs once at mount and reads the current
-  // navigator state without triggering React Compiler's "setState in effect"
-  // rule. On the server (SSR) navigator is undefined, so we default to true.
-  const [online, setOnline] = useState<boolean>(() =>
-    typeof navigator === "undefined" ? true : navigator.onLine,
-  );
+  // Always start "online" for SSR and the first client paint so hydration
+  // matches. Headless browsers (Playwright) often report navigator.onLine=false
+  // even though fetch/server actions work — we sync the real value after mount
+  // and only flip to offline on an explicit `offline` event.
+  const [online, setOnline] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
   const [cachedCount, setCachedCount] = useState(0);
   const flushingRef = useRef(false);
 
-  // Listen for online / offline transitions.
+  // Track connectivity without reading navigator.onLine on first paint (hydration +
+  // headless browsers often report offline while server actions still work).
   useEffect(() => {
-    const onOnline = () => setOnline(true);
-    const onOffline = () => setOnline(false);
+    let prevOnLine = navigator.onLine;
+
+    const apply = (next: boolean) => setOnline(next);
+    const onOnline = () => apply(true);
+    const onOffline = () => apply(false);
+
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
+
+    // Playwright setOffline() updates navigator.onLine but may skip the `offline` event.
+    const interval = window.setInterval(() => {
+      const now = navigator.onLine;
+      if (now !== prevOnLine) {
+        prevOnLine = now;
+        apply(now);
+      }
+    }, 200);
+
     return () => {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
+      window.clearInterval(interval);
     };
   }, []);
 
@@ -161,11 +177,20 @@ export function useOfflinePos({ tenantId, branchId }: UseOfflinePosArgs): UseOff
         const out = await commitPosSaleAction({
           branchId: row.branchId,
           clientUuid: row.clientUuid,
-          items: row.items.map((it) => ({
-            productId: it.productId,
-            qty: it.qty,
-            discount: it.discount || 0,
-          })),
+          items: row.items.map((it) =>
+            cartLineToCommitItem({
+              productId: it.productId,
+              name: it.name,
+              sku: it.sku,
+              barcode: null,
+              baseUnit: "un",
+              unitPrice: it.unitPriceSnapshot,
+              vatCode: "STD",
+              vatIncluded: true,
+              qty: it.qty,
+              discount: it.discount || 0,
+            }),
+          ),
           payments: row.payments.map((p) => ({ method: p.method, amount: p.amount })),
         });
         if (out?.serverError) return { ok: false as const, error: out.serverError };
@@ -202,14 +227,26 @@ export function useOfflinePos({ tenantId, branchId }: UseOfflinePosArgs): UseOff
     return () => clearInterval(handle);
   }, [tenantId, branchId, flushNow]);
 
-  return {
-    online,
-    pendingCount,
-    cachedCount,
-    saveCatalogSnapshot,
-    upsertCatalog,
-    offlineSearch,
-    enqueueSale,
-    flushNow,
-  };
+  return useMemo(
+    () => ({
+      online,
+      pendingCount,
+      cachedCount,
+      saveCatalogSnapshot,
+      upsertCatalog,
+      offlineSearch,
+      enqueueSale,
+      flushNow,
+    }),
+    [
+      online,
+      pendingCount,
+      cachedCount,
+      saveCatalogSnapshot,
+      upsertCatalog,
+      offlineSearch,
+      enqueueSale,
+      flushNow,
+    ],
+  );
 }

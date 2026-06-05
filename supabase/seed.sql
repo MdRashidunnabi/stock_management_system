@@ -109,4 +109,12 @@ begin
     ('Bin Bags 30L x10',          'HH-BIN-30',  '5099876006001', 'household', null, 'MUSGRAVE', 1.40, 2.99, 'STD', 'un')
   ) as p(name, sku, barcode, cat, brand, supplier, purchase, price, vat, unit)
   on conflict (tenant_id, sku) do nothing;
+
+  -- Opening stock so POS works immediately after seed (no goods receipt required).
+  insert into public.stock_balances (tenant_id, branch_id, product_id, state, quantity)
+  select v_tenant_id, v_branch_id, pr.id, 'available', 50
+  from public.products pr
+  where pr.tenant_id = v_tenant_id
+  on conflict (tenant_id, branch_id, product_id, variant_id, state) do update
+    set quantity = excluded.quantity;
 end $$;

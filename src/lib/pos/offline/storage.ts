@@ -26,6 +26,7 @@ export interface OfflineCatalogRow {
   tenantId: string;
   branchId: string;
   name: string;
+  primaryImageUrl: string | null;
   sku: string | null;
   barcode: string | null;
   baseUnit: string;

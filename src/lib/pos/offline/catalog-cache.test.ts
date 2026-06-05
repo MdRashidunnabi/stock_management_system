@@ -20,6 +20,7 @@ function row(overrides: Partial<OfflineCatalogRow>): OfflineCatalogRow {
     tenantId: overrides.tenantId ?? TENANT_A,
     branchId: overrides.branchId ?? BRANCH_A,
     name: overrides.name ?? "Some Product",
+    primaryImageUrl: overrides.primaryImageUrl ?? null,
     sku: overrides.sku ?? null,
     barcode: overrides.barcode ?? null,
     baseUnit: overrides.baseUnit ?? "ea",

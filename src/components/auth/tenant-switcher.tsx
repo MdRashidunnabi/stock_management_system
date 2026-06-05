@@ -46,7 +46,12 @@ export function TenantSwitcher({ current, memberships }: Props) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" disabled={pending} className="h-8 gap-2 px-2 font-medium">
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={pending}
+          className="h-8 gap-2 px-2 font-medium text-white hover:bg-white/15 hover:text-white"
+        >
           <span className="max-w-[180px] truncate">{current.tenantName}</span>
           <ChevronsUpDown className="text-muted-foreground size-3.5" />
         </Button>

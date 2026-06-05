@@ -28,6 +28,7 @@ import {
   restoreProductAction,
   updateProductAction,
 } from "@/lib/catalog/products/actions";
+import { ProductImageField } from "@/components/products/product-image-field";
 import { createProductSchema, type ProductFullRow } from "@/lib/catalog/products/schemas";
 
 type FormIn = z.input<typeof createProductSchema>;
@@ -46,11 +47,21 @@ interface Props {
   categories: LookupItem[];
   brands: LookupItem[];
   suppliers: LookupItem[];
+  /** Default % added to selling price for online shop when manual online price is empty. */
+  onlinePriceMarkupPct?: number;
 }
 
 const NONE = "__none__";
 
-export function ProductForm({ mode, initial, canWrite, categories, brands, suppliers }: Props) {
+export function ProductForm({
+  mode,
+  initial,
+  canWrite,
+  categories,
+  brands,
+  suppliers,
+  onlinePriceMarkupPct = 0.5,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [archivePending, startArchive] = useTransition();
@@ -71,12 +82,18 @@ export function ProductForm({ mode, initial, canWrite, categories, brands, suppl
           defaultSupplierId: initial.default_supplier_id ?? "",
           purchasePrice: Number(initial.purchase_price ?? 0),
           sellingPrice: Number(initial.selling_price ?? 0),
+          onlineSellingPrice:
+            initial.online_selling_price != null && Number(initial.online_selling_price) > 0
+              ? initial.online_selling_price
+              : "",
+          onlineDiscountPct: Number(initial.online_discount_pct ?? 0),
           vatCode: (initial.vat_code as FormIn["vatCode"]) ?? "STD",
           vatIncluded: initial.vat_included,
           baseUnit: initial.base_unit ?? "un",
           weighable: initial.weighable,
           decimalQtyAllowed: initial.decimal_qty_allowed,
           isActive: initial.is_active,
+          primaryImageUrl: initial.primary_image_url ?? "",
         }
       : {
           name: "",
@@ -84,14 +101,19 @@ export function ProductForm({ mode, initial, canWrite, categories, brands, suppl
           barcode: "",
           purchasePrice: 0,
           sellingPrice: 0,
+          onlineSellingPrice: "",
+          onlineDiscountPct: 0,
           vatCode: "STD",
           vatIncluded: true,
           baseUnit: "un",
           weighable: false,
           decimalQtyAllowed: false,
           isActive: true,
+          primaryImageUrl: "",
         },
   });
+
+  const imageUrl = form.watch("primaryImageUrl") ?? "";
 
   function onSubmit(values: FormOut) {
     setServerError(null);
@@ -144,6 +166,13 @@ export function ProductForm({ mode, initial, canWrite, categories, brands, suppl
           <AlertDescription>{serverError}</AlertDescription>
         </Alert>
       ) : null}
+
+      <ProductImageField
+        productId={initial?.id}
+        value={typeof imageUrl === "string" ? imageUrl : ""}
+        onChange={(url) => form.setValue("primaryImageUrl", url, { shouldDirty: true })}
+        disabled={pending || !canWrite}
+      />
 
       <Card>
         <CardHeader>
@@ -357,6 +386,47 @@ export function ProductForm({ mode, initial, canWrite, categories, brands, suppl
               )}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Online shop only</CardTitle>
+          <CardDescription>
+            These prices apply on your public website only — till / POS prices are unchanged. Leave
+            online price empty to use selling price + {onlinePriceMarkupPct}% (change default in
+            Online shop settings).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label="Manual online price (€)"
+            hint="Leave empty for automatic"
+            error={form.formState.errors.onlineSellingPrice?.message}
+          >
+            <Input
+              type="number"
+              step="0.01"
+              min={0}
+              placeholder="Auto"
+              disabled={pending || !canWrite}
+              {...form.register("onlineSellingPrice")}
+            />
+          </Field>
+          <Field
+            label="Online discount (%)"
+            hint="Shows strikethrough + badge on shop"
+            error={form.formState.errors.onlineDiscountPct?.message}
+          >
+            <Input
+              type="number"
+              step="1"
+              min={0}
+              max={100}
+              disabled={pending || !canWrite}
+              {...form.register("onlineDiscountPct", { valueAsNumber: true })}
+            />
+          </Field>
         </CardContent>
       </Card>
 

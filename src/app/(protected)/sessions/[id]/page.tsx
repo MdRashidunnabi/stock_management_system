@@ -30,14 +30,20 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
         >
           <ArrowLeft className="size-4" /> Back to till sessions
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {isOpen ? (
-            <Link
-              href="/pos"
-              className="border-input bg-card hover:bg-accent inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium"
-            >
-              <ScanLine className="size-3.5" /> Open POS
-            </Link>
+            <>
+              <Link
+                href="/pos"
+                className="border-input bg-card hover:bg-accent inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium"
+              >
+                <ScanLine className="size-3.5" /> Open POS
+              </Link>
+              <CloseSessionDialog
+                sessionId={summary.session.id}
+                expectedCash={summary.cash_running.expected}
+              />
+            </>
           ) : null}
           <ReceiptPrintButton />
         </div>
@@ -72,14 +78,9 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
             <div className="border-border bg-card rounded-lg border p-4">
               <h2 className="text-sm font-semibold">End the shift</h2>
               <p className="text-muted-foreground mt-1 text-xs">
-                Count the cash in the drawer and close the till. We&apos;ll record the variance.
+                Count the cash in the drawer, then use the red <strong>Close till</strong> button at
+                the top right of this page (next to Open POS).
               </p>
-              <div className="mt-3">
-                <CloseSessionDialog
-                  sessionId={summary.session.id}
-                  expectedCash={summary.cash_running.expected}
-                />
-              </div>
             </div>
           </aside>
         </div>

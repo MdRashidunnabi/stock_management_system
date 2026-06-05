@@ -12,7 +12,7 @@ interface Props {
 }
 
 const VERB_TONE: Record<string, string> = {
-  created: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  created: "bg-success/15 text-success dark:text-success",
   updated: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
   deleted: "bg-rose-500/10 text-rose-700 dark:text-rose-400",
 };

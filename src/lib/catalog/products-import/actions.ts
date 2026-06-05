@@ -39,6 +39,7 @@ const writableRoles = ["owner", "manager", "warehouse"] as const;
  *   vat_included     - optional, true|false|1|0|yes|no, default true
  *   base_unit        - optional, default "un"
  *   is_active        - optional, true|false|1|0|yes|no, default true
+ *   image_url        - optional, HTTPS URL or site path (alias: primary_image_url)
  */
 export const parseProductsCsvAction = staffActionClient([...writableRoles])
   .metadata({ actionName: "products.import.parse" })
@@ -144,6 +145,7 @@ export const parseProductsCsvAction = staffActionClient([...writableRoles])
         vatIncluded: parseBoolean(raw.vat_included, true),
         baseUnit: (raw.base_unit ?? "un").trim() || "un",
         isActive: parseBoolean(raw.is_active, true),
+        primaryImageUrl: (raw.image_url ?? raw.primary_image_url ?? "").trim(),
       };
 
       const errors: string[] = [];
@@ -223,6 +225,7 @@ export const commitProductsImportAction = staffActionClient([...writableRoles])
       category_id: r.category_id || null,
       brand_id: r.brand_id || null,
       default_supplier_id: r.default_supplier_id || null,
+      primary_image_url: r.primary_image_url?.trim() || null,
     }));
 
     const { data, error } = await supabase.from("products").insert(rows).select("id");

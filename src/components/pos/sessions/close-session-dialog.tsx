@@ -41,7 +41,7 @@ export function CloseSessionDialog({ sessionId, expectedCash, trigger }: Props) 
     !Number.isFinite(countedNum) || counted === ""
       ? "text-muted-foreground"
       : Math.abs(variance) < 0.005
-        ? "text-emerald-700 dark:text-emerald-400"
+        ? "text-success dark:text-success"
         : variance > 0
           ? "text-amber-700 dark:text-amber-400"
           : "text-destructive";
@@ -74,15 +74,26 @@ export function CloseSessionDialog({ sessionId, expectedCash, trigger }: Props) 
     });
   }
 
+  const openDialog = () => setOpen(true);
+
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="contents">
-        {trigger ?? (
-          <Button size="lg" variant="destructive">
-            <Lock className="size-4" /> Close till
-          </Button>
-        )}
-      </button>
+      {trigger ? (
+        <button type="button" onClick={openDialog} className="w-full text-left">
+          {trigger}
+        </button>
+      ) : (
+        <Button
+          size="default"
+          variant="destructive"
+          type="button"
+          className="bg-destructive text-destructive-foreground hover:bg-destructive/90 inline-flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-semibold"
+          onClick={openDialog}
+        >
+          <Lock className="size-4" />
+          Close till
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={(v) => !pending && setOpen(v)}>
         <DialogContent className="sm:max-w-md">

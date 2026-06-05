@@ -1220,6 +1220,8 @@ export type Database = {
           online_visible: boolean;
           primary_image_url: string | null;
           purchase_price: number;
+          online_selling_price: number | null;
+          online_discount_pct: number | null;
           requires_age_check: boolean;
           selling_price: number;
           seo_slug: string | null;
@@ -1262,6 +1264,8 @@ export type Database = {
           online_visible?: boolean;
           primary_image_url?: string | null;
           purchase_price?: number;
+          online_selling_price?: number | null;
+          online_discount_pct?: number | null;
           requires_age_check?: boolean;
           selling_price?: number;
           seo_slug?: string | null;
@@ -1304,6 +1308,8 @@ export type Database = {
           online_visible?: boolean;
           primary_image_url?: string | null;
           purchase_price?: number;
+          online_selling_price?: number | null;
+          online_discount_pct?: number | null;
           requires_age_check?: boolean;
           selling_price?: number;
           seo_slug?: string | null;
@@ -2186,6 +2192,7 @@ export type Database = {
       };
       tenants: {
         Row: {
+          billing_account_id: string | null;
           country: string;
           created_at: string;
           created_by: string | null;
@@ -2298,11 +2305,453 @@ export type Database = {
           },
         ];
       };
+      billing_accounts: {
+        Row: {
+          id: string;
+          owner_user_id: string;
+          plan_shop_tier: number;
+          plan_branch_tier: number;
+          licensed_shop_count: number;
+          licensed_branch_count: number;
+          monthly_amount_cents: number;
+          currency: string;
+          provider: string;
+          card_on_file: boolean;
+          card_last4: string | null;
+          card_brand: string | null;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          next_billing_at: string | null;
+          last_payment_at: string | null;
+          last_payment_status: string | null;
+          canceled_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_user_id: string;
+          plan_shop_tier?: number;
+          plan_branch_tier?: number;
+          licensed_shop_count?: number;
+          licensed_branch_count?: number;
+          monthly_amount_cents?: number;
+          currency?: string;
+          provider?: string;
+          card_on_file?: boolean;
+          card_last4?: string | null;
+          card_brand?: string | null;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          next_billing_at?: string | null;
+          last_payment_at?: string | null;
+          last_payment_status?: string | null;
+          canceled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_user_id?: string;
+          plan_shop_tier?: number;
+          plan_branch_tier?: number;
+          licensed_shop_count?: number;
+          licensed_branch_count?: number;
+          monthly_amount_cents?: number;
+          currency?: string;
+          provider?: string;
+          card_on_file?: boolean;
+          card_last4?: string | null;
+          card_brand?: string | null;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          next_billing_at?: string | null;
+          last_payment_at?: string | null;
+          last_payment_status?: string | null;
+          canceled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      tenant_billing: {
+        Row: {
+          tenant_id: string;
+          provider: string;
+          plan_code: string;
+          monthly_amount_cents: number;
+          currency: string;
+          card_on_file: boolean;
+          card_last4: string | null;
+          card_brand: string | null;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          next_billing_at: string | null;
+          last_payment_at: string | null;
+          last_payment_status: string | null;
+          canceled_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          tenant_id: string;
+          provider?: string;
+          plan_code?: string;
+          monthly_amount_cents?: number;
+          currency?: string;
+          card_on_file?: boolean;
+          card_last4?: string | null;
+          card_brand?: string | null;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          next_billing_at?: string | null;
+          last_payment_at?: string | null;
+          last_payment_status?: string | null;
+          canceled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          tenant_id?: string;
+          provider?: string;
+          plan_code?: string;
+          monthly_amount_cents?: number;
+          currency?: string;
+          card_on_file?: boolean;
+          card_last4?: string | null;
+          card_brand?: string | null;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          next_billing_at?: string | null;
+          last_payment_at?: string | null;
+          last_payment_status?: string | null;
+          canceled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tenant_billing_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: true;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      tenant_invites: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          email: string;
+          role: Database["public"]["Enums"]["user_role"];
+          branch_id: string | null;
+          token: string;
+          invited_by: string | null;
+          invited_at: string;
+          expires_at: string;
+          accepted_at: string | null;
+          accepted_by: string | null;
+          revoked_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          email: string;
+          role: Database["public"]["Enums"]["user_role"];
+          branch_id?: string | null;
+          token?: string;
+          invited_by?: string | null;
+          invited_at?: string;
+          expires_at?: string;
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          revoked_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          email?: string;
+          role?: Database["public"]["Enums"]["user_role"];
+          branch_id?: string | null;
+          token?: string;
+          invited_by?: string | null;
+          invited_at?: string;
+          expires_at?: string;
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          revoked_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tenant_invites_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      tenant_storefronts: {
+        Row: {
+          tenant_id: string;
+          enabled: boolean;
+          branch_id: string | null;
+          tagline: string | null;
+          phone: string | null;
+          whatsapp: string | null;
+          hero_title: string | null;
+          hero_subtitle: string | null;
+          order_notice: string | null;
+          low_stock_threshold: number;
+          public_site_name: string | null;
+          custom_domain: string | null;
+          logo_url: string | null;
+          delivery_standard_fee: number;
+          delivery_free_over: number;
+          delivery_min_order: number;
+          enable_takeaway: boolean;
+          enable_online_payment: boolean;
+          footer_about: string | null;
+          call_us_label: string | null;
+          facebook_url: string | null;
+          twitter_url: string | null;
+          youtube_url: string | null;
+          instagram_url: string | null;
+          online_price_markup_pct: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          tenant_id: string;
+          enabled?: boolean;
+          branch_id?: string | null;
+          tagline?: string | null;
+          phone?: string | null;
+          whatsapp?: string | null;
+          hero_title?: string | null;
+          hero_subtitle?: string | null;
+          order_notice?: string | null;
+          low_stock_threshold?: number;
+          public_site_name?: string | null;
+          custom_domain?: string | null;
+          logo_url?: string | null;
+          delivery_standard_fee?: number;
+          delivery_free_over?: number;
+          delivery_min_order?: number;
+          enable_takeaway?: boolean;
+          enable_online_payment?: boolean;
+          footer_about?: string | null;
+          call_us_label?: string | null;
+          facebook_url?: string | null;
+          twitter_url?: string | null;
+          youtube_url?: string | null;
+          instagram_url?: string | null;
+          online_price_markup_pct?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          tenant_id?: string;
+          enabled?: boolean;
+          branch_id?: string | null;
+          tagline?: string | null;
+          phone?: string | null;
+          whatsapp?: string | null;
+          hero_title?: string | null;
+          hero_subtitle?: string | null;
+          order_notice?: string | null;
+          low_stock_threshold?: number;
+          public_site_name?: string | null;
+          custom_domain?: string | null;
+          logo_url?: string | null;
+          delivery_standard_fee?: number;
+          delivery_free_over?: number;
+          delivery_min_order?: number;
+          enable_takeaway?: boolean;
+          enable_online_payment?: boolean;
+          footer_about?: string | null;
+          call_us_label?: string | null;
+          facebook_url?: string | null;
+          twitter_url?: string | null;
+          youtube_url?: string | null;
+          instagram_url?: string | null;
+          online_price_markup_pct?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tenant_storefronts_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: true;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tenant_storefronts_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      online_orders: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          branch_id: string;
+          sale_id: string | null;
+          order_number: string;
+          status: Database["public"]["Enums"]["online_order_status"];
+          customer_name: string;
+          customer_phone: string;
+          customer_email: string | null;
+          delivery_address: string | null;
+          notes: string | null;
+          fulfillment_type: Database["public"]["Enums"]["online_fulfillment_type"];
+          payment_method: Database["public"]["Enums"]["online_checkout_payment"];
+          delivery_fee: number;
+          products_total: number;
+          pickup_at: string | null;
+          subtotal: number;
+          vat_total: number;
+          total: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          branch_id: string;
+          sale_id?: string | null;
+          order_number: string;
+          status?: Database["public"]["Enums"]["online_order_status"];
+          customer_name: string;
+          customer_phone: string;
+          customer_email?: string | null;
+          delivery_address?: string | null;
+          notes?: string | null;
+          subtotal?: number;
+          vat_total?: number;
+          total?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          branch_id?: string;
+          sale_id?: string | null;
+          order_number?: string;
+          status?: Database["public"]["Enums"]["online_order_status"];
+          customer_name?: string;
+          customer_phone?: string;
+          customer_email?: string | null;
+          delivery_address?: string | null;
+          notes?: string | null;
+          subtotal?: number;
+          vat_total?: number;
+          total?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "online_orders_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "online_orders_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "online_orders_sale_id_fkey";
+            columns: ["sale_id"];
+            isOneToOne: false;
+            referencedRelation: "sales";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      online_order_items: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          online_order_id: string;
+          product_id: string;
+          position: number;
+          name_snapshot: string;
+          sku_snapshot: string | null;
+          quantity: number;
+          unit_price: number;
+          line_total_gross: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          online_order_id: string;
+          product_id: string;
+          position?: number;
+          name_snapshot: string;
+          sku_snapshot?: string | null;
+          quantity: number;
+          unit_price: number;
+          line_total_gross: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          online_order_id?: string;
+          product_id?: string;
+          position?: number;
+          name_snapshot?: string;
+          sku_snapshot?: string | null;
+          quantity?: number;
+          unit_price?: number;
+          line_total_gross?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "online_order_items_online_order_id_fkey";
+            columns: ["online_order_id"];
+            isOneToOne: false;
+            referencedRelation: "online_orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
+      commit_online_order: {
+        Args: {
+          p_tenant_slug: string;
+          p_items: Json;
+          p_customer: Json;
+          p_client_uuid?: string;
+        };
+        Returns: {
+          online_order_id: string;
+          order_number: string;
+          sale_id: string;
+          total: number;
+          delivery_fee: number;
+          products_total: number;
+        }[];
+      };
       close_pos_session: {
         Args: {
           p_closing_note?: string;
@@ -2334,6 +2783,20 @@ export type Database = {
           p_type: Database["public"]["Enums"]["cash_movement_type"];
         };
         Returns: string;
+      };
+      apply_stock_adjustment: {
+        Args: {
+          p_branch_id: string;
+          p_product_id: string;
+          p_reason: string;
+          p_delta?: number | null;
+          p_new_quantity?: number | null;
+        };
+        Returns: {
+          adjustment_id: string;
+          previous_qty: number;
+          new_qty: number;
+        }[];
       };
       commit_pos_sale: {
         Args: {
@@ -2401,6 +2864,26 @@ export type Database = {
           items_count: number;
         }[];
       };
+      accept_tenant_invite: {
+        Args: { p_token: string };
+        Returns: {
+          tenant_id: string;
+          role: string;
+          tenant_slug: string;
+        }[];
+      };
+      add_branch_for_tenant: {
+        Args: {
+          p_tenant_id: string;
+          p_code: string;
+          p_name: string;
+          p_address_line1?: string;
+          p_city?: string;
+          p_county?: string;
+          p_eircode?: string;
+        };
+        Returns: string;
+      };
       create_tenant_with_owner: {
         Args: {
           p_branch_address_line1?: string;
@@ -2417,9 +2900,13 @@ export type Database = {
           p_slug: string;
           p_timezone?: string;
           p_vat_number?: string;
+          p_plan_shop_tier?: number;
+          p_plan_branch_tier?: number;
+          p_monthly_amount_cents?: number;
         };
         Returns: {
           branch_id: string;
+          billing_account_id: string;
           slug: string;
           tenant_id: string;
         }[];
@@ -2439,6 +2926,9 @@ export type Database = {
         | "pay_out"
         | "closing";
       goods_receipt_status: "draft" | "finalised" | "cancelled";
+      online_order_status: "pending" | "confirmed" | "cancelled" | "fulfilled";
+      online_fulfillment_type: "delivery" | "takeaway";
+      online_checkout_payment: "cod" | "online_card";
       payment_method:
         | "cash"
         | "card"
@@ -2638,6 +3128,9 @@ export const Constants = {
         "closing",
       ],
       goods_receipt_status: ["draft", "finalised", "cancelled"],
+      online_order_status: ["pending", "confirmed", "cancelled", "fulfilled"],
+      online_fulfillment_type: ["delivery", "takeaway"],
+      online_checkout_payment: ["cod", "online_card"],
       payment_method: [
         "cash",
         "card",

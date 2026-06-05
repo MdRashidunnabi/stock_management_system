@@ -22,7 +22,7 @@ export function PosOfflineStatus({ online, pendingCount, cachedCount, flushing, 
   const tone = online
     ? pendingCount > 0
       ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
-      : "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+      : "border-success/40 bg-success/15 text-success dark:text-success"
     : "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-400";
   const label = online ? (pendingCount > 0 ? "Sync pending" : "Online") : "Offline";
   const Icon = online ? (pendingCount > 0 ? Cloud : Wifi) : CloudOff;
@@ -32,8 +32,8 @@ export function PosOfflineStatus({ online, pendingCount, cachedCount, flushing, 
       <Icon className="size-3.5" aria-hidden />
       <span className="font-medium">{label}</span>
       <span className="text-muted-foreground hidden sm:inline">·</span>
-      <span className="text-muted-foreground hidden sm:inline">
-        {cachedCount.toLocaleString()} cached
+      <span className="text-muted-foreground hidden sm:inline" suppressHydrationWarning>
+        {cachedCount.toLocaleString("en-IE")} cached
       </span>
       {pendingCount > 0 ? (
         <>

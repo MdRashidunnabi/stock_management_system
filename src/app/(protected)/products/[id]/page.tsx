@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
+import { AdjustStockCard } from "@/components/products/adjust-stock-card";
 import { ProductForm } from "@/components/products/product-form";
 import { getProduct, listLookupsForProductForm } from "@/lib/catalog/products/actions";
 import { requireTenant } from "@/lib/auth/tenant";
+import { getStorefrontSettingsForTenant } from "@/lib/storefront/settings-queries";
+import { getProductStockByBranch } from "@/lib/inventory/actions";
 
 export const metadata = { title: "Edit product - ShopOS" };
 
@@ -16,7 +19,12 @@ export default async function EditProductPage({ params }: Props) {
   const tenant = await requireTenant();
   const canWrite = ["owner", "manager", "warehouse"].includes(tenant.role);
 
-  const [product, lookups] = await Promise.all([getProduct(id), listLookupsForProductForm()]);
+  const [product, lookups, branchStock, storefront] = await Promise.all([
+    getProduct(id),
+    listLookupsForProductForm(),
+    getProductStockByBranch(id),
+    getStorefrontSettingsForTenant(tenant.tenantId),
+  ]);
   if (!product) notFound();
 
   return (
@@ -37,6 +45,15 @@ export default async function EditProductPage({ params }: Props) {
         </p>
       </header>
 
+      <AdjustStockCard
+        key={`${product.id}-${branchStock.map((b) => `${b.branchId}:${b.availableQty}`).join("|")}`}
+        productId={product.id}
+        productName={product.name}
+        baseUnit={product.base_unit}
+        branchStock={branchStock}
+        canWrite={canWrite}
+      />
+
       <ProductForm
         mode="edit"
         initial={product}
@@ -44,6 +61,7 @@ export default async function EditProductPage({ params }: Props) {
         categories={lookups.categories}
         brands={lookups.brands}
         suppliers={lookups.suppliers}
+        onlinePriceMarkupPct={storefront?.onlinePriceMarkupPct ?? 0.5}
       />
     </div>
   );

@@ -20,7 +20,6 @@ export function SalesChart({ series, highlightLast = 1 }: Props) {
   }
 
   const max = Math.max(...series.map((p) => p.revenue));
-  // Floor floor of 1 so an empty day still gets a visible (0%) baseline.
   const denom = max > 0 ? max : 1;
 
   const total = series.reduce((s, p) => s + p.revenue, 0);
@@ -36,7 +35,7 @@ export function SalesChart({ series, highlightLast = 1 }: Props) {
           {formatEuro(total)} ({totalCount} sale{totalCount === 1 ? "" : "s"})
         </span>
       </div>
-      <div className="border-border bg-card relative rounded-lg border p-3">
+      <div className="border-border/80 from-card to-muted/20 relative rounded-xl border bg-gradient-to-b p-3">
         <div className="flex h-40 items-end gap-1.5">
           {series.map((p, idx) => {
             const isHighlight = idx >= series.length - highlightLast;
@@ -50,8 +49,8 @@ export function SalesChart({ series, highlightLast = 1 }: Props) {
                 <div
                   className={
                     isHighlight
-                      ? "bg-primary w-full rounded-t-sm transition-opacity group-hover:opacity-90"
-                      : "bg-primary/40 group-hover:bg-primary/60 w-full rounded-t-sm transition-colors"
+                      ? "bg-primary w-full rounded-t-md transition-opacity group-hover:opacity-90"
+                      : "bg-chart-2/50 group-hover:bg-chart-2/70 w-full rounded-t-md transition-colors"
                   }
                   style={{ height: `${Math.max(heightPct, 2)}%` }}
                 />
@@ -59,24 +58,17 @@ export function SalesChart({ series, highlightLast = 1 }: Props) {
             );
           })}
         </div>
-        <div className="mt-2 flex gap-1.5">
-          {series.map((p) => (
-            <div
-              key={`${p.day}-label`}
-              className="text-muted-foreground flex-1 text-center text-[10px] tabular-nums"
-            >
-              {formatShortDate(p.day)}
-            </div>
-          ))}
+        <div className="text-muted-foreground mt-2 flex justify-between gap-1 text-[10px]">
+          {series.map((p) => {
+            const [, m, d] = p.day.split("-");
+            return (
+              <span key={p.day} className="flex-1 truncate text-center">
+                {d}/{m}
+              </span>
+            );
+          })}
         </div>
       </div>
     </div>
   );
-}
-
-function formatShortDate(iso: string) {
-  // iso = "YYYY-MM-DD"
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!m) return iso;
-  return `${m[3]}/${m[2]}`;
 }

@@ -98,9 +98,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Para
                 <TableCell className="text-right font-mono text-xs">{it.quantity}</TableCell>
                 <TableCell className="text-right font-mono text-xs">
                   {it.qty_received > 0 ? (
-                    <span className="text-emerald-700 dark:text-emerald-400">
-                      {it.qty_received}
-                    </span>
+                    <span className="text-success dark:text-success">{it.qty_received}</span>
                   ) : (
                     "0"
                   )}

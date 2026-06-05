@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { entityIdSchema } from "@/lib/entity-id";
 
 /**
  * Zod schemas + types for the POS sale flow.
@@ -20,9 +21,15 @@ export const PAYMENT_METHODS_VALUES = [
 export type PaymentMethodValue = (typeof PAYMENT_METHODS_VALUES)[number];
 
 export const cartItemInputSchema = z.object({
-  productId: z.string().uuid("Invalid product id"),
+  productId: entityIdSchema,
   qty: z.coerce.number().min(0.0001, "Quantity must be > 0").max(99999, "Quantity is too large"),
   discount: z.coerce.number().min(0, "Discount must be >= 0").max(99999).optional(),
+  /** Custom unit price for products with allow_pos_custom_price (one-off sales). */
+  unitPrice: z.coerce
+    .number()
+    .min(0.01, "Price must be at least €0.01")
+    .max(99999, "Price is too large")
+    .optional(),
 });
 
 export const tenderInputSchema = z.object({
@@ -46,10 +53,10 @@ export const tenderInputSchema = z.object({
 });
 
 export const commitSaleSchema = z.object({
-  branchId: z.string().uuid("Invalid branch id"),
-  terminalId: z.string().uuid().optional(),
-  sessionId: z.string().uuid().optional(),
-  customerId: z.string().uuid().optional(),
+  branchId: entityIdSchema,
+  terminalId: entityIdSchema.optional(),
+  sessionId: entityIdSchema.optional(),
+  customerId: entityIdSchema.optional(),
   rounding: z.coerce.number().min(-1).max(1).optional(),
   notes: z
     .string()
@@ -63,7 +70,7 @@ export const commitSaleSchema = z.object({
    * pending sale and replays the same value on reconnect; the server
    * deduplicates so the cashier never charges twice.
    */
-  clientUuid: z.string().uuid().optional(),
+  clientUuid: entityIdSchema.optional(),
 });
 
 export type CommitSaleInput = z.input<typeof commitSaleSchema>;
@@ -72,7 +79,8 @@ export type CommitSaleOutput = z.output<typeof commitSaleSchema>;
 /**
  * Cart item shape used inside the React cart state. Holds the snapshot of
  * the product as it was added (so the UI doesn't re-fetch on every render),
- * but the SERVER ALWAYS recomputes prices and VAT from the products table.
+ * Server recomputes prices from the products table, except lines marked
+ * allow_pos_custom_price on the product (one-off / misc) which may send unitPrice.
  */
 export interface CartLine {
   productId: string;
@@ -92,6 +100,7 @@ export interface CartLine {
 export interface ProductSearchResult {
   id: string;
   name: string;
+  primary_image_url: string | null;
   sku: string | null;
   barcode: string | null;
   base_unit: string;

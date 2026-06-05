@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { getSafeActionData, getSafeActionError } from "@/lib/parse-safe-action-result";
 import { createGoodsReceiptAction } from "@/lib/purchasing/receipts/actions";
 import {
   VAT_CODES,
@@ -189,19 +190,19 @@ export function NewGoodsReceiptForm({
         notes: notes.trim() || null,
         items: payloadItems,
       });
-      if (res?.serverError) {
-        setServerError(res.serverError);
+      const err = getSafeActionError(res);
+      if (err) {
+        setServerError(err);
         return;
       }
-      if (res?.validationErrors) {
-        setServerError("Please check the form fields.");
-        return;
-      }
-      if (res?.data?.ok) {
-        toast.success(`Goods receipt ${res.data.grNumber} created (draft).`);
-        router.push(`/goods-receipts/${res.data.grId}`);
+      const data = getSafeActionData<{ ok: true; grId: string; grNumber: string }>(res);
+      if (data) {
+        toast.success(`Goods receipt ${data.grNumber} created (draft).`);
+        router.push(`/goods-receipts/${data.grId}`);
         router.refresh();
+        return;
       }
+      setServerError("Goods receipt could not be saved. Please try again.");
     });
   }
 

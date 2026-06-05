@@ -103,7 +103,7 @@ function SessionsTable({
                   Math.abs(variance) < 0.005
                     ? "text-muted-foreground"
                     : variance > 0
-                      ? "text-emerald-700 dark:text-emerald-400"
+                      ? "text-success dark:text-success"
                       : "text-destructive";
                 return (
                   <TableRow key={s.id} className="hover:bg-muted/40">

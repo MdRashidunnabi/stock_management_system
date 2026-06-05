@@ -1269,6 +1269,22 @@ breaker. With Step 13:
    the "Install app" icon. Click it. ShopOS installs as a desktop
    app whose start URL is `/pos`.
 
+### ShopOS Desktop (Electron, Step 13+)
+
+For a dedicated Windows till window (same login, kiosk POS, offline queue):
+
+```bash
+# Terminal A
+npm run dev
+
+# Terminal B
+npm run desktop:dev
+```
+
+Build the Windows installer on a Windows machine: see **`apps/desktop/README.md`**.
+After publishing the `.exe`, set `NEXT_PUBLIC_DESKTOP_DOWNLOAD_URL` in `.env.local` so
+**Settings → Billing** shows **Download for Windows**.
+
 You can also run the dedicated smoke test against the local stack:
 
 ```bash

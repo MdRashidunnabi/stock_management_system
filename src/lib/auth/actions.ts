@@ -14,6 +14,7 @@ import {
 import { clearActiveTenantCookie, writeActiveTenantCookie } from "@/lib/auth/cookies";
 import { actionClient, authActionClient } from "@/lib/safe-action";
 import { getUserTenants } from "@/lib/auth/tenant";
+import { getPostAuthRedirectPath } from "@/lib/auth/routing";
 
 /**
  * Friendly mapping for the small set of Supabase auth errors that should be
@@ -52,11 +53,12 @@ export const signInAction = actionClient
       return { ok: false as const, message: mapAuthError(error.message) };
     }
 
-    let target = "/dashboard";
+    let target = await getPostAuthRedirectPath();
     if (
       parsedInput.next &&
       parsedInput.next.startsWith("/") &&
-      !parsedInput.next.startsWith("//")
+      !parsedInput.next.startsWith("//") &&
+      parsedInput.next !== "/dashboard"
     ) {
       target = parsedInput.next;
     }

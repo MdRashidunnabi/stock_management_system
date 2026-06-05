@@ -15,7 +15,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { signUpSchema, type SignUpInput } from "@/lib/auth/schemas";
 import { signUpAction } from "@/lib/auth/actions";
 
-export function SignUpForm() {
+interface Props {
+  next?: string;
+}
+
+export function SignUpForm({ next }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -54,7 +58,9 @@ export function SignUpForm() {
           router.push(u);
         } else {
           toast.success("Welcome to ShopOS!");
-          router.push("/dashboard");
+          const target =
+            next && next.startsWith("/") && !next.startsWith("//") ? next : "/onboarding";
+          router.push(target);
         }
       }
     });

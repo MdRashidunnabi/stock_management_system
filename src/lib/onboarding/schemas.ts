@@ -1,4 +1,13 @@
 import { z } from "zod";
+import {
+  BRANCH_TIER_OPTIONS,
+  SHOP_TIER_OPTIONS,
+  calculateMonthlyCents,
+  normalizeBranchTier,
+  normalizeShopTier,
+  type BranchTier,
+  type ShopTier,
+} from "@/lib/billing/plans";
 
 /**
  * Validation rules for the onboarding wizard.
@@ -77,6 +86,20 @@ export const branchCodeSchema = z
   .transform((v) => v.trim().toUpperCase())
   .refine((v) => /^[A-Z0-9_-]+$/.test(v), "Use letters, numbers, dashes, or underscores");
 
+const tierEnum = (options: readonly number[]) =>
+  z.coerce
+    .number()
+    .refine((n) => options.includes(n as (typeof options)[number]), "Pick a plan option");
+
+/**
+ * Step 0 - Subscription size (shops + branches).
+ */
+export const planStepSchema = z.object({
+  planShopTier: tierEnum(SHOP_TIER_OPTIONS),
+  planBranchTier: tierEnum(BRANCH_TIER_OPTIONS),
+});
+export type PlanStepInput = z.infer<typeof planStepSchema>;
+
 /**
  * Step 1 - Shop details.
  */
@@ -106,5 +129,22 @@ export type BranchStepInput = z.infer<typeof branchStepSchema>;
  * action validates. Country / currency / timezone are locked to Ireland for
  * the MVP - we'll open them up when we expand beyond IE.
  */
-export const createTenantSchema = shopStepSchema.merge(branchStepSchema);
+export const createTenantSchema = planStepSchema.merge(shopStepSchema).merge(branchStepSchema);
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
+
+export function monthlyCentsFromPlanInput(input: PlanStepInput): number {
+  return calculateMonthlyCents(
+    normalizeShopTier(input.planShopTier),
+    normalizeBranchTier(input.planBranchTier),
+  );
+}
+
+export function planTiersFromInput(input: PlanStepInput): {
+  shopTier: ShopTier;
+  branchTier: BranchTier;
+} {
+  return {
+    shopTier: normalizeShopTier(input.planShopTier),
+    branchTier: normalizeBranchTier(input.planBranchTier),
+  };
+}

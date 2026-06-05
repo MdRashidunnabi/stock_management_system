@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { ProductForm } from "@/components/products/product-form";
 import { listLookupsForProductForm } from "@/lib/catalog/products/actions";
 import { requireTenant } from "@/lib/auth/tenant";
+import { getStorefrontSettingsForTenant } from "@/lib/storefront/settings-queries";
 
 export const metadata = { title: "New product - ShopOS" };
 
@@ -12,7 +13,10 @@ export default async function NewProductPage() {
   const canWrite = ["owner", "manager", "warehouse"].includes(tenant.role);
   if (!canWrite) redirect("/products");
 
-  const { categories, brands, suppliers } = await listLookupsForProductForm();
+  const [{ categories, brands, suppliers }, storefront] = await Promise.all([
+    listLookupsForProductForm(),
+    getStorefrontSettingsForTenant(tenant.tenantId),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -37,6 +41,7 @@ export default async function NewProductPage() {
         categories={categories}
         brands={brands}
         suppliers={suppliers}
+        onlinePriceMarkupPct={storefront?.onlinePriceMarkupPct ?? 0.5}
       />
     </div>
   );

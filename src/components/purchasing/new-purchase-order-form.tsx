@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { getSafeActionData, getSafeActionError } from "@/lib/parse-safe-action-result";
 import { createPurchaseOrderAction } from "@/lib/purchasing/orders/actions";
 import { formatEuro } from "@/lib/utils";
 import {
@@ -160,19 +161,19 @@ export function NewPurchaseOrderForm({ branches, suppliers, products }: Props) {
         notes: notes.trim() || null,
         items: payloadItems,
       });
-      if (res?.serverError) {
-        setServerError(res.serverError);
+      const err = getSafeActionError(res);
+      if (err) {
+        setServerError(err);
         return;
       }
-      if (res?.validationErrors) {
-        setServerError("Please check the form fields.");
-        return;
-      }
-      if (res?.data?.ok) {
-        toast.success(`Purchase order ${res.data.poNumber} created.`);
-        router.push(`/purchase-orders/${res.data.poId}`);
+      const data = getSafeActionData<{ ok: true; poId: string; poNumber: string }>(res);
+      if (data) {
+        toast.success(`Purchase order ${data.poNumber} created.`);
+        router.push(`/purchase-orders/${data.poId}`);
         router.refresh();
+        return;
       }
+      setServerError("Purchase order could not be created. Please try again.");
     });
   }
 

@@ -26,6 +26,7 @@ export async function listProducts(args: ListProductsArgs = {}) {
     brandId,
     supplierId,
     status = "active",
+    branchId,
     page = 1,
     pageSize = 25,
   } = args;
@@ -34,7 +35,7 @@ export async function listProducts(args: ListProductsArgs = {}) {
   let query = supabase
     .from(TABLE)
     .select(
-      `id, name, sku, barcode, base_unit, vat_code, vat_included,
+      `id, name, primary_image_url, sku, barcode, base_unit, vat_code, vat_included,
        purchase_price, selling_price, is_active, archived_at,
        category:categories(id, name),
        brand:brands(id, name),
@@ -60,12 +61,47 @@ export async function listProducts(args: ListProductsArgs = {}) {
   const { data, error, count } = await query;
   if (error) throw new Error(`Failed to load products: ${error.message}`);
 
+  const baseRows = (data ?? []) as Omit<ProductListRow, "available_qty">[];
+  const stockByProduct = await loadAvailableStockByProductId(
+    supabase,
+    branchId ?? null,
+    baseRows.map((r) => r.id),
+  );
+
+  const rows: ProductListRow[] = baseRows.map((r) => ({
+    ...r,
+    available_qty: stockByProduct.get(r.id) ?? (branchId ? 0 : null),
+  }));
+
   return {
-    rows: (data ?? []) as ProductListRow[],
+    rows,
     total: count ?? 0,
     page: Math.max(1, page),
     pageSize,
   };
+}
+
+async function loadAvailableStockByProductId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  branchId: string | null,
+  productIds: string[],
+): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  if (!branchId || productIds.length === 0) return map;
+
+  const { data, error } = await supabase
+    .from("stock_balances")
+    .select("product_id, quantity")
+    .eq("branch_id", branchId)
+    .eq("state", "available")
+    .in("product_id", productIds);
+
+  if (error) throw new Error(`Failed to load stock: ${error.message}`);
+
+  for (const row of data ?? []) {
+    map.set(row.product_id, Number(row.quantity ?? 0));
+  }
+  return map;
 }
 
 export async function getProduct(id: string): Promise<ProductFullRow | null> {
@@ -74,8 +110,9 @@ export async function getProduct(id: string): Promise<ProductFullRow | null> {
     .from(TABLE)
     .select(
       `id, name, sku, barcode, short_name_for_receipt, description_short, description_long,
-       category_id, brand_id, default_supplier_id,
-       purchase_price, selling_price, vat_code, vat_included, base_unit,
+       category_id, brand_id, default_supplier_id, primary_image_url,
+       purchase_price, selling_price, online_selling_price, online_discount_pct,
+       vat_code, vat_included, base_unit,
        weighable, decimal_qty_allowed, is_active, archived_at`,
     )
     .eq("id", id)
@@ -142,6 +179,7 @@ export const updateProductAction = staffActionClient([...writableRoles])
     if (error) throw new ActionError(friendlyDbError(error));
     revalidatePath("/products");
     revalidatePath(`/products/${id}`);
+    revalidatePath(`/shop/${ctx.tenant.tenantSlug}`);
     return { ok: true as const };
   });
 
@@ -191,12 +229,15 @@ function toRow(tenantId: string, input: z.output<typeof productBaseSchema>) {
     default_supplier_id: input.defaultSupplierId || null,
     purchase_price: input.purchasePrice,
     selling_price: input.sellingPrice,
+    online_selling_price: input.onlineSellingPrice,
+    online_discount_pct: input.onlineDiscountPct,
     vat_code: input.vatCode,
     vat_included: input.vatIncluded,
     base_unit: input.baseUnit,
     weighable: input.weighable,
     decimal_qty_allowed: input.decimalQtyAllowed,
     is_active: input.isActive,
+    primary_image_url: input.primaryImageUrl?.trim() || null,
     archived_at: input.isActive ? null : new Date().toISOString(),
   };
 }

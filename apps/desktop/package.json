@@ -1,0 +1,56 @@
+{
+  "name": "shopos-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ShopOS Windows desktop shell — loads the web POS with offline PWA support",
+  "main": "main.mjs",
+  "type": "module",
+  "scripts": {
+    "dev": "electron .",
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win --x64",
+    "pack": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^35.7.5",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "ie.shopos.desktop",
+    "productName": "ShopOS",
+    "copyright": "Copyright © ShopOS",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.mjs",
+      "preload.mjs",
+      "config.default.json"
+    ],
+    "extraResources": [
+      {
+        "from": "config.default.json",
+        "to": "config.json"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "ShopOS-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "ShopOS POS"
+    }
+  }
+}

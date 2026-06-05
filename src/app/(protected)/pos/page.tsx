@@ -5,6 +5,7 @@ import { getCurrentTenant } from "@/lib/auth/tenant";
 import { listBranchesForCurrentTenant } from "@/lib/pos/actions";
 import { getOpenSessionForBranch } from "@/lib/pos/sessions/actions";
 import { PosTerminal } from "@/components/pos/pos-terminal";
+import { DesktopPosBadge } from "@/components/pos/desktop-pos-badge";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTimeIE, formatEuro } from "@/lib/utils";
 
@@ -50,7 +51,10 @@ export default async function PosPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Point of sale</h1>
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight">Point of sale</h1>
+            <DesktopPosBadge />
+          </div>
           <p className="text-muted-foreground text-sm">
             Take payments, print receipts, and update stock - all in one tap.
           </p>

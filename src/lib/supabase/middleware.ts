@@ -17,6 +17,8 @@ const PUBLIC_PATHS = [
   "/legal/terms",
 ];
 
+const PUBLIC_PREFIXES_EXTRA = ["/invite/"];
+
 const PUBLIC_PREFIXES = [
   "/api/health",
   "/api/auth/",
@@ -26,6 +28,8 @@ const PUBLIC_PREFIXES = [
   "/icons/",
   "/images/",
   "/static/",
+  "/shop/",
+  "/shops/",
 ];
 
 /**
@@ -42,6 +46,7 @@ const RECOVERY_REQUIRED = new Set(["/reset-password"]);
 
 function isPublicPath(pathname: string) {
   if (PUBLIC_PATHS.includes(pathname)) return true;
+  if (PUBLIC_PREFIXES_EXTRA.some((prefix) => pathname.startsWith(prefix))) return true;
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
@@ -108,5 +113,11 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return supabaseResponse;
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  for (const cookie of supabaseResponse.cookies.getAll()) {
+    response.cookies.set(cookie);
+  }
+  return response;
 }

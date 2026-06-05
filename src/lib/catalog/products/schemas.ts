@@ -34,8 +34,35 @@ const barcodeSchema = z
   .transform((v) => (v ? v.trim() : v))
   .refine((v) => !v || /^[A-Za-z0-9.-]+$/.test(v), "Barcode contains invalid characters");
 
+/** Shelf / POS image: HTTPS URL or site path (e.g. /shops/needscarlow/...). */
+export const primaryImageUrlSchema = z
+  .string()
+  .max(2000)
+  .optional()
+  .transform((v) => {
+    const t = (v ?? "").trim();
+    return t.length > 0 ? t : undefined;
+  })
+  .refine(
+    (v) => v === undefined || /^https?:\/\//i.test(v) || v.startsWith("/"),
+    "Use https://... or a path starting with /",
+  );
+
 const priceSchema = z
   .union([z.coerce.number().min(0).max(99999999), z.literal(NaN)])
+  .transform((v) => (Number.isFinite(v) ? v : 0));
+
+/** Empty = auto from selling price + shop markup %. Online-only; POS unchanged. */
+const optionalOnlinePriceSchema = z
+  .union([z.coerce.number().min(0).max(99999999), z.literal(""), z.literal(NaN), z.undefined()])
+  .transform((v) => {
+    if (v === "" || v === undefined || (typeof v === "number" && !Number.isFinite(v))) return null;
+    const n = Number(v);
+    return n > 0 ? n : null;
+  });
+
+const onlineDiscountSchema = z
+  .union([z.coerce.number().min(0).max(100), z.literal(NaN)])
   .transform((v) => (Number.isFinite(v) ? v : 0));
 
 const idOrEmpty = z
@@ -60,6 +87,8 @@ export const productBaseSchema = z.object({
   defaultSupplierId: idOrEmpty,
   purchasePrice: priceSchema,
   sellingPrice: priceSchema,
+  onlineSellingPrice: optionalOnlinePriceSchema,
+  onlineDiscountPct: onlineDiscountSchema,
   vatCode: z.enum(VAT_CODES).default("STD"),
   vatIncluded: z.boolean().default(true),
   baseUnit: z
@@ -71,6 +100,7 @@ export const productBaseSchema = z.object({
   weighable: z.boolean().default(false),
   decimalQtyAllowed: z.boolean().default(false),
   isActive: z.boolean().default(true),
+  primaryImageUrl: primaryImageUrlSchema,
 });
 
 export const createProductSchema = productBaseSchema;
@@ -85,6 +115,7 @@ export type ProductFormOutput = z.output<typeof createProductSchema>;
 export interface ProductListRow {
   id: string;
   name: string;
+  primary_image_url: string | null;
   sku: string | null;
   barcode: string | null;
   base_unit: string;
@@ -97,6 +128,8 @@ export interface ProductListRow {
   category: { id: string; name: string } | null;
   brand: { id: string; name: string } | null;
   supplier: { id: string; name: string; code: string | null } | null;
+  /** Available quantity at the branch selected on the products list (if any). */
+  available_qty: number | null;
 }
 
 export interface ProductFullRow {
@@ -112,6 +145,8 @@ export interface ProductFullRow {
   default_supplier_id: string | null;
   purchase_price: number;
   selling_price: number;
+  online_selling_price: number | null;
+  online_discount_pct: number | null;
   vat_code: string;
   vat_included: boolean;
   base_unit: string;
@@ -119,6 +154,7 @@ export interface ProductFullRow {
   decimal_qty_allowed: boolean;
   is_active: boolean;
   archived_at: string | null;
+  primary_image_url: string | null;
 }
 
 export interface ListProductsArgs {
@@ -127,6 +163,8 @@ export interface ListProductsArgs {
   brandId?: string | null;
   supplierId?: string | null;
   status?: "all" | "active" | "archived";
+  /** When set, each row includes available_qty from stock_balances at this branch. */
+  branchId?: string | null;
   page?: number;
   pageSize?: number;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, KeyRound, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { getSafeActionData, getSafeActionError } from "@/lib/parse-safe-action-result";
 import { openPosSessionAction } from "@/lib/pos/sessions/actions";
 
 interface BranchOption {
@@ -26,32 +27,35 @@ export function OpenSessionForm({ branches, defaultBranchId }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
-  const [branchId, setBranchId] = useState<string>(defaultBranchId ?? branches[0]?.id ?? "");
+  const initialBranchId = defaultBranchId ?? branches[0]?.id ?? "";
+  const [branchId, setBranchId] = useState<string>(initialBranchId);
+  const activeBranchId = branchId || defaultBranchId || branches[0]?.id || "";
   const [openingCash, setOpeningCash] = useState<string>("0");
   const [note, setNote] = useState<string>("");
+  const branchSelectRef = useRef<HTMLSelectElement>(null);
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setServerError(null);
     startTransition(async () => {
       const res = await openPosSessionAction({
-        branchId,
+        branchId: branchSelectRef.current?.value || activeBranchId,
         openingCash: Number(openingCash) || 0,
         note: note.trim() || undefined,
       });
-      if (res?.serverError) {
-        setServerError(res.serverError);
+      const err = getSafeActionError(res);
+      if (err) {
+        setServerError(err);
         return;
       }
-      if (res?.validationErrors) {
-        setServerError("Please check the form fields.");
-        return;
-      }
-      if (res?.data?.ok) {
+      const data = getSafeActionData<{ ok: true; sessionId: string }>(res);
+      if (data) {
         toast.success("Till opened");
-        router.push(`/sessions/${res.data.sessionId}`);
+        router.push(`/sessions/${data.sessionId}`);
         router.refresh();
+        return;
       }
+      setServerError("Till could not be opened. Please try again.");
     });
   }
 
@@ -61,7 +65,8 @@ export function OpenSessionForm({ branches, defaultBranchId }: Props) {
         <Label htmlFor="branch">Branch</Label>
         <select
           id="branch"
-          value={branchId}
+          ref={branchSelectRef}
+          defaultValue={initialBranchId}
           onChange={(e) => setBranchId(e.target.value)}
           className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
           required

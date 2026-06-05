@@ -82,25 +82,27 @@ npm run dev
 
 ## Scripts
 
-| Script                   | What it does                                                  |
-| ------------------------ | ------------------------------------------------------------- |
-| `npm run dev`            | Start Next.js dev server (Turbopack) on http://localhost:3000 |
-| `npm run build`          | Production build                                              |
-| `npm start`              | Run the production build                                      |
-| `npm run lint`           | ESLint                                                        |
-| `npm run lint:fix`       | ESLint with auto-fix                                          |
-| `npm run format`         | Prettier write                                                |
-| `npm run format:check`   | Prettier check                                                |
-| `npm run typecheck`      | TypeScript check (no emit)                                    |
-| `npm run test`           | Vitest unit tests                                             |
-| `npm run test:e2e`       | Playwright end-to-end tests                                   |
-| `npm run db:generate`    | Drizzle - generate migrations from schema                     |
-| `npm run db:migrate`     | Drizzle - apply migrations                                    |
-| `npm run db:push`        | Drizzle - push schema (dev only)                              |
-| `npm run db:studio`      | Drizzle Studio (visual DB explorer)                           |
-| `npm run db:seed`        | Run seed script                                               |
-| `npm run supabase:start` | Start local Supabase stack                                    |
-| `npm run supabase:stop`  | Stop local Supabase stack                                     |
+| Script                      | What it does                                                           |
+| --------------------------- | ---------------------------------------------------------------------- |
+| `npm run dev`               | Start Next.js dev server (Turbopack) on http://localhost:3000          |
+| `npm run build`             | Production build                                                       |
+| `npm start`                 | Run the production build                                               |
+| `npm run lint`              | ESLint                                                                 |
+| `npm run lint:fix`          | ESLint with auto-fix                                                   |
+| `npm run format`            | Prettier write                                                         |
+| `npm run format:check`      | Prettier check                                                         |
+| `npm run typecheck`         | TypeScript check (no emit)                                             |
+| `npm run test`              | Vitest unit tests                                                      |
+| `npm run test:e2e`          | Playwright end-to-end tests                                            |
+| `npm run db:generate`       | Drizzle - generate migrations from schema                              |
+| `npm run db:migrate`        | Drizzle - apply migrations                                             |
+| `npm run db:push`           | Drizzle - push schema (dev only)                                       |
+| `npm run db:studio`         | Drizzle Studio (visual DB explorer)                                    |
+| `npm run db:seed`           | Run seed script                                                        |
+| `npm run supabase:start`    | Start local Supabase stack                                             |
+| `npm run supabase:stop`     | Stop local Supabase stack                                              |
+| `npm run desktop:dev`       | Electron POS shell → http://localhost:3000 (run `dev` first)           |
+| `npm run desktop:build:win` | Build Windows installer (run on Windows; see `apps/desktop/README.md`) |
 
 ---
 

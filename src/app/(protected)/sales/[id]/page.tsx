@@ -89,7 +89,7 @@ export default async function SaleDetailPage({ params }: { params: Promise<{ id:
                     </Badge>
                   </div>
                   {it.discount > 0 ? (
-                    <div className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                    <div className="text-success dark:text-success text-[11px]">
                       - {formatEuro(it.discount)} off
                     </div>
                   ) : null}

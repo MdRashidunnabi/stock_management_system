@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { entityIdSchema } from "@/lib/entity-id";
 import { createClient } from "@/lib/supabase/server";
 import { ActionError, staffActionClient } from "@/lib/safe-action";
 import {
@@ -12,6 +13,11 @@ import {
 } from "@/lib/pos/schemas";
 
 const POS_ROLES = ["owner", "manager", "cashier", "warehouse"] as const;
+
+/** Escape `%` / `_` for PostgREST `ilike` patterns. */
+function escapeIlikePattern(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
 
 /* ------------------------------ Branches ------------------------------ */
 
@@ -36,19 +42,22 @@ export const searchProductsForPos = staffActionClient([...POS_ROLES])
   .metadata({ actionName: "pos.searchProducts" })
   .inputSchema(
     z.object({
-      branchId: z.string().uuid(),
+      branchId: entityIdSchema,
       query: z.string().min(1).max(120),
     }),
   )
   .action(async ({ parsedInput }): Promise<{ ok: true; rows: ProductSearchResult[] }> => {
     const supabase = await createClient();
     const q = parsedInput.query.trim();
+    const ilike = escapeIlikePattern(q);
 
     const { data: prods, error } = await supabase
       .from("products")
-      .select("id, name, sku, barcode, base_unit, selling_price, vat_code, vat_included, is_active")
+      .select(
+        "id, name, primary_image_url, sku, barcode, base_unit, selling_price, vat_code, vat_included, is_active",
+      )
       .eq("is_active", true)
-      .or(`name.ilike.%${q}%,sku.ilike.${q}%,barcode.eq.${q}`)
+      .or(`name.ilike.%${ilike}%,sku.ilike.%${ilike}%,barcode.eq.${q}`)
       .limit(20);
     if (error) throw new ActionError(error.message);
 
@@ -70,6 +79,7 @@ export const searchProductsForPos = staffActionClient([...POS_ROLES])
     const rows: ProductSearchResult[] = (prods ?? []).map((p) => ({
       id: p.id,
       name: p.name,
+      primary_image_url: p.primary_image_url ?? null,
       sku: p.sku,
       barcode: p.barcode,
       base_unit: p.base_unit,
@@ -107,6 +117,7 @@ export const commitPosSaleAction = staffActionClient([...POS_ROLES])
           product_id: i.productId,
           qty: i.qty,
           discount: i.discount ?? 0,
+          ...(i.unitPrice != null ? { unit_price: i.unitPrice } : {}),
         })),
         p_payments: parsedInput.payments.map((p) => ({
           method: p.method,
@@ -269,6 +280,12 @@ function friendlyRpcError(error: { code?: string; message: string }): string {
   }
   if (error.message?.includes("discount exceeds")) {
     return "A discount is bigger than the line price.";
+  }
+  if (error.message?.includes("custom price not allowed")) {
+    return "This product cannot take a custom price on the till. Run db:seed:needscarlow:misc or enable it on the product.";
+  }
+  if (error.message?.includes("unit_price must be")) {
+    return "The sale amount is out of range (€0.01–€99,999).";
   }
   return error.message;
 }

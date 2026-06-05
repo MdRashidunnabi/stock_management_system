@@ -33,6 +33,7 @@ export const commitImportSchema = z.object({
         vat_included: z.boolean(),
         base_unit: z.string().min(1),
         is_active: z.boolean(),
+        primary_image_url: z.string().max(2000).optional().nullable(),
       }),
     )
     .min(1, "Nothing to import")

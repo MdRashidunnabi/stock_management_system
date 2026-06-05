@@ -15,17 +15,22 @@ interface Props {
 export function KpiTile({ href, icon, label, value, hint, trend, emphasis = "default" }: Props) {
   const tone =
     emphasis === "good"
-      ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/40"
+      ? "border-success/30 from-success/10 to-success/5 bg-gradient-to-br"
       : emphasis === "warn"
-        ? "border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/40"
+        ? "border-warning/35 from-warning/10 to-warning/5 bg-gradient-to-br"
         : emphasis === "bad"
-          ? "border-rose-200 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/40"
-          : "border-border bg-card";
+          ? "border-destructive/30 from-destructive/10 to-destructive/5 bg-gradient-to-br"
+          : "border-border/80 from-card to-muted/30 bg-gradient-to-br";
 
   const inner = (
-    <div className={cn("h-full rounded-lg border p-3 transition-colors", tone)}>
+    <div
+      className={cn(
+        "h-full rounded-xl border p-3 shadow-sm transition-shadow hover:shadow-md",
+        tone,
+      )}
+    >
       <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-        {icon}
+        <span className="text-primary [&_svg]:text-primary">{icon}</span>
         <span>{label}</span>
       </div>
       <div className="mt-1.5 flex items-baseline gap-2">
@@ -37,7 +42,7 @@ export function KpiTile({ href, icon, label, value, hint, trend, emphasis = "def
   );
 
   return href ? (
-    <Link href={href} className="hover:opacity-90">
+    <Link href={href} className="block hover:opacity-95">
       {inner}
     </Link>
   ) : (
@@ -48,11 +53,7 @@ export function KpiTile({ href, icon, label, value, hint, trend, emphasis = "def
 function TrendBadge({ percent }: { percent: number }) {
   const isUp = percent > 0;
   const isFlat = Math.abs(percent) < 0.05;
-  const tone = isFlat
-    ? "text-muted-foreground"
-    : isUp
-      ? "text-emerald-700 dark:text-emerald-400"
-      : "text-rose-700 dark:text-rose-400";
+  const tone = isFlat ? "text-muted-foreground" : isUp ? "text-success" : "text-destructive";
   const arrow = isFlat ? "→" : isUp ? "▲" : "▼";
   return (
     <span className={cn("text-xs font-medium", tone)}>

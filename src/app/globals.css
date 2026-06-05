@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+/* ─── Brand palette (teal retail + supporting hues) ─── */
 @theme {
   --font-sans:
     var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
@@ -8,45 +9,183 @@
     var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
 
-  --color-brand-50: #eef6ff;
-  --color-brand-100: #d9eaff;
-  --color-brand-200: #bcdaff;
-  --color-brand-300: #8ec3ff;
-  --color-brand-400: #5aa1ff;
-  --color-brand-500: #2f7dff;
-  --color-brand-600: #1a5fe0;
-  --color-brand-700: #1849b3;
-  --color-brand-800: #173d8c;
-  --color-brand-900: #163571;
-  --color-brand-950: #0f2249;
+  --color-brand-50: #ecfdf8;
+  --color-brand-100: #d1faf0;
+  --color-brand-200: #a7f3e0;
+  --color-brand-300: #6ee7c7;
+  --color-brand-400: #34d399;
+  --color-brand-500: #10b981;
+  --color-brand-600: #059669;
+  --color-brand-700: #047857;
+  --color-brand-800: #065f46;
+  --color-brand-900: #064e3b;
+  --color-brand-950: #022c22;
+
+  --color-accent-violet-500: #8b5cf6;
+  --color-accent-amber-500: #f59e0b;
+  --color-accent-sky-500: #0ea5e9;
+  --color-accent-rose-500: #f43f5e;
 }
 
+/* ─── Light theme (default) ─── */
 :root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --border: #e4e4e7;
-  --ring: #2f7dff;
+  --background: #f4f8fb;
+  --foreground: #0f172a;
+
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+
+  --primary: #059669;
+  --primary-foreground: #ffffff;
+
+  --secondary: #e0e7ff;
+  --secondary-foreground: #3730a3;
+
+  --muted: #eef2f7;
+  --muted-foreground: #64748b;
+
+  --accent: #dbeafe;
+  --accent-foreground: #1d4ed8;
+
+  --destructive: #e11d48;
+  --destructive-foreground: #ffffff;
+
+  --success: #059669;
+  --success-foreground: #ffffff;
+  --warning: #d97706;
+  --warning-foreground: #ffffff;
+  --info: #0284c7;
+  --info-foreground: #ffffff;
+
+  --border: #cbd5e1;
+  --input: #cbd5e1;
+  --ring: #059669;
+
+  --chart-1: #059669;
+  --chart-2: #0ea5e9;
+  --chart-3: #8b5cf6;
+  --chart-4: #f59e0b;
+  --chart-5: #f43f5e;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #059669;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ecfdf8;
+  --sidebar-accent-foreground: #047857;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #059669;
+
+  --radius: 0.625rem;
+
+  --shadow-color: 15 23 42;
+  --app-gradient: linear-gradient(135deg, #ecfdf8 0%, #f0f9ff 35%, #f8fafc 70%, #eef2ff 100%);
+  --header-gradient: linear-gradient(90deg, #047857 0%, #0d9488 45%, #0284c7 100%);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #fafafa;
-    --muted: #18181b;
-    --muted-foreground: #a1a1aa;
-    --border: #27272a;
+    --background: #0c1222;
+    --foreground: #f1f5f9;
+
+    --card: #151d2e;
+    --card-foreground: #f1f5f9;
+
+    --popover: #151d2e;
+    --popover-foreground: #f1f5f9;
+
+    --primary: #34d399;
+    --primary-foreground: #022c22;
+
+    --secondary: #312e81;
+    --secondary-foreground: #e0e7ff;
+
+    --muted: #1e293b;
+    --muted-foreground: #94a3b8;
+
+    --accent: #1e3a5f;
+    --accent-foreground: #7dd3fc;
+
+    --destructive: #fb7185;
+    --destructive-foreground: #450a0a;
+
+    --success: #34d399;
+    --success-foreground: #022c22;
+    --warning: #fbbf24;
+    --warning-foreground: #451a03;
+    --info: #38bdf8;
+    --info-foreground: #0c4a6e;
+
+    --border: #334155;
+    --input: #334155;
+    --ring: #34d399;
+
+    --chart-1: #34d399;
+    --chart-2: #38bdf8;
+    --chart-3: #a78bfa;
+    --chart-4: #fbbf24;
+    --chart-5: #fb7185;
+
+    --sidebar: #111827;
+    --sidebar-foreground: #f1f5f9;
+    --sidebar-primary: #34d399;
+    --sidebar-primary-foreground: #022c22;
+    --sidebar-accent: #064e3b;
+    --sidebar-accent-foreground: #a7f3e0;
+    --sidebar-border: #334155;
+    --sidebar-ring: #34d399;
+
+    --app-gradient: linear-gradient(135deg, #022c22 0%, #0c1222 40%, #0f172a 70%, #1e1b4b 100%);
+    --header-gradient: linear-gradient(90deg, #064e3b 0%, #0f766e 50%, #0369a1 100%);
   }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-border: var(--border);
+  --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
 html,
@@ -55,7 +194,8 @@ body {
 }
 
 body {
-  background-color: var(--background);
+  background: var(--app-gradient);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -70,4 +210,44 @@ body {
 button,
 [role="button"] {
   touch-action: manipulation;
+}
+
+/* App shell utilities */
+.app-page {
+  @apply mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8;
+}
+
+/* Till / Electron kiosk: hide sidebar, use full width for POS */
+html[data-shopos-kiosk="true"] aside[aria-label="Main navigation"] {
+  display: none !important;
+}
+
+html[data-shopos-kiosk="true"] .app-page {
+  max-width: none;
+}
+
+.app-header-bar {
+  background: var(--header-gradient);
+  border-bottom: 1px solid rgb(255 255 255 / 0.12);
+  color: #fff;
+}
+
+.app-header-bar .text-muted-foreground {
+  color: rgb(255 255 255 / 0.75);
+}
+
+.app-header-bar .text-foreground {
+  color: #fff;
+}
+
+[data-slot="card"] {
+  box-shadow:
+    0 1px 2px rgb(var(--shadow-color) / 0.04),
+    0 4px 12px rgb(var(--shadow-color) / 0.06);
+}
+
+[data-slot="card"]:hover {
+  box-shadow:
+    0 2px 4px rgb(var(--shadow-color) / 0.06),
+    0 8px 20px rgb(var(--shadow-color) / 0.08);
 }

@@ -44,7 +44,7 @@ export function RecentShifts({ rows }: Props) {
               Math.abs(variance) < 0.005
                 ? "text-muted-foreground"
                 : variance > 0
-                  ? "text-emerald-700 dark:text-emerald-400"
+                  ? "text-success dark:text-success"
                   : "text-rose-700 dark:text-rose-400";
             return (
               <TableRow key={r.id}>

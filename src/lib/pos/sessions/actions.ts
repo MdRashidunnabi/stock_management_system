@@ -30,10 +30,14 @@ export const openPosSessionAction = staffActionClient([...POS_ROLES])
     if (error) {
       throw new ActionError(friendlyError(error));
     }
+    const sessionId = typeof data === "string" ? data : null;
+    if (!sessionId) {
+      throw new ActionError("Till could not be opened. Please try again.");
+    }
     revalidatePath("/sessions");
     revalidatePath("/dashboard");
     revalidatePath("/pos");
-    return { ok: true as const, sessionId: data as string };
+    return { ok: true as const, sessionId };
   });
 
 export const closePosSessionAction = staffActionClient([...POS_ROLES])

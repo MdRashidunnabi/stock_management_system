@@ -23,9 +23,9 @@ import {
 } from "@/lib/catalog/products-import/actions";
 import type { ParsedProductRow } from "@/lib/catalog/products-import/schemas";
 
-const TEMPLATE_CSV = `name,sku,barcode,category,brand,supplier,purchase_price,selling_price,vat_code,vat_included,base_unit,is_active
-Tayto Cheese & Onion 45g,TAY-CO-45,5012345678901,Beverages,Tayto,DEMO-WHOLESALE,0.45,1.20,STD,true,un,true
-Ballygowan Still 500ml,BWG-500,5012345678902,Beverages,,,0.40,1.10,SEC,true,un,true
+const TEMPLATE_CSV = `name,sku,barcode,category,brand,supplier,purchase_price,selling_price,vat_code,vat_included,base_unit,is_active,image_url
+Tayto Cheese & Onion 45g,TAY-CO-45,5012345678901,Beverages,Tayto,DEMO-WHOLESALE,0.45,1.20,STD,true,un,true,/shops/demo/tayto.jpg
+Ballygowan Still 500ml,BWG-500,5012345678902,Beverages,,,0.40,1.10,SEC,true,un,true,
 `;
 
 interface Props {
@@ -96,6 +96,7 @@ export function ProductImporter({ canWrite }: Props) {
           vat_included: p.vatIncluded,
           base_unit: p.baseUnit,
           is_active: p.isActive,
+          primary_image_url: p.primaryImageUrl ?? null,
         };
       });
 
@@ -162,7 +163,8 @@ export function ProductImporter({ canWrite }: Props) {
               <code>barcode</code>, <code>category</code>, <code>brand</code>, <code>supplier</code>
               , <code>purchase_price</code>, <code>selling_price</code>, <code>vat_code</code>{" "}
               (STD|RED|SEC|LIV|ZER|EXE), <code>vat_included</code>, <code>base_unit</code>,{" "}
-              <code>is_active</code>
+              <code>is_active</code>, <code>image_url</code> (HTTPS or path like{" "}
+              <code>/shops/your-shop/photo.jpg</code>)
             </p>
           </div>
           <Button type="button" variant="outline" onClick={handleDownloadTemplate}>
@@ -200,7 +202,7 @@ export function ProductImporter({ canWrite }: Props) {
           <Textarea
             value={csvText}
             onChange={(e) => setCsvText(e.target.value)}
-            placeholder="name,sku,barcode,category,brand,supplier,purchase_price,selling_price,vat_code,vat_included,base_unit,is_active"
+            placeholder="name,sku,barcode,category,brand,supplier,purchase_price,selling_price,vat_code,vat_included,base_unit,is_active,image_url"
             rows={10}
             className="font-mono text-xs"
           />
@@ -242,7 +244,7 @@ export function ProductImporter({ canWrite }: Props) {
           <CardHeader>
             <CardTitle>
               3. Review ({parseResult.summary.total} rows -{" "}
-              <span className="text-emerald-700 dark:text-emerald-400">
+              <span className="text-success dark:text-success">
                 {parseResult.summary.valid} valid
               </span>
               , <span className="text-destructive">{parseResult.summary.errors} with errors</span>)
@@ -288,6 +290,12 @@ export function ProductImporter({ canWrite }: Props) {
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs">
                       {r.payload?.sellingPrice?.toFixed(2) ?? r.raw.selling_price ?? "-"}
+                    </TableCell>
+                    <TableCell className="max-w-[140px] truncate font-mono text-xs">
+                      {r.payload?.primaryImageUrl ??
+                        r.raw.image_url ??
+                        r.raw.primary_image_url ??
+                        "-"}
                     </TableCell>
                     <TableCell className="text-center">
                       {r.ok ? (

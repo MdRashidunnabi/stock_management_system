@@ -30,8 +30,21 @@ test("cashier can take a cash sale offline and have it sync on reconnect", async
   const productTile = page.getByRole("button", { name: new RegExp(pos.product.name, "i") });
   await expect(productTile).toBeVisible({ timeout: 15_000 });
 
-  // Step 2: go offline.
-  await context.setOffline(true);
+  // Step 2: simulate offline for POS (do not use context.setOffline in dev —
+  // it blocks localhost:3000 and crashes the Next.js dev overlay).
+  await page.route("**/*", (route) => {
+    const req = route.request();
+    const url = req.url();
+    const isServerAction = req.method() === "POST" && req.headers()["next-action"];
+    const isSupabase = url.includes("127.0.0.1:54321") || url.includes("localhost:54321");
+    if (isServerAction || isSupabase) {
+      return route.abort("failed");
+    }
+    return route.continue();
+  });
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("offline"));
+  });
   await expect(page.getByText(/^Offline$/).first()).toBeVisible({ timeout: 10_000 });
 
   // Step 3: search again (offline cache should serve the same row).
@@ -58,7 +71,10 @@ test("cashier can take a cash sale offline and have it sync on reconnect", async
   await expect(page.getByText(/1 queued/i)).toBeVisible();
 
   // Step 5: come back online. The hook flushes on the `online` event.
-  await context.setOffline(false);
+  await page.unroute("**/*");
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("online"));
+  });
 
   // Wait for the queue to drain (the badge stops showing "1 queued").
   await expect(page.getByText(/1 queued/i)).toBeHidden({ timeout: 30_000 });

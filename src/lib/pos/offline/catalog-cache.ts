@@ -16,6 +16,7 @@ import { getOfflineDb, type OfflineCatalogRow } from "@/lib/pos/offline/storage"
 export interface OfflineSearchResult {
   id: string;
   name: string;
+  primary_image_url: string | null;
   sku: string | null;
   barcode: string | null;
   base_unit: string;
@@ -120,6 +121,7 @@ export async function searchOfflineCatalog(
   return scored.map(({ row }) => ({
     id: row.id,
     name: row.name,
+    primary_image_url: row.primaryImageUrl ?? null,
     sku: row.sku,
     barcode: row.barcode,
     base_unit: row.baseUnit,

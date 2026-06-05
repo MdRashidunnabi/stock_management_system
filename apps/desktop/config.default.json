@@ -1,0 +1,4 @@
+{
+  "appUrl": "http://localhost:3000",
+  "startPath": "/pos?kiosk=1"
+}

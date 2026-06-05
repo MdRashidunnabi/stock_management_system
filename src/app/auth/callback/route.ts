@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { getPostAuthRedirectPath } from "@/lib/auth/routing";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -16,11 +17,7 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const errorDescription = url.searchParams.get("error_description");
-  const requestedNext = url.searchParams.get("next") ?? "/dashboard";
-
-  // only allow same-origin relative redirects
-  const next =
-    requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/dashboard";
+  const requestedNext = url.searchParams.get("next");
 
   if (errorDescription) {
     const u = new URL("/login", url.origin);
@@ -41,6 +38,16 @@ export async function GET(request: NextRequest) {
     const u = new URL("/login", url.origin);
     u.searchParams.set("error", error.message || "Could not complete sign-in.");
     return NextResponse.redirect(u);
+  }
+
+  let next = await getPostAuthRedirectPath();
+  if (
+    requestedNext &&
+    requestedNext.startsWith("/") &&
+    !requestedNext.startsWith("//") &&
+    requestedNext !== "/dashboard"
+  ) {
+    next = requestedNext;
   }
 
   return NextResponse.redirect(new URL(next, url.origin));

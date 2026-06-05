@@ -14,7 +14,14 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { branchStepSchema, createTenantSchema, shopStepSchema } from "@/lib/onboarding/schemas";
+import {
+  branchStepSchema,
+  createTenantSchema,
+  planStepSchema,
+  shopStepSchema,
+  monthlyCentsFromPlanInput,
+} from "@/lib/onboarding/schemas";
+import { BRANCH_PLAN_OPTIONS, PLAN_OPTIONS, formatPlanSummary } from "@/lib/billing/plans";
 
 /**
  * The Zod schema uses .transform() (e.g. vatNumber/eircode/branchCode are
@@ -28,22 +35,28 @@ import { createTenantAction } from "@/lib/onboarding/actions";
 import { slugify } from "@/lib/utils";
 import { DEFAULT_CURRENCY, DEFAULT_LOCALE, DEFAULT_TIMEZONE } from "@/lib/constants";
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
 const STEPS: { id: Step; title: string; subtitle: string; icon: React.ReactNode }[] = [
   {
     id: 1,
-    title: "Your shop",
-    subtitle: "Tell us about your business",
-    icon: <Store className="size-4" />,
+    title: "Your plan",
+    subtitle: "How many shops & branches",
+    icon: <Sparkles className="size-4" />,
   },
   {
     id: 2,
+    title: "Your shop",
+    subtitle: "Name and website address",
+    icon: <Store className="size-4" />,
+  },
+  {
+    id: 3,
     title: "First branch",
-    subtitle: "Where you're trading from",
+    subtitle: "Your main location",
     icon: <MapPin className="size-4" />,
   },
-  { id: 3, title: "Review", subtitle: "Confirm and create", icon: <Sparkles className="size-4" /> },
+  { id: 4, title: "Review", subtitle: "Confirm and create", icon: <Check className="size-4" /> },
 ];
 
 interface Props {
@@ -72,8 +85,17 @@ export function OnboardingWizard({ ownerEmail, ownerName }: Props) {
       branchCity: "",
       branchCounty: "",
       branchEircode: "",
+      planShopTier: 1,
+      planBranchTier: 1,
     },
   });
+
+  const planShopTier = useWatch({ control: form.control, name: "planShopTier" }) ?? 1;
+  const planBranchTier = useWatch({ control: form.control, name: "planBranchTier" }) ?? 1;
+  const planSummary = formatPlanSummary(
+    planShopTier as 1 | 5 | 10 | 15 | 20 | 25 | 30,
+    planBranchTier as 1 | 5 | 10 | 15 | 20 | 25 | 30,
+  );
 
   const watchedDisplayName = useWatch({ control: form.control, name: "displayName" });
   const watchedBranchName = useWatch({ control: form.control, name: "branchName" });
@@ -85,9 +107,9 @@ export function OnboardingWizard({ ownerEmail, ownerName }: Props) {
     form.setValue("slug", next, { shouldValidate: false });
   }, [watchedDisplayName, slugTouched, form]);
 
-  // Auto-fill branchName the first time we hit step 2 if it's still empty.
+  // Auto-fill branchName the first time we hit step 3 if it's still empty.
   useEffect(() => {
-    if (step === 2 && !watchedBranchName) {
+    if (step === 3 && !watchedBranchName) {
       form.setValue("branchName", form.getValues("displayName"), {
         shouldValidate: false,
       });
@@ -99,11 +121,13 @@ export function OnboardingWizard({ ownerEmail, ownerName }: Props) {
     setServerError(null);
     const fields =
       step === 1
-        ? (Object.keys(shopStepSchema.shape) as (keyof FormIn)[])
-        : (Object.keys(branchStepSchema.shape) as (keyof FormIn)[]);
+        ? (Object.keys(planStepSchema.shape) as (keyof FormIn)[])
+        : step === 2
+          ? (Object.keys(shopStepSchema.shape) as (keyof FormIn)[])
+          : (Object.keys(branchStepSchema.shape) as (keyof FormIn)[]);
     const ok = await form.trigger(fields);
     if (!ok) return;
-    setStep((s) => (s === 3 ? 3 : ((s + 1) as Step)));
+    setStep((s) => (s === 4 ? 4 : ((s + 1) as Step)));
   }
 
   function goBack() {
@@ -126,8 +150,8 @@ export function OnboardingWizard({ ownerEmail, ownerName }: Props) {
       }
       const data = res?.data;
       if (data?.ok) {
-        toast.success("Shop created. Welcome aboard!");
-        router.replace("/dashboard");
+        toast.success("Shop created — add your card to start your free trial.");
+        router.replace("/onboarding/subscribe");
         router.refresh();
       }
     });
@@ -146,8 +170,9 @@ export function OnboardingWizard({ ownerEmail, ownerName }: Props) {
         </h1>
         <p className="text-muted-foreground text-sm">
           Signed in as{" "}
-          <span className="text-foreground font-medium">{ownerName ?? ownerEmail}</span>.
-          You&apos;ll be the owner of this shop and can invite staff after.
+          <span className="text-foreground font-medium">{ownerName ?? ownerEmail}</span>. Pick how
+          many shops and branches you need — you can invite cashiers and managers for each location
+          later.
         </p>
       </div>
 
@@ -202,11 +227,20 @@ export function OnboardingWizard({ ownerEmail, ownerName }: Props) {
               </Alert>
             ) : null}
 
-            {step === 1 ? (
+            {step === 1 ? <PlanStep form={form} summary={planSummary} /> : null}
+            {step === 2 ? (
               <ShopStep form={form} onSlugTouched={() => setSlugTouched(true)} />
             ) : null}
-            {step === 2 ? <BranchStep form={form} /> : null}
-            {step === 3 ? <ReviewStep values={form.getValues()} /> : null}
+            {step === 3 ? <BranchStep form={form} /> : null}
+            {step === 4 ? (
+              <ReviewStep
+                values={form.getValues()}
+                monthlyCents={monthlyCentsFromPlanInput({
+                  planShopTier: planShopTier as 1,
+                  planBranchTier: planBranchTier as 1,
+                })}
+              />
+            ) : null}
           </CardContent>
         </Card>
 
@@ -215,7 +249,7 @@ export function OnboardingWizard({ ownerEmail, ownerName }: Props) {
             <ArrowLeft className="size-4" /> Back
           </Button>
 
-          {step < 3 ? (
+          {step < 4 ? (
             <Button type="button" onClick={goNext} disabled={pending}>
               Continue <ArrowRight className="size-4" />
             </Button>
@@ -238,7 +272,81 @@ export function OnboardingWizard({ ownerEmail, ownerName }: Props) {
   );
 }
 
-/* ----------------------- step 1: shop ---------------------------- */
+/* ----------------------- step 1: plan ----------------------------- */
+
+function PlanStep({
+  form,
+  summary,
+}: {
+  form: UseFormReturn<FormIn, unknown, FormOut>;
+  summary: string;
+}) {
+  const shopTier = useWatch({ control: form.control, name: "planShopTier" });
+  const branchTier = useWatch({ control: form.control, name: "planBranchTier" });
+
+  return (
+    <div className="space-y-6">
+      <p className="text-muted-foreground text-sm">
+        Choose the size that fits you today. More shops cost less per shop. You can add staff with
+        their own login for each branch.
+      </p>
+
+      <div className="space-y-3">
+        <Label>How many shops will you run?</Label>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {PLAN_OPTIONS.map((opt) => (
+            <button
+              key={opt.shopTier}
+              type="button"
+              onClick={() => form.setValue("planShopTier", opt.shopTier, { shouldValidate: true })}
+              className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+                Number(shopTier) === opt.shopTier
+                  ? "border-primary bg-primary/5 ring-primary ring-1"
+                  : "hover:bg-muted/50"
+              }`}
+            >
+              <p className="font-medium">{opt.label}</p>
+              <p className="text-muted-foreground text-xs">{opt.description}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <Label>Branches per shop (different stock & website)</Label>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {BRANCH_PLAN_OPTIONS.map((opt) => (
+            <button
+              key={opt.branchTier}
+              type="button"
+              onClick={() =>
+                form.setValue("planBranchTier", opt.branchTier, { shouldValidate: true })
+              }
+              className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+                Number(branchTier) === opt.branchTier
+                  ? "border-primary bg-primary/5 ring-primary ring-1"
+                  : "hover:bg-muted/50"
+              }`}
+            >
+              <p className="font-medium">{opt.label}</p>
+              <p className="text-muted-foreground text-xs">{opt.addon}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-primary/5 border-primary/30 rounded-lg border p-4 text-sm">
+        <p className="font-medium">Your plan</p>
+        <p className="text-muted-foreground mt-1">{summary}</p>
+        <p className="text-muted-foreground mt-2 text-xs">
+          30-day free trial · card required to start · cancel anytime
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------- step 2: shop ---------------------------- */
 
 function ShopStep({
   form,
@@ -367,9 +475,21 @@ function BranchStep({ form }: { form: UseFormReturn<FormIn, unknown, FormOut> })
 
 /* ----------------------- step 3: review -------------------------- */
 
-function ReviewStep({ values }: { values: FormIn }) {
+function ReviewStep({ values, monthlyCents }: { values: FormIn; monthlyCents: number }) {
   const rows: { label: string; value: string }[] = useMemo(() => {
     const arr: { label: string; value: string }[] = [
+      {
+        label: "Subscription",
+        value: `€${(monthlyCents / 100).toFixed(2)}/month after trial`,
+      },
+      {
+        label: "Shops included",
+        value: String(values.planShopTier ?? 1),
+      },
+      {
+        label: "Branches per shop",
+        value: String(values.planBranchTier ?? 1),
+      },
       { label: "Display name", value: values.displayName },
       { label: "Legal name", value: values.legalName },
       { label: "URL handle", value: values.slug },
@@ -382,7 +502,7 @@ function ReviewStep({ values }: { values: FormIn }) {
     if (cityCounty) arr.push({ label: "City / County", value: cityCounty });
     if (values.branchEircode) arr.push({ label: "Eircode", value: values.branchEircode });
     return arr;
-  }, [values]);
+  }, [values, monthlyCents]);
 
   return (
     <div className="space-y-4">
@@ -402,8 +522,8 @@ function ReviewStep({ values }: { values: FormIn }) {
 
       <Alert>
         <AlertDescription className="text-xs">
-          Your shop starts on a 30-day trial. We don&apos;t ask for a card. You can add staff,
-          stock, and POS terminals from the dashboard.
+          Your shop starts on a 30-day trial. Next you&apos;ll add a card (demo mode locally). Then
+          invite managers and cashiers — each can have their own password.
         </AlertDescription>
       </Alert>
     </div>

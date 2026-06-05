@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { entityIdSchema } from "@/lib/entity-id";
 
 /**
  * Cash movement types the cashier can record by hand. The other types
@@ -21,8 +22,8 @@ export const CASH_MOVEMENT_LABEL: Record<string, { label: string; sign: "in" | "
 };
 
 export const openSessionSchema = z.object({
-  branchId: z.string().uuid("Pick a branch"),
-  terminalId: z.string().uuid().optional(),
+  branchId: entityIdSchema,
+  terminalId: entityIdSchema.optional(),
   openingCash: z.coerce
     .number()
     .min(0, "Opening cash must be 0 or more")
@@ -50,7 +51,7 @@ export const closeSessionSchema = z.object({
 export type CloseSessionInput = z.input<typeof closeSessionSchema>;
 
 export const cashMovementSchema = z.object({
-  sessionId: z.string().uuid(),
+  sessionId: entityIdSchema,
   type: z.enum(MANUAL_CASH_MOVEMENT_TYPES),
   amount: z.coerce
     .number()

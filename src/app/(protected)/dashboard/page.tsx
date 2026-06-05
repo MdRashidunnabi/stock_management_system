@@ -15,6 +15,8 @@ import {
   ShoppingCart,
   Sparkles,
   TrendingUp,
+  Globe,
+  ExternalLink,
 } from "lucide-react";
 import { requireTenant, requireUser } from "@/lib/auth/tenant";
 import { Badge } from "@/components/ui/badge";
@@ -107,8 +109,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-2">
-          <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-xs">
-            Step 14 - regression-proof: 48 unit + 173 smoke + 2 e2e tests
+          <Badge variant="info" className="rounded-full px-2 py-0.5 text-xs">
+            Live dashboard · sales & stock
           </Badge>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Welcome back, {user.user_metadata?.full_name ?? user.email?.split("@")[0]}
@@ -287,6 +289,31 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         </CardHeader>
         <CardContent className="px-0 pb-0">
           <RecentShifts rows={sessionVariance.rows} />
+        </CardContent>
+      </Card>
+
+      {/* Online store */}
+      <Card className="border-primary/25 from-primary/10 to-info/5 bg-gradient-to-br">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Globe className="text-primary size-4" />
+            Your online store
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Auto-linked to your catalog and stock. POS and web orders use the same available
+            quantity.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link href={`/shop/${tenant.tenantSlug}`} target="_blank" rel="noopener noreferrer">
+              Open shop
+              <ExternalLink className="size-3.5" />
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/online-orders">Online orders</Link>
+          </Button>
         </CardContent>
       </Card>
 

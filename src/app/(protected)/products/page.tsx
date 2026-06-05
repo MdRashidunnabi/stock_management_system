@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/table";
 import { listLookupsForProductForm, listProducts } from "@/lib/catalog/products/actions";
 import { requireTenant } from "@/lib/auth/tenant";
-import { formatEuro } from "@/lib/utils";
+import { listBranchesForCurrentTenant } from "@/lib/pos/actions";
+import { cn, formatEuro } from "@/lib/utils";
 
 export const metadata = { title: "Products - ShopOS" };
 
@@ -24,8 +25,16 @@ interface SearchParams {
   category?: string;
   brand?: string;
   supplier?: string;
+  branch?: string;
   status?: string;
   page?: string;
+}
+
+function formatAvailableQty(qty: number, unit: string): string {
+  const n = Number(qty);
+  if (!Number.isFinite(n)) return "—";
+  if (Math.abs(n - Math.round(n)) < 0.0001) return `${Math.round(n)} ${unit}`;
+  return `${n.toFixed(2)} ${unit}`;
 }
 
 export default async function ProductsPage({
@@ -43,6 +52,11 @@ export default async function ProductsPage({
       : "active";
   const page = Number(sp.page ?? "1") || 1;
 
+  const branches = await listBranchesForCurrentTenant();
+  const activeBranchId =
+    sp.branch && branches.some((b) => b.id === sp.branch) ? sp.branch : (branches[0]?.id ?? null);
+  const activeBranch = branches.find((b) => b.id === activeBranchId) ?? null;
+
   const [{ rows, total, pageSize }, lookups] = await Promise.all([
     listProducts({
       search: sp.q,
@@ -51,13 +65,18 @@ export default async function ProductsPage({
       supplierId: sp.supplier || null,
       status,
       page,
+      branchId: activeBranchId,
     }),
     listLookupsForProductForm(),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const buildHref = (overrides: Partial<SearchParams>) => {
-    const next = { ...sp, ...overrides };
+    const next = {
+      ...sp,
+      ...(activeBranchId ? { branch: activeBranchId } : {}),
+      ...overrides,
+    };
     const params = new URLSearchParams();
     for (const [k, v] of Object.entries(next)) {
       if (v && String(v).length > 0) params.set(k, String(v));
@@ -72,7 +91,13 @@ export default async function ProductsPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
           <p className="text-muted-foreground text-sm">
-            Manage your full catalogue. Use search, category, or brand filters to drill down.
+            Manage your full catalogue. Available stock is shown per branch (sellable units only).
+            {activeBranch ? (
+              <>
+                {" "}
+                Viewing: <span className="text-foreground font-medium">{activeBranch.code}</span>
+              </>
+            ) : null}
           </p>
         </div>
         {canWrite ? (
@@ -101,7 +126,7 @@ export default async function ProductsPage({
         <CardContent>
           <form
             method="get"
-            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:items-end"
           >
             <div className="space-y-2 lg:col-span-2">
               <Label htmlFor="q">Search</Label>
@@ -157,7 +182,26 @@ export default async function ProductsPage({
                 <option value="all">All</option>
               </select>
             </div>
-            <div className="lg:col-span-5">
+            <div className="space-y-2">
+              <Label htmlFor="branch">Branch (stock)</Label>
+              <select
+                id="branch"
+                name="branch"
+                defaultValue={activeBranchId ?? ""}
+                className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+              >
+                {branches.length === 0 ? (
+                  <option value="">No branch</option>
+                ) : (
+                  branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.code} — {b.name}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+            <div className="lg:col-span-6">
               <div className="flex flex-wrap gap-2">
                 <Button type="submit">Apply</Button>
                 <Button asChild type="button" variant="ghost">
@@ -185,12 +229,14 @@ export default async function ProductsPage({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-14">Image</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead>Barcode</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Brand</TableHead>
                   <TableHead>Supplier</TableHead>
+                  <TableHead className="text-right">Available</TableHead>
                   <TableHead className="text-right">Cost</TableHead>
                   <TableHead className="text-right">Sell</TableHead>
                   <TableHead className="text-center">VAT</TableHead>
@@ -200,6 +246,18 @@ export default async function ProductsPage({
               <TableBody>
                 {rows.map((p) => (
                   <TableRow key={p.id} className="hover:bg-muted/50">
+                    <TableCell>
+                      {p.primary_image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={p.primary_image_url}
+                          alt=""
+                          className="size-10 rounded-md border object-cover"
+                        />
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">
                       <Link href={`/products/${p.id}`} className="hover:underline">
                         {p.name}
@@ -220,6 +278,23 @@ export default async function ProductsPage({
                     </TableCell>
                     <TableCell className="text-sm">
                       {p.supplier?.name ?? <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-xs">
+                      {p.available_qty === null ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <span
+                          className={cn(
+                            p.available_qty <= 0
+                              ? "text-rose-700 dark:text-rose-400"
+                              : p.available_qty <= 5
+                                ? "text-amber-700 dark:text-amber-400"
+                                : undefined,
+                          )}
+                        >
+                          {formatAvailableQty(p.available_qty, p.base_unit)}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs">
                       {formatEuro(Number(p.purchase_price ?? 0))}

@@ -100,6 +100,7 @@ export const products = pgTable(
     requiresAgeCheck: boolean("requires_age_check").notNull().default(false),
     hazmat: boolean("hazmat").notNull().default(false),
     isActive: boolean("is_active").notNull().default(true),
+    allowPosCustomPrice: boolean("allow_pos_custom_price").notNull().default(false),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt,
     updatedAt,

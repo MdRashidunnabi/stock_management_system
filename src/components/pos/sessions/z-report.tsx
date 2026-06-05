@@ -36,7 +36,7 @@ export function ZReport({ summary, shopName }: Props) {
   const varianceColor = !isClosed
     ? "text-muted-foreground"
     : Math.abs(variance) < 0.005
-      ? "text-emerald-700 dark:text-emerald-400"
+      ? "text-success dark:text-success"
       : variance > 0
         ? "text-amber-700 dark:text-amber-400"
         : "text-destructive";
@@ -213,9 +213,7 @@ export function ZReport({ summary, shopName }: Props) {
                     </TableCell>
                     <TableCell
                       className={`text-right font-mono text-xs ${
-                        meta.sign === "in"
-                          ? "text-emerald-700 dark:text-emerald-400"
-                          : "text-destructive"
+                        meta.sign === "in" ? "text-success dark:text-success" : "text-destructive"
                       }`}
                     >
                       {meta.sign === "in" ? "+" : "-"}

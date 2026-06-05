@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-import { getCurrentTenant, requireUser } from "@/lib/auth/tenant";
+import { getCurrentUser, requireUser } from "@/lib/auth/tenant";
+import { getBillingAccountForOwner, listOwnerShops } from "@/lib/billing/account-queries";
 
 export const metadata: Metadata = {
   title: "Set up your shop",
@@ -15,8 +16,12 @@ export const metadata: Metadata = {
  */
 export default async function OnboardingPage() {
   const user = await requireUser();
-  const tenant = await getCurrentTenant();
-  if (tenant) redirect("/dashboard");
+  const authUser = await getCurrentUser();
+  const shops = authUser ? await listOwnerShops(authUser.id) : [];
+  const account = authUser ? await getBillingAccountForOwner(authUser.id) : null;
+  if (shops.length > 0 && (!account || shops.length >= account.licensedShopCount)) {
+    redirect("/settings/shops");
+  }
 
   return (
     <div className="bg-background min-h-dvh">
