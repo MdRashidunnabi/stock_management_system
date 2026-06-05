@@ -7,6 +7,8 @@
     "node": ">=20.0.0"
   },
   "scripts": {
+    "deploy:vercel": "node scripts/deploy-vercel-prod.mjs",
+    "vercel:env:push": "node scripts/push-vercel-env.mjs",
     "sync:needscarlow-images": "node scripts/sync-needscarlow-images.mjs",
     "predev": "node scripts/sync-needscarlow-images.mjs",
     "prebuild": "node scripts/sync-needscarlow-images.mjs",

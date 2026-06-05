@@ -14,10 +14,13 @@ export type PlatformSuperAdminSeed = {
   fullName: string;
 };
 
+/** Local seed password — set PLATFORM_SEED_PASSWORD in .env.local; never commit real production passwords. */
+const seedPassword = process.env.PLATFORM_SEED_PASSWORD?.trim() || "ChangeMe-Platform-Seed-Only";
+
 export const PLATFORM_SUPERADMINS: PlatformSuperAdminSeed[] = [
   {
     email: "md.rashidunnabicit@gmail.com",
-    password: "3546611398@Ra",
+    password: seedPassword,
     fullName: "Rashid (Platform Super Admin)",
   },
 ];
