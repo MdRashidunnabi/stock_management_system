@@ -11,7 +11,7 @@ These accounts are for testers. They are not production admin accounts.
 | Owner   | `owner@demo.shopos.local`   | `DemoPass123!` |
 | Cashier | `cashier@demo.shopos.local` | `DemoPass123!` |
 
-Sign in at `/login`. Use **Owner** or **Cashier** on that page to fill the form.
+Sign in at https://shopos-red.vercel.app/login. Use **Owner** or **Cashier** on that page to fill the form.
 
 The demo only works on a live ShopOS instance (Vercel, or a Hostinger **VPS** with Docker). It will not log in on Hostinger **shared** hosting.
 

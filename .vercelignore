@@ -1,19 +1,25 @@
-# Keep CLI uploads under Vercel's 100 MB limit (Hobby).
+.git
 .next
 node_modules
+.turbo
+.vercel
+apps
+backups
+coverage
+playwright-report
+test-results
 needscarlow-env
 .venv
 venv
-env
-*-env/
 
-# Needscarlow demo images (~30 MB each copy) — optional for production demo; use susu552813 shop.
 Shops/Needscarlow/needscarlow_images
 public/shops/needscarlow
+supabase/sql-chunks
+supabase/combined-migrations.sql
 
-# Local / dev only
+.env
 .env*.local
-playwright-report
-test-results
-coverage
-backups
+.env.development
+.env.production
+.env.docker-local
+.env.local.docker

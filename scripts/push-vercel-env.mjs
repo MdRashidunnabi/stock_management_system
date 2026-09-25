@@ -38,12 +38,29 @@ function parseEnvFile(file) {
   return out;
 }
 
+const vercelBin = process.platform === "win32" ? "npx.cmd" : "npx";
+
 function addEnv(name, value, target) {
   console.info(`  + ${name} → ${target}`);
+  const typeFlag =
+    name.startsWith("NEXT_PUBLIC_") || name === "EMAIL_FROM"
+      ? ["--type", "config"]
+      : ["--type", "secret"];
   const r = spawnSync(
-    "npx",
-    ["vercel", "env", "add", name, target, "--value", value, "--force", "--yes"],
-    { stdio: "inherit" },
+    vercelBin,
+    [
+      "vercel",
+      "env",
+      "add",
+      name,
+      target,
+      "--value",
+      value,
+      "--force",
+      "--yes",
+      ...typeFlag,
+    ],
+    { stdio: "inherit", shell: process.platform === "win32" },
   );
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
@@ -71,11 +88,12 @@ for (const key of [...REQUIRED, ...OPTIONAL]) {
   }
 }
 
-// Production app URL override for production only (optional; Vercel auto-detects if unset)
-const prodUrl = process.env.VERCEL_PROD_URL?.trim() || "https://shop-os-gamma.vercel.app";
-addEnv("NEXT_PUBLIC_APP_URL", prodUrl, "production");
 if (env.NEXT_PUBLIC_APP_ENV !== "production") {
   addEnv("NEXT_PUBLIC_APP_ENV", "production", "production");
+}
+const prodUrl = process.env.VERCEL_PROD_URL?.trim();
+if (prodUrl) {
+  addEnv("NEXT_PUBLIC_APP_URL", prodUrl, "production");
 }
 
 console.info("\n[vercel-env] Done. Run: npm run deploy:vercel\n");
