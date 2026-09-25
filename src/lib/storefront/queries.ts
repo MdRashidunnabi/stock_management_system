@@ -7,6 +7,7 @@ import { resolveStorefrontLogoUrl } from "@/lib/storefront/logo-url";
 import { computeOnlinePriceDisplay } from "@/lib/storefront/pricing";
 import { getStockDisplay, type StockDisplay } from "@/lib/storefront/stock-display";
 import { parseShopTemplateId, type ShopTemplateId } from "@/lib/storefront/templates";
+import { productNameSkuOrFilter } from "@/lib/security/postgrest-filter";
 
 export interface StorefrontShop {
   tenantId: string;
@@ -309,7 +310,7 @@ export async function listStorefrontProducts(
 
   if (opts?.search?.trim()) {
     const q = opts.search.trim();
-    query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%`);
+    query = query.or(productNameSkuOrFilter(q));
   }
 
   const { data, error } = await query;

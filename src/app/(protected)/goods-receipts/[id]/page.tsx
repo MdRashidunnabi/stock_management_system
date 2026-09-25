@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getCurrentTenant } from "@/lib/auth/tenant";
+import { requireRole } from "@/lib/auth/tenant";
 import { getGoodsReceipt } from "@/lib/purchasing/receipts/actions";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,8 +21,7 @@ export const metadata = { title: "Goods receipt · ShopOS" };
 type Params = Promise<{ id: string }>;
 
 export default async function GoodsReceiptDetailPage({ params }: { params: Params }) {
-  const tenant = await getCurrentTenant();
-  if (!tenant) redirect("/onboarding");
+  const tenant = await requireRole(["owner", "manager", "warehouse"]);
   const { id } = await params;
   const gr = await getGoodsReceipt(id);
   if (!gr) notFound();

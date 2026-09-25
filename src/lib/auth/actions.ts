@@ -15,6 +15,7 @@ import { clearActiveTenantCookie, writeActiveTenantCookie } from "@/lib/auth/coo
 import { actionClient, authActionClient } from "@/lib/safe-action";
 import { getUserTenants } from "@/lib/auth/tenant";
 import { getPostAuthRedirectPath } from "@/lib/auth/routing";
+import { hitRateLimit } from "@/lib/security/rate-limit";
 
 /**
  * Friendly mapping for the small set of Supabase auth errors that should be
@@ -49,6 +50,10 @@ export const signInAction = actionClient
   .metadata({ actionName: "auth.signIn" })
   .inputSchema(signInSchema)
   .action(async ({ parsedInput }) => {
+    const gate = hitRateLimit(`signin:${parsedInput.email}`, 10, 15 * 60 * 1000);
+    if (!gate.ok) {
+      return { ok: false as const, message: "errors.rateLimit" };
+    }
     const supabase = await createClient();
     const { error } = await supabase.auth.signInWithPassword({
       email: parsedInput.email,
@@ -82,6 +87,10 @@ export const signUpAction = actionClient
   .metadata({ actionName: "auth.signUp" })
   .inputSchema(signUpSchema)
   .action(async ({ parsedInput }) => {
+    const gate = hitRateLimit(`signup:${parsedInput.email}`, 8, 60 * 60 * 1000);
+    if (!gate.ok) {
+      return { ok: false as const, message: "errors.rateLimit" };
+    }
     const supabase = await createClient();
     const { data, error } = await supabase.auth.signUp({
       email: parsedInput.email,
@@ -141,10 +150,13 @@ export const requestPasswordResetAction = actionClient
   .metadata({ actionName: "auth.requestPasswordReset" })
   .inputSchema(forgotPasswordSchema)
   .action(async ({ parsedInput }) => {
-    const supabase = await createClient();
-    await supabase.auth.resetPasswordForEmail(parsedInput.email, {
-      redirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/reset-password`,
-    });
+    const gate = hitRateLimit(`pwreset:${parsedInput.email}`, 5, 60 * 60 * 1000);
+    if (gate.ok) {
+      const supabase = await createClient();
+      await supabase.auth.resetPasswordForEmail(parsedInput.email, {
+        redirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/reset-password`,
+      });
+    }
     return { ok: true as const, email: parsedInput.email };
   });
 

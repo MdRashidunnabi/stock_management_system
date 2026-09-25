@@ -1,13 +1,13 @@
 import { CategoryManager } from "@/components/catalog/category-manager";
 import { listCategories } from "@/lib/catalog/categories/actions";
-import { requireTenant } from "@/lib/auth/tenant";
+import { requireRole } from "@/lib/auth/tenant";
 
 export const metadata = {
   title: "Categories - ShopOS",
 };
 
 export default async function CategoriesPage() {
-  const tenant = await requireTenant();
+  const tenant = await requireRole(["owner", "manager", "warehouse"]);
   const categories = await listCategories();
   const canWrite = ["owner", "manager"].includes(tenant.role);
 

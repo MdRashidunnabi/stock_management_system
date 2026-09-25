@@ -1,116 +1,49 @@
 # ShopOS
 
-The Retail Operating System for shops in any country.
-POS, stock, suppliers, branches, and online sales in one platform.
+POS, stock, suppliers, and online sales for shops.
 
-- Currency, timezone, and VAT follow the country chosen at signup
-- Hosting target: Vercel + Supabase
+## Public demo
 
-See [BUSINESS_AND_PRODUCT_PLAN.md](./BUSINESS_AND_PRODUCT_PLAN.md) for the full
-strategic and technical plan.
+These accounts are for testers. They are not production admin accounts.
 
----
+| Role    | Email                       | Password       |
+| ------- | --------------------------- | -------------- |
+| Owner   | `owner@demo.shopos.local`   | `DemoPass123!` |
+| Cashier | `cashier@demo.shopos.local` | `DemoPass123!` |
 
-## Tech stack
+Sign in at `/login`. Use **Owner** or **Cashier** on that page to fill the form.
 
-- Next.js 16 (App Router) + React 19 + TypeScript
-- Tailwind CSS v4 + shadcn/ui
-- Supabase (Postgres + Auth + Storage + Realtime)
-- Drizzle ORM
-- TanStack Query + Zustand + React Hook Form + Zod
-- Vitest + Playwright
-- ESLint + Prettier + Husky + lint-staged
+The demo only works on a live ShopOS instance (Vercel, or a Hostinger **VPS** with Docker). It will not log in on Hostinger **shared** hosting.
 
----
+## Hosting
 
-## Project structure
+- **Shared Hostinger (PHP):** brochure only. Upload `hostinger-shared/index.html`. No login, no till, no database.
+- **Hostinger VPS:** real app. Docker + Postgres/Supabase.
+- **Vercel + Supabase:** real app (simplest public demo).
 
-```
-.
-├── BUSINESS_AND_PRODUCT_PLAN.md   # master strategic plan
-├── DEVELOPER_SETUP.md             # step-by-step local setup
-├── package.json
-├── tsconfig.json
-├── next.config.ts
-├── eslint.config.mjs
-├── postcss.config.mjs
-├── components.json                # shadcn/ui config
-├── .env.example
-├── public/
-├── src/
-│   ├── app/                       # Next.js App Router
-│   │   ├── (admin)/               # owner / manager / accountant UI (later)
-│   │   ├── (auth)/                # login / signup (later)
-│   │   ├── (pos)/                 # cashier POS PWA (later)
-│   │   ├── (storefront)/          # online store (later)
-│   │   ├── api/                   # Route Handlers (later)
-│   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   └── globals.css
-│   ├── components/                # shared UI components
-│   ├── db/                        # Drizzle schema + migrations
-│   ├── features/                  # feature modules (products, sales, ...)
-│   ├── hooks/
-│   ├── lib/                       # env, utils, supabase clients
-│   └── server/                    # server actions / services
-└── supabase/                      # local Supabase config + migrations
-```
+## Local
 
----
-
-## Getting started (local dev)
-
-See **[DEVELOPER_SETUP.md](./DEVELOPER_SETUP.md)** for the exact step-by-step.
-
-Quick view:
+See [DEVELOPER_SETUP.md](./DEVELOPER_SETUP.md).
 
 ```bash
-# install deps
 npm install
-
-# copy env and fill in Supabase keys
 cp .env.example .env.local
-
-# run dev
+npx supabase start
+npm run db:seed:auth
 npm run dev
 ```
 
----
+Then open http://localhost:3000/login with the demo accounts above.
 
 ## Scripts
 
-| Script                      | What it does                                                           |
-| --------------------------- | ---------------------------------------------------------------------- |
-| `npm run dev`               | Start Next.js dev server (Turbopack) on http://localhost:3000          |
-| `npm run build`             | Production build                                                       |
-| `npm start`                 | Run the production build                                               |
-| `npm run lint`              | ESLint                                                                 |
-| `npm run lint:fix`          | ESLint with auto-fix                                                   |
-| `npm run format`            | Prettier write                                                         |
-| `npm run format:check`      | Prettier check                                                         |
-| `npm run typecheck`         | TypeScript check (no emit)                                             |
-| `npm run test`              | Vitest unit tests                                                      |
-| `npm run test:e2e`          | Playwright end-to-end tests                                            |
-| `npm run db:generate`       | Drizzle - generate migrations from schema                              |
-| `npm run db:migrate`        | Drizzle - apply migrations                                             |
-| `npm run db:push`           | Drizzle - push schema (dev only)                                       |
-| `npm run db:studio`         | Drizzle Studio (visual DB explorer)                                    |
-| `npm run db:seed`           | Run seed script                                                        |
-| `npm run supabase:start`    | Start local Supabase stack                                             |
-| `npm run supabase:stop`     | Stop local Supabase stack                                              |
-| `npm run desktop:dev`       | Electron POS shell → http://localhost:3000 (run `dev` first)           |
-| `npm run desktop:build:win` | Build Windows installer (run on Windows; see `apps/desktop/README.md`) |
-
----
-
-## Compliance disclaimer
-
-ShopOS produces VAT-compliant receipts/invoices for Ireland. Specific tax rules
-(VAT rates by category, e-invoicing obligations, data retention periods)
-must be verified with a Revenue.ie-registered accountant. This repository
-contains no legal, tax, or accounting advice.
-
----
+| Script                      | What it does                                      |
+| --------------------------- | ------------------------------------------------- |
+| `npm run dev`               | Dev server                                        |
+| `npm run build`             | Production build                                  |
+| `npm start`                 | Run production build                              |
+| `npm run test`              | Unit tests                                        |
+| `npm run desktop:build:win` | Windows till installer (`apps/desktop/README.md`) |
 
 ## License
 

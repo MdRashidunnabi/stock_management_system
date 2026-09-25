@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ExternalLink, Globe } from "lucide-react";
-import { hasRole, requireTenant } from "@/lib/auth/tenant";
+import { hasRole, requireRole } from "@/lib/auth/tenant";
 import { listOnlineOrdersForTenant } from "@/lib/storefront/admin-queries";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 export default async function OnlineOrdersPage() {
-  const tenant = await requireTenant();
+  const tenant = await requireRole(["owner", "manager", "delivery"]);
   const orders = await listOnlineOrdersForTenant();
   const shopUrl = `/shop/${tenant.tenantSlug}`;
   const canEditStorefront = await hasRole(["owner", "manager", "super_admin"]);

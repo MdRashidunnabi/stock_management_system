@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenant } from "@/lib/auth/tenant";
 import { publicStorefrontLogoUrl } from "@/lib/storefront/logo-url";
+import { tenantObjectPath } from "@/lib/security/storage-path";
 
 const MAX_BYTES = 5 * 1024 * 1024;
-const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"]);
+const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 const SETTINGS_ROLES = new Set(["owner", "manager", "super_admin"]);
 
@@ -24,7 +25,7 @@ export async function uploadStorefrontLogo(
     return { ok: false, error: "No image file selected." };
   }
   if (!ALLOWED.has(file.type)) {
-    return { ok: false, error: "Use JPEG, PNG, WebP, GIF, or SVG." };
+    return { ok: false, error: "Use JPEG, PNG, WebP, or GIF." };
   }
   if (file.size > MAX_BYTES) {
     return { ok: false, error: "Logo must be 5 MB or smaller." };
@@ -37,10 +38,8 @@ export async function uploadStorefrontLogo(
         ? "webp"
         : file.type === "image/gif"
           ? "gif"
-          : file.type === "image/svg+xml"
-            ? "svg"
-            : "jpg";
-  const path = `${tenant.tenantId}/logo-${Date.now()}.${ext}`;
+          : "jpg";
+  const path = tenantObjectPath(tenant.tenantId, `logo-${Date.now()}.${ext}`);
 
   const supabase = await createClient();
   const { error: uploadErr } = await supabase.storage.from("storefront-logos").upload(path, file, {
@@ -54,7 +53,7 @@ export async function uploadStorefrontLogo(
       ok: false,
       error: uploadErr.message.includes("Bucket not found")
         ? "Logo storage is not set up. Run: npx supabase migration up --local"
-        : uploadErr.message,
+        : "Could not upload the logo. Try a smaller JPEG, PNG, WebP, or GIF.",
     };
   }
 
@@ -64,7 +63,8 @@ export async function uploadStorefrontLogo(
     .update({ logo_url: url })
     .eq("tenant_id", tenant.tenantId);
 
-  if (dbErr) return { ok: false, error: dbErr.message };
+  if (dbErr)
+    return { ok: false, error: "Logo uploaded, but the shop record could not be updated." };
 
   revalidatePath("/settings/storefront");
   revalidatePath(`/shop/${tenant.tenantSlug}`);

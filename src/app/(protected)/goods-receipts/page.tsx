@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ArrowRight, Truck } from "lucide-react";
-import { getCurrentTenant } from "@/lib/auth/tenant";
+import { requireRole } from "@/lib/auth/tenant";
 import { listGoodsReceipts } from "@/lib/purchasing/receipts/actions";
 import {
   Table,
@@ -18,8 +17,7 @@ import type { GoodsReceiptStatus } from "@/lib/purchasing/schemas";
 export const metadata = { title: "Goods receipts · ShopOS" };
 
 export default async function GoodsReceiptsPage() {
-  const tenant = await getCurrentTenant();
-  if (!tenant) redirect("/onboarding");
+  await requireRole(["owner", "manager", "warehouse"]);
 
   const receipts = await listGoodsReceipts(150);
 

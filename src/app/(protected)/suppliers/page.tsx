@@ -12,12 +12,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listSuppliers } from "@/lib/suppliers/actions";
-import { requireTenant } from "@/lib/auth/tenant";
+import { requireRole } from "@/lib/auth/tenant";
 
 export const metadata = { title: "Suppliers - ShopOS" };
 
 export default async function SuppliersPage() {
-  const tenant = await requireTenant();
+  const tenant = await requireRole(["owner", "manager", "warehouse"]);
   const suppliers = await listSuppliers();
   const canWrite = ["owner", "manager", "warehouse"].includes(tenant.role);
 

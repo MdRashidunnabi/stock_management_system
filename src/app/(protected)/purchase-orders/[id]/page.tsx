@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, Truck } from "lucide-react";
-import { getCurrentTenant } from "@/lib/auth/tenant";
+import { requireRole } from "@/lib/auth/tenant";
 import { getPurchaseOrder } from "@/lib/purchasing/orders/actions";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,8 +21,7 @@ export const metadata = { title: "Purchase order · ShopOS" };
 type Params = Promise<{ id: string }>;
 
 export default async function PurchaseOrderDetailPage({ params }: { params: Params }) {
-  const tenant = await getCurrentTenant();
-  if (!tenant) redirect("/onboarding");
+  const tenant = await requireRole(["owner", "manager", "warehouse"]);
   const { id } = await params;
   const po = await getPurchaseOrder(id);
   if (!po) notFound();

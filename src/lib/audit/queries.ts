@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { type AuditEntityType, type AuditFilter, type AuditLogRow } from "@/lib/audit/schemas";
+import { auditSearchOrFilter } from "@/lib/security/postgrest-filter";
 
 /**
  * List audit entries for the current tenant. RLS already restricts to
@@ -23,7 +24,7 @@ export async function listAuditEntries(filter: AuditFilter): Promise<AuditLogRow
     const term = filter.q.trim();
     if (term.length > 0) {
       // Best-effort match on entity_id (uuid) or action substring.
-      q = q.or(`action.ilike.%${term}%,entity_id.eq.${asUuidOrZero(term)}`);
+      q = q.or(auditSearchOrFilter(term, asUuidOrZero(term)));
     }
   }
 

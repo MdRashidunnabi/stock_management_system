@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ShopOS demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f1ea;
+        --card: #fff;
+        --ink: #1c1917;
+        --muted: #57534e;
+        --line: #e7e5e4;
+        --accent: #0f766e;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      main {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 2.5rem 1.25rem 4rem;
+      }
+      h1 {
+        font-size: 2rem;
+        letter-spacing: -0.03em;
+        margin: 0 0 0.5rem;
+      }
+      p {
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 1rem;
+        padding: 1.25rem 1.35rem;
+        margin-top: 1.25rem;
+      }
+      .card h2 {
+        margin: 0 0 0.75rem;
+        font-size: 1rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.45rem 0;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      code {
+        font-family: ui-monospace, monospace;
+        font-size: 0.85rem;
+      }
+      .warn {
+        background: #fff7ed;
+        border-color: #fed7aa;
+      }
+      a {
+        color: var(--accent);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>ShopOS</h1>
+      <p>Till, stock, and online shop — this page is a brochure on shared hosting.</p>
+
+      <div class="card warn">
+        <h2>This host cannot run the till</h2>
+        <p>
+          Hostinger shared hosting has no Node.js server and no ShopOS database. People cannot sign
+          in or scan products here. For a working test, use the live app (Vercel or a VPS) or run
+          the project locally from GitHub.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>Demo login (use on the live app)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Email</th>
+              <th>Password</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Owner</td>
+              <td><code>owner@demo.shopos.local</code></td>
+              <td><code>DemoPass123!</code></td>
+            </tr>
+            <tr>
+              <td>Cashier</td>
+              <td><code>cashier@demo.shopos.local</code></td>
+              <td><code>DemoPass123!</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        Source:
+        <a href="https://github.com/MdRashidunnabi/ShopOS">github.com/MdRashidunnabi/ShopOS</a>
+      </p>
+    </main>
+  </body>
+</html>

@@ -4,7 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { AdjustStockCard } from "@/components/products/adjust-stock-card";
 import { ProductForm } from "@/components/products/product-form";
 import { getProduct, listLookupsForProductForm } from "@/lib/catalog/products/actions";
-import { requireTenant } from "@/lib/auth/tenant";
+import { requireRole } from "@/lib/auth/tenant";
 import { getStorefrontSettingsForTenant } from "@/lib/storefront/settings-queries";
 import { getProductStockByBranch } from "@/lib/inventory/actions";
 
@@ -16,7 +16,7 @@ interface Props {
 
 export default async function EditProductPage({ params }: Props) {
   const { id } = await params;
-  const tenant = await requireTenant();
+  const tenant = await requireRole(["owner", "manager", "warehouse"]);
   const canWrite = ["owner", "manager", "warehouse"].includes(tenant.role);
 
   const [product, lookups, branchStock, storefront] = await Promise.all([

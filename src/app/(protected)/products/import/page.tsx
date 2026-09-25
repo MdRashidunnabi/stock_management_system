@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { ProductImporter } from "@/components/products/product-importer";
-import { requireTenant } from "@/lib/auth/tenant";
+import { requireRole } from "@/lib/auth/tenant";
 
 export const metadata = { title: "Import products - ShopOS" };
 
 export default async function ImportProductsPage() {
-  const tenant = await requireTenant();
+  const tenant = await requireRole(["owner", "manager", "warehouse"]);
   const canWrite = ["owner", "manager", "warehouse"].includes(tenant.role);
 
   return (

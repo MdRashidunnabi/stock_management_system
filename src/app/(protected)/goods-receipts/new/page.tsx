@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getCurrentTenant } from "@/lib/auth/tenant";
+import { requireRole } from "@/lib/auth/tenant";
 import { listBranchesForCurrentTenant } from "@/lib/pos/actions";
 import {
   getPurchaseOrder,
@@ -19,11 +18,7 @@ export default async function NewGoodsReceiptPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const tenant = await getCurrentTenant();
-  if (!tenant) redirect("/onboarding");
-  if (!["owner", "manager", "warehouse"].includes(tenant.role)) {
-    redirect("/dashboard");
-  }
+  await requireRole(["owner", "manager", "warehouse"]);
 
   const { po: poId } = await searchParams;
 

@@ -14,6 +14,7 @@ import { signInSchema, type SignInInput } from "@/lib/auth/schemas";
 import { signInAction } from "@/lib/auth/actions";
 import { useT } from "@/components/i18n/locale-provider";
 import { displayMessage } from "@/lib/i18n/display";
+import { PUBLIC_DEMO_ACCOUNTS, PUBLIC_DEMO_PASSWORD } from "@/lib/demo-accounts";
 
 interface Props {
   next?: string;
@@ -115,6 +116,30 @@ export function SignInForm({ next, initialError }: Props) {
       <Button asChild variant="outline" className="w-full">
         <Link href="/signup">{t("common.createAccount")}</Link>
       </Button>
+
+      <div className="border-border rounded-xl border px-3 py-3">
+        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Demo</p>
+        <p className="mt-1 text-sm">
+          Password <span className="font-mono">{PUBLIC_DEMO_PASSWORD}</span>
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {PUBLIC_DEMO_ACCOUNTS.map((account) => (
+            <Button
+              key={account.email}
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={pending}
+              onClick={() => {
+                form.setValue("email", account.email);
+                form.setValue("password", PUBLIC_DEMO_PASSWORD);
+              }}
+            >
+              {account.role}
+            </Button>
+          ))}
+        </div>
+      </div>
     </form>
   );
 }

@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listLookupsForProductForm, listProducts } from "@/lib/catalog/products/actions";
-import { requireTenant } from "@/lib/auth/tenant";
+import { requireRole } from "@/lib/auth/tenant";
 import { listBranchesForCurrentTenant } from "@/lib/pos/actions";
 import { cn, formatMoney } from "@/lib/utils";
 
@@ -42,7 +42,7 @@ export default async function ProductsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const tenant = await requireTenant();
+  const tenant = await requireRole(["owner", "manager", "warehouse"]);
   const money = (n: number) => formatMoney(n, tenant.currency, tenant.locale);
   const sp = await searchParams;
 

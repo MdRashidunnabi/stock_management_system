@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { SupplierForm } from "@/components/suppliers/supplier-form";
-import { requireTenant } from "@/lib/auth/tenant";
+import { requireRole } from "@/lib/auth/tenant";
 import { getSupplier } from "@/lib/suppliers/actions";
 
 export const metadata = { title: "Edit supplier - ShopOS" };
@@ -13,7 +13,7 @@ interface Props {
 
 export default async function EditSupplierPage({ params }: Props) {
   const { id } = await params;
-  const tenant = await requireTenant();
+  const tenant = await requireRole(["owner", "manager", "warehouse"]);
   const canWrite = ["owner", "manager", "warehouse"].includes(tenant.role);
 
   const supplier = await getSupplier(id);

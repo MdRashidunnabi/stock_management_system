@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getPostAuthRedirectPath } from "@/lib/auth/routing";
 import { createClient } from "@/lib/supabase/server";
+import { publicAuthCallbackError } from "@/lib/security/public-error";
 
 /**
  * Supabase auth callback (PKCE).
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
 
   if (errorDescription) {
     const u = new URL("/login", url.origin);
-    u.searchParams.set("error", errorDescription);
+    u.searchParams.set("error", publicAuthCallbackError(errorDescription));
     return NextResponse.redirect(u);
   }
 
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     const u = new URL("/login", url.origin);
-    u.searchParams.set("error", error.message || "Could not complete sign-in.");
+    u.searchParams.set("error", publicAuthCallbackError(error.message));
     return NextResponse.redirect(u);
   }
 

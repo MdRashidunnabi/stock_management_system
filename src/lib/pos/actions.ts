@@ -12,13 +12,11 @@ import {
   type SaleFullRow,
   type SaleListRow,
 } from "@/lib/pos/schemas";
+import { productTextSearchOrFilter } from "@/lib/security/postgrest-filter";
+import { assertLineDiscountAllowed } from "@/lib/security/discount-policy";
+import { canAttachSaleToTill } from "@/lib/security/till-session";
 
 const POS_ROLES = ["owner", "manager", "cashier", "warehouse"] as const;
-
-/** Escape `%` / `_` for PostgREST `ilike` patterns. */
-function escapeIlikePattern(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
-}
 
 /* ------------------------------ Branches ------------------------------ */
 
@@ -50,7 +48,6 @@ export const searchProductsForPos = staffActionClient([...POS_ROLES])
   .action(async ({ parsedInput }): Promise<{ ok: true; rows: ProductSearchResult[] }> => {
     const supabase = await createClient();
     const q = parsedInput.query.trim();
-    const ilike = escapeIlikePattern(q);
 
     const { data: prods, error } = await supabase
       .from("products")
@@ -58,7 +55,7 @@ export const searchProductsForPos = staffActionClient([...POS_ROLES])
         "id, name, primary_image_url, sku, barcode, base_unit, selling_price, vat_code, vat_included, is_active",
       )
       .eq("is_active", true)
-      .or(`name.ilike.%${ilike}%,sku.ilike.%${ilike}%,barcode.eq.${q}`)
+      .or(productTextSearchOrFilter(q))
       .limit(20);
     if (error) throw new ActionError(error.message);
 
@@ -111,6 +108,41 @@ export const commitPosSaleAction = staffActionClient([...POS_ROLES])
   .action(async ({ parsedInput, ctx }) => {
     await assertTillMaySell(ctx.tenant.tenantId, parsedInput.deviceId);
     const supabase = await createClient();
+
+    if (parsedInput.sessionId) {
+      const { data: sess } = await supabase
+        .from("pos_sessions")
+        .select("cashier_id, status")
+        .eq("id", parsedInput.sessionId)
+        .maybeSingle();
+      const attach = canAttachSaleToTill({
+        role: ctx.tenant.role,
+        userId: ctx.user.id,
+        sessionCashierId: sess?.cashier_id ?? "",
+        sessionStatus: sess?.status ?? "",
+      });
+      if (!attach.ok) throw new ActionError(attach.error);
+    }
+
+    const discounted = parsedInput.items.filter((i) => (i.discount ?? 0) > 0);
+    if (discounted.length > 0) {
+      const ids = [...new Set(parsedInput.items.map((i) => i.productId))];
+      const { data: prods } = await supabase
+        .from("products")
+        .select("id, selling_price")
+        .in("id", ids);
+      const priceById = new Map((prods ?? []).map((p) => [p.id, Number(p.selling_price ?? 0)]));
+      for (const item of parsedInput.items) {
+        const unit = item.unitPrice ?? priceById.get(item.productId) ?? 0;
+        const allowed = assertLineDiscountAllowed({
+          role: ctx.tenant.role,
+          qty: item.qty,
+          unitPrice: unit,
+          discount: item.discount ?? 0,
+        });
+        if (!allowed.ok) throw new ActionError(allowed.error);
+      }
+    }
 
     const { data, error } = await supabase
       .rpc("commit_pos_sale", {

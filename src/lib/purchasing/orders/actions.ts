@@ -11,6 +11,7 @@ import {
   type PurchaseOrderListRow,
   type SupplierLite,
 } from "@/lib/purchasing/schemas";
+import { productTextSearchOrFilter } from "@/lib/security/postgrest-filter";
 
 const PURCHASE_ROLES = ["owner", "manager", "warehouse"] as const;
 
@@ -216,7 +217,7 @@ export async function listProductsForPurchasing(
 
   const trimmed = query?.trim();
   if (trimmed) {
-    q = q.or(`name.ilike.%${trimmed}%,sku.ilike.${trimmed}%,barcode.eq.${trimmed}`);
+    q = q.or(productTextSearchOrFilter(trimmed));
   }
 
   const { data, error } = await q;

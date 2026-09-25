@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getCurrentTenant } from "@/lib/auth/tenant";
+import { requireRole } from "@/lib/auth/tenant";
 import { listBranchesForCurrentTenant } from "@/lib/pos/actions";
 import {
   listProductsForPurchasing,
@@ -12,11 +11,7 @@ import { NewPurchaseOrderForm } from "@/components/purchasing/new-purchase-order
 export const metadata = { title: "New purchase order · ShopOS" };
 
 export default async function NewPurchaseOrderPage() {
-  const tenant = await getCurrentTenant();
-  if (!tenant) redirect("/onboarding");
-  if (!["owner", "manager", "warehouse"].includes(tenant.role)) {
-    redirect("/dashboard");
-  }
+  const tenant = await requireRole(["owner", "manager", "warehouse"]);
 
   const [branches, suppliers, products] = await Promise.all([
     listBranchesForCurrentTenant(),

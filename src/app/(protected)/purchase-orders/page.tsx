@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ArrowRight, FilePlus2, Truck } from "lucide-react";
-import { getCurrentTenant } from "@/lib/auth/tenant";
+import { requireRole } from "@/lib/auth/tenant";
 import { listPurchaseOrders } from "@/lib/purchasing/orders/actions";
 import {
   Table,
@@ -18,8 +17,7 @@ import type { PurchaseOrderStatus } from "@/lib/purchasing/schemas";
 export const metadata = { title: "Purchase orders · ShopOS" };
 
 export default async function PurchaseOrdersPage() {
-  const tenant = await getCurrentTenant();
-  if (!tenant) redirect("/onboarding");
+  await requireRole(["owner", "manager", "warehouse"]);
 
   const orders = await listPurchaseOrders(150);
 

@@ -3,13 +3,13 @@ import { redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { ProductForm } from "@/components/products/product-form";
 import { listLookupsForProductForm } from "@/lib/catalog/products/actions";
-import { requireTenant } from "@/lib/auth/tenant";
+import { requireRole } from "@/lib/auth/tenant";
 import { getStorefrontSettingsForTenant } from "@/lib/storefront/settings-queries";
 
 export const metadata = { title: "New product - ShopOS" };
 
 export default async function NewProductPage() {
-  const tenant = await requireTenant();
+  const tenant = await requireRole(["owner", "manager", "warehouse"]);
   const canWrite = ["owner", "manager", "warehouse"].includes(tenant.role);
   if (!canWrite) redirect("/products");
 

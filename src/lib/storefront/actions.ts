@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { placeOnlineOrderSchema } from "@/lib/storefront/schemas";
+import { hitRateLimit } from "@/lib/security/rate-limit";
+import { publicStorefrontOrderError } from "@/lib/security/public-error";
 
 export type PlaceOrderResult =
   | {
@@ -39,10 +41,16 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
     clientUuid,
   } = parsed.data;
 
+  const shopKey = shopSlug.trim().toLowerCase();
+  const orderGate = hitRateLimit(`checkout:${shopKey}`, 30, 10 * 60 * 1000);
+  if (!orderGate.ok) {
+    return { ok: false, error: "Too many orders from this shop just now. Please wait a minute." };
+  }
+
   const admin = createAdminClient();
 
   const { data, error } = await admin.rpc("commit_online_order", {
-    p_tenant_slug: shopSlug.trim().toLowerCase(),
+    p_tenant_slug: shopKey,
     p_items: items.map((i) => ({ product_id: i.productId, qty: i.qty })),
     p_customer: {
       name: customerName.trim(),
@@ -71,7 +79,7 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
     if (msg.includes("delivery address")) {
       return { ok: false, error: "Please enter your delivery address." };
     }
-    return { ok: false, error: msg };
+    return { ok: false, error: publicStorefrontOrderError(msg) };
   }
 
   const row = data?.[0];
@@ -79,7 +87,7 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
     return { ok: false, error: "Order could not be placed. Please try again." };
   }
 
-  revalidatePath(`/shop/${shopSlug.trim().toLowerCase()}`);
+  revalidatePath(`/shop/${shopKey}`);
   revalidatePath("/online-orders");
   revalidatePath("/sales");
   revalidatePath("/products");

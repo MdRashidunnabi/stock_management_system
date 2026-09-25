@@ -1,13 +1,13 @@
 import { BrandManager } from "@/components/catalog/brand-manager";
 import { listBrands } from "@/lib/catalog/brands/actions";
-import { requireTenant } from "@/lib/auth/tenant";
+import { requireRole } from "@/lib/auth/tenant";
 
 export const metadata = {
   title: "Brands - ShopOS",
 };
 
 export default async function BrandsPage() {
-  const tenant = await requireTenant();
+  const tenant = await requireRole(["owner", "manager", "warehouse"]);
   const brands = await listBrands();
   const canWrite = ["owner", "manager"].includes(tenant.role);
 

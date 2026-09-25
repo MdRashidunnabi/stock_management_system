@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { ActionError, staffActionClient } from "@/lib/safe-action";
+import { productTextSearchOrFilter } from "@/lib/security/postgrest-filter";
 import {
   createProductSchema,
   productIdSchema,
@@ -51,7 +52,7 @@ export async function listProducts(args: ListProductsArgs = {}) {
   if (supplierId) query = query.eq("default_supplier_id", supplierId);
   if (search && search.trim().length > 0) {
     const needle = search.trim();
-    query = query.or(`name.ilike.%${needle}%,sku.ilike.%${needle}%,barcode.ilike.%${needle}%`);
+    query = query.or(productTextSearchOrFilter(needle));
   }
 
   const from = (Math.max(1, page) - 1) * pageSize;

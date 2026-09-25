@@ -3,6 +3,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenant } from "@/lib/auth/tenant";
 import { publicProductImageUrl } from "@/lib/catalog/products/image-url";
+import {
+  storageObjectSegment,
+  tenantObjectPath,
+  fileNameSegment,
+} from "@/lib/security/storage-path";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -27,7 +32,7 @@ export async function uploadProductImage(
     return { ok: false, error: "Image must be 5 MB or smaller." };
   }
 
-  const productId = String(formData.get("productId") ?? "new");
+  const productId = storageObjectSegment(String(formData.get("productId") ?? "new"));
   const ext =
     file.type === "image/png"
       ? "png"
@@ -36,8 +41,8 @@ export async function uploadProductImage(
         : file.type === "image/gif"
           ? "gif"
           : "jpg";
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
-  const path = `${tenant.tenantId}/${productId}/${Date.now()}-${safeName || `image.${ext}`}`;
+  const safeName = fileNameSegment(file.name) || `image.${ext}`;
+  const path = tenantObjectPath(tenant.tenantId, productId, `${Date.now()}-${safeName}`);
 
   const supabase = await createClient();
   const { error } = await supabase.storage.from("product-images").upload(path, file, {
@@ -51,7 +56,7 @@ export async function uploadProductImage(
       ok: false,
       error: error.message.includes("Bucket not found")
         ? "Image storage is not set up. Run: npx supabase migration up --local"
-        : error.message,
+        : "Could not upload the image. Try a smaller JPEG, PNG, WebP, or GIF.",
     };
   }
 

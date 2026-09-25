@@ -14,7 +14,7 @@ const files = readdirSync(MIGRATIONS_DIR)
 
 const parts = [
   "-- ShopOS: run once in Supabase SQL Editor if CLI db push cannot connect.",
-  "-- https://supabase.com/dashboard/project/dpemvmotwxkrwsqhonhv/sql/new",
+  "-- https://supabase.com/dashboard/project/_/sql/new",
   "",
 ];
 

@@ -2,12 +2,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { SupplierForm } from "@/components/suppliers/supplier-form";
-import { requireTenant } from "@/lib/auth/tenant";
+import { requireRole } from "@/lib/auth/tenant";
 
 export const metadata = { title: "New supplier - ShopOS" };
 
 export default async function NewSupplierPage() {
-  const tenant = await requireTenant();
+  const tenant = await requireRole(["owner", "manager", "warehouse"]);
   const canWrite = ["owner", "manager", "warehouse"].includes(tenant.role);
   if (!canWrite) redirect("/suppliers");
 
