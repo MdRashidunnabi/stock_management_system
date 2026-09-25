@@ -8,13 +8,7 @@ import {
   type BranchTier,
   type ShopTier,
 } from "@/lib/billing/plans";
-
-/**
- * Validation rules for the onboarding wizard.
- *
- * Field-level rules are written so the same schemas can be used for both
- * the client-side form (react-hook-form resolver) and the server action.
- */
+import { isCountryCode } from "@/lib/geo/countries";
 
 const trimmed = (max: number, label: string) =>
   z
@@ -31,54 +25,28 @@ const optionalTrim = (max: number) =>
     .optional()
     .transform((v) => (v ? v.trim() : v));
 
-/**
- * Slug for the tenant. Lower-case ASCII, dashes between words.
- * Examples: "greenway", "greenway-mini-market", "tom-and-co".
- * The server side will auto-suffix if the slug is already taken.
- */
 export const slugSchema = z
   .string()
   .min(2, "Slug must be at least 2 characters")
   .max(60, "Slug must be at most 60 characters")
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and single dashes only");
 
-/**
- * Irish VAT registration number. Two recognised forms:
- *   - 7 digits + 1 or 2 letters (modern):  IE1234567T, IE1234567TX
- *   - 1 digit + letter + 5 digits + letter (legacy): IE1A23456B
- * We accept either, case-insensitive, and uppercase the value.
- * Empty string is allowed (VAT is optional for businesses below threshold).
- */
 export const vatNumberSchema = z
   .string()
-  .max(12, "VAT number is too long")
+  .max(32, "Tax ID is too long")
   .optional()
   .transform((v) => (v ? v.trim().toUpperCase() : v))
-  .refine(
-    (v) => !v || /^IE\d{7}[A-Z]{1,2}$/.test(v) || /^IE\d[A-Z]\d{5}[A-Z]$/.test(v),
-    "Enter a valid Irish VAT number (e.g. IE1234567T)",
-  );
+  .refine((v) => !v || /^[A-Z0-9][A-Z0-9 \-./]{4,31}$/.test(v), "Enter a valid tax / VAT number");
 
-/**
- * Irish Eircode. Routing key (3 chars) + space + unique identifier (4 chars).
- * E.g. "D07 XY12", "A65 F4E2", "D6W FNT4".
- */
-export const eircodeSchema = z
+export const postalCodeSchema = z
   .string()
-  .max(8, "Eircode is too long")
+  .max(16, "Postcode is too long")
   .optional()
-  .transform((v) => (v ? v.trim().toUpperCase().replace(/\s+/g, " ") : v))
-  .refine(
-    (v) => !v || /^(?:[AC-FHKNPRTV-Y]\d{2}|D6W)\s?[0-9AC-FHKNPRTV-Y]{4}$/.test(v),
-    "Enter a valid Eircode (e.g. D07 XY12)",
-  );
+  .transform((v) => (v ? v.trim().toUpperCase() : v));
 
-/**
- * Branch code. Short uppercase identifier per branch (UNIQUE per tenant).
- *   - 2 to 16 chars
- *   - letters, digits, dashes, underscores
- *   - we uppercase before storing
- */
+/** @deprecated Use postalCodeSchema. Kept for branch/supplier forms. */
+export const eircodeSchema = postalCodeSchema;
+
 export const branchCodeSchema = z
   .string()
   .min(2, "Branch code must be at least 2 characters")
@@ -91,19 +59,17 @@ const tierEnum = (options: readonly number[]) =>
     .number()
     .refine((n) => options.includes(n as (typeof options)[number]), "Pick a plan option");
 
-/**
- * Step 0 - Subscription size (shops + branches).
- */
 export const planStepSchema = z.object({
   planShopTier: tierEnum(SHOP_TIER_OPTIONS),
   planBranchTier: tierEnum(BRANCH_TIER_OPTIONS),
 });
 export type PlanStepInput = z.infer<typeof planStepSchema>;
 
-/**
- * Step 1 - Shop details.
- */
 export const shopStepSchema = z.object({
+  country: z
+    .string()
+    .min(1, "Pick your country")
+    .refine((v) => isCountryCode(v), "Pick your country"),
   legalName: trimmed(160, "Legal name"),
   displayName: trimmed(120, "Shop display name"),
   slug: slugSchema,
@@ -111,26 +77,74 @@ export const shopStepSchema = z.object({
 });
 export type ShopStepInput = z.infer<typeof shopStepSchema>;
 
-/**
- * Step 2 - First branch.
- */
 export const branchStepSchema = z.object({
   branchCode: branchCodeSchema,
   branchName: trimmed(120, "Branch name"),
   branchAddressLine1: optionalTrim(200),
   branchCity: optionalTrim(80),
   branchCounty: optionalTrim(80),
-  branchEircode: eircodeSchema,
+  branchEircode: postalCodeSchema,
 });
 export type BranchStepInput = z.infer<typeof branchStepSchema>;
 
-/**
- * Whole-form schema (sum of step 1 + step 2). This is what the server
- * action validates. Country / currency / timezone are locked to Ireland for
- * the MVP - we'll open them up when we expand beyond IE.
- */
 export const createTenantSchema = planStepSchema.merge(shopStepSchema).merge(branchStepSchema);
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
+
+const shopInSetupSchema = shopStepSchema.extend({
+  key: z.string().min(1),
+});
+
+const branchInSetupSchema = branchStepSchema.extend({
+  key: z.string().min(1),
+  shopKey: z.string().min(1),
+});
+
+export const onboardingSetupSchema = z
+  .object({
+    shops: z.array(shopInSetupSchema).min(1, "Add at least one shop.").max(30),
+    branches: z.array(branchInSetupSchema).min(1, "Add at least one branch.").max(900),
+  })
+  .superRefine((value, ctx) => {
+    const slugs = value.shops.map((s) => s.slug);
+    if (new Set(slugs).size !== slugs.length) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Each shop needs a different URL handle.",
+        path: ["shops"],
+      });
+    }
+    const shopKeys = new Set(value.shops.map((s) => s.key));
+    for (const [index, branch] of value.branches.entries()) {
+      if (!shopKeys.has(branch.shopKey)) {
+        ctx.addIssue({
+          code: "custom",
+          message: "That branch is not attached to a shop you added.",
+          path: ["branches", index, "shopKey"],
+        });
+      }
+    }
+    for (const shop of value.shops) {
+      const forShop = value.branches.filter((b) => b.shopKey === shop.key);
+      if (forShop.length === 0) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Add a branch for ${shop.displayName}.`,
+          path: ["branches"],
+        });
+        continue;
+      }
+      const codes = forShop.map((b) => b.branchCode);
+      if (new Set(codes).size !== codes.length) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Branch codes must be unique inside ${shop.displayName}.`,
+          path: ["branches"],
+        });
+      }
+    }
+  });
+
+export type OnboardingSetupInput = z.infer<typeof onboardingSetupSchema>;
 
 export function monthlyCentsFromPlanInput(input: PlanStepInput): number {
   return calculateMonthlyCents(

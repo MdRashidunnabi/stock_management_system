@@ -60,6 +60,7 @@ export const adjustStockAction = staffActionClient([...STOCK_ROLES])
     revalidatePath(`/products/${parsedInput.productId}`);
     revalidatePath("/dashboard");
     revalidatePath("/pos");
+    revalidatePath("/stock/receive");
 
     return {
       ok: true as const,

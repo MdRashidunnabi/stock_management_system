@@ -27,11 +27,9 @@ export default async function PurchaseOrdersPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Purchase orders</h1>
-          <p className="text-muted-foreground text-sm">
-            Order stock from your suppliers. When the goods arrive, log a goods receipt to update
-            inventory and the weighted-average cost.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight" data-guide="purchase-orders">
+            Purchase orders
+          </h1>
         </div>
         <div className="flex items-center gap-2">
           <Link
@@ -52,9 +50,7 @@ export default async function PurchaseOrdersPage() {
       <div className="border-border bg-card overflow-x-auto rounded-lg border">
         {orders.length === 0 ? (
           <div className="space-y-2 p-10 text-center">
-            <p className="text-muted-foreground text-sm">
-              No purchase orders yet. Create your first one to track stock arriving from suppliers.
-            </p>
+            <p className="text-muted-foreground text-sm">No purchase orders yet.</p>
             <Link
               href="/purchase-orders/new"
               className="text-primary inline-flex items-center gap-1 text-sm hover:underline"

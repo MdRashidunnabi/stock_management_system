@@ -67,7 +67,7 @@ export function CloseSessionDialog({ sessionId, expectedCash, trigger }: Props) 
         return;
       }
       if (res?.data?.ok) {
-        toast.success("Till closed");
+        toast.success("Till closed for this shift");
         setOpen(false);
         router.refresh();
       }
@@ -91,7 +91,7 @@ export function CloseSessionDialog({ sessionId, expectedCash, trigger }: Props) 
           onClick={openDialog}
         >
           <Lock className="size-4" />
-          Close till
+          Close till for this shift
         </Button>
       )}
 
@@ -99,12 +99,9 @@ export function CloseSessionDialog({ sessionId, expectedCash, trigger }: Props) 
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <KeyRound className="size-5" /> Close till
+              <KeyRound className="size-5" /> Account this till
             </DialogTitle>
-            <DialogDescription>
-              Count the cash currently in the drawer and enter the total. We&apos;ll compute the
-              variance vs. the expected amount.
-            </DialogDescription>
+            <DialogDescription>Count cash to close this shift.</DialogDescription>
           </DialogHeader>
 
           <div className="border-border bg-muted/40 space-y-1 rounded-md border p-3 text-sm">
@@ -112,9 +109,6 @@ export function CloseSessionDialog({ sessionId, expectedCash, trigger }: Props) 
               <span className="text-muted-foreground">Expected cash in drawer</span>
               <span className="font-mono font-semibold">{formatEuro(expectedCash)}</span>
             </div>
-            <p className="text-muted-foreground text-xs">
-              Opening float + cash sales + pay-ins - refunds, drops, expenses, pay-outs.
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -167,7 +161,7 @@ export function CloseSessionDialog({ sessionId, expectedCash, trigger }: Props) 
               Cancel
             </Button>
             <Button type="button" onClick={submit} disabled={pending}>
-              {pending ? <Loader2 className="size-4 animate-spin" /> : "Close till"}
+              {pending ? <Loader2 className="size-4 animate-spin" /> : "Close till for this shift"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./shop-themes.css";
 
 /* ─── Brand palette (teal retail + supporting hues) ─── */
 @theme {
@@ -193,6 +194,41 @@ body {
   height: 100%;
 }
 
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3.5rem;
+  z-index: 100;
+  border-radius: 0.5rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.skip-link:focus {
+  top: 0.75rem;
+}
+
+html.locale-bn body {
+  font-family: var(--font-bn), var(--font-sans);
+}
+
+html.locale-ar body,
+html.locale-ur body,
+html.locale-fa body {
+  font-family: var(--font-ar), var(--font-sans);
+}
+
+html.locale-zh body {
+  font-family: var(--font-zh), var(--font-sans);
+}
+
+html.locale-hi body {
+  font-family: var(--font-hi), var(--font-sans);
+}
+
 body {
   background: var(--app-gradient);
   background-attachment: fixed;
@@ -218,12 +254,32 @@ button,
 }
 
 /* Till / Electron kiosk: hide sidebar, use full width for POS */
-html[data-shopos-kiosk="true"] aside[aria-label="Main navigation"] {
+html[data-shopos-kiosk="true"] aside[data-app-sidebar] {
   display: none !important;
 }
 
 html[data-shopos-kiosk="true"] .app-page {
   max-width: none;
+}
+
+/* Customer-facing second screen: no till chrome */
+html[data-shopos-customer-display="true"] .skip-link,
+html[data-shopos-customer-display="true"] .app-header-bar,
+html[data-shopos-customer-display="true"] aside[data-app-sidebar],
+html[data-shopos-customer-display="true"] [data-shopos-agent],
+html[data-shopos-customer-display="true"] [data-app-sidebar],
+html[data-shopos-customer-display="true"] [data-sonner-toaster] {
+  display: none !important;
+}
+
+html[data-shopos-customer-display="true"] .app-page {
+  max-width: none;
+  padding: 0;
+  margin: 0;
+}
+
+html[data-shopos-customer-display="true"] main > [data-slot="alert"] {
+  display: none !important;
 }
 
 .app-header-bar {
@@ -250,4 +306,19 @@ html[data-shopos-kiosk="true"] .app-page {
   box-shadow:
     0 2px 4px rgb(var(--shadow-color) / 0.06),
     0 8px 20px rgb(var(--shadow-color) / 0.08);
+}
+
+.assistant-guide-flash {
+  outline: 3px solid var(--primary);
+  outline-offset: 6px;
+  animation: assistant-guide-pulse 1.5s ease-out 2;
+}
+
+@keyframes assistant-guide-pulse {
+  0% {
+    outline-color: var(--primary);
+  }
+  100% {
+    outline-color: transparent;
+  }
 }

@@ -59,16 +59,14 @@ export default async function NewPurchaseOrderPage() {
           <ArrowLeft className="size-3" /> Purchase orders
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">New purchase order</h1>
-        <p className="text-muted-foreground text-sm">
-          Order stock from a supplier. Costs are entered net of VAT (B2B convention) — VAT is
-          applied per line based on the product's VAT code.
-        </p>
       </div>
 
       <NewPurchaseOrderForm
         branches={branches.map((b) => ({ id: b.id, name: b.name, code: b.code ?? "" }))}
         suppliers={suppliers}
         products={products}
+        vatRates={tenant.vatRates}
+        currency={tenant.currency}
       />
     </div>
   );

@@ -13,14 +13,14 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "ShopOS - Retail Operating System",
     short_name: "ShopOS",
     description:
-      "Retail POS, stock management, suppliers, and online sales for Irish independent shops.",
+      "Retail POS, stock management, suppliers, and online sales for shops in any country.",
     start_url: "/pos",
     scope: "/",
     display: "standalone",
     orientation: "any",
     theme_color: "#0a0a0a",
     background_color: "#0a0a0a",
-    lang: "en-IE",
+    lang: "en",
     categories: ["business", "productivity", "shopping"],
     icons: [
       {

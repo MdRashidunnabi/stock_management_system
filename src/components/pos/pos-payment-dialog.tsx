@@ -1,247 +1,440 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Banknote, CreditCard, Delete, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { formatEuro } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { kickCashDrawer } from "@/lib/pos/cash-drawer";
+import { appendCashKey, evaluateCashTender, parseCashBuffer } from "@/lib/pos/cash-tender";
+import { cashNoteValues } from "@/lib/pos/denominations";
+import type { CustomerDisplayPhase } from "@/lib/pos/customer-display";
+import { round2 } from "@/lib/pos/totals";
 
-const TENDER_METHODS = [
-  { value: "cash", label: "Cash" },
-  { value: "card", label: "Card" },
-  { value: "contactless", label: "Contactless" },
-  { value: "apple_pay", label: "Apple Pay" },
-  { value: "google_pay", label: "Google Pay" },
-  { value: "revolut", label: "Revolut" },
-  { value: "bank_transfer", label: "Bank transfer" },
-  { value: "voucher", label: "Voucher" },
-  { value: "store_credit", label: "Store credit" },
-] as const;
+type Method = "cash" | "card";
+type Step = "choose" | "cash" | "card";
 
-type Method = (typeof TENDER_METHODS)[number]["value"];
-
-interface Tender {
-  id: string;
-  method: Method;
-  amount: number;
-}
+export type PosPayUiState = {
+  phase: CustomerDisplayPhase;
+  given?: number;
+  change?: number;
+};
 
 interface Props {
   open: boolean;
   total: number;
   pending: boolean;
-  /**
-   * When true, only the `cash` tender is selectable. Used by the offline
-   * POS path because card terminals require network connectivity.
-   */
   cashOnly?: boolean;
+  currency?: string;
+  formatAmount?: (n: number) => string;
   onClose: () => void;
   onConfirm: (payments: { method: Method; amount: number }[]) => void;
+  onUiState?: (state: PosPayUiState) => void;
 }
 
-function buildInitialTenders(total: number): Tender[] {
-  return [
-    {
-      id: cryptoRandom(),
-      method: "cash",
-      amount: round2(total),
-    },
-  ];
-}
-
-export function PosPaymentDialog({ open, total, pending, cashOnly, onClose, onConfirm }: Props) {
-  const tenderMethods = useMemo(
-    () => (cashOnly ? TENDER_METHODS.filter((m) => m.value === "cash") : TENDER_METHODS),
-    [cashOnly],
-  );
-  // Reset the tender list each time the dialog opens. Using the "store info
-  // from previous render" pattern (React docs) instead of an effect, so the
-  // React Compiler doesn't flag a cascading-render setState-in-effect.
+export function PosPaymentDialog({
+  open,
+  total,
+  pending,
+  cashOnly,
+  currency = "EUR",
+  formatAmount = (n) => n.toFixed(2),
+  onClose,
+  onConfirm,
+  onUiState,
+}: Props) {
   const [openSnap, setOpenSnap] = useState(open);
-  const [tenders, setTenders] = useState<Tender[]>(() => buildInitialTenders(total));
+  const [step, setStep] = useState<Step>(cashOnly ? "cash" : "choose");
+  const [buffer, setBuffer] = useState("");
+  const finishing = useRef(false);
+  const prevPending = useRef(pending);
+  const drawerKicked = useRef(false);
+  const onUiStateRef = useRef(onUiState);
+
   if (open !== openSnap) {
     setOpenSnap(open);
-    if (open) setTenders(buildInitialTenders(total));
+    if (open) {
+      setBuffer("");
+      setStep(cashOnly ? "cash" : "choose");
+    }
   }
 
-  const tendered = useMemo(
-    () => round2(tenders.reduce((sum, t) => sum + (Number.isFinite(t.amount) ? t.amount : 0), 0)),
-    [tenders],
-  );
-  const change = round2(tendered - total);
-  const hasCash = tenders.some((t) => t.method === "cash");
-  const isReady =
-    tenders.length > 0 &&
-    tenders.every((t) => t.amount > 0) &&
-    // for cash you can over-tender (we hand back change). For non-cash methods
-    // we require an exact match on the full sale, and the cash row absorbs change.
-    (hasCash ? tendered + 0.005 >= total : Math.abs(tendered - total) < 0.005);
+  const given = parseCashBuffer(buffer);
+  const tender = evaluateCashTender(total, given);
+  const notes = useMemo(() => cashNoteValues(currency), [currency]);
 
-  function update(id: string, patch: Partial<Tender>) {
-    setTenders((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-  }
-  function add() {
-    const remaining = round2(total - tendered);
-    setTenders((prev) => [
-      ...prev,
-      {
-        id: cryptoRandom(),
-        method: prev[0]?.method === "cash" ? "card" : "cash",
-        amount: remaining > 0 ? remaining : 0,
-      },
-    ]);
-  }
-  function remove(id: string) {
-    setTenders((prev) => prev.filter((t) => t.id !== id));
-  }
-  function setExactCash() {
-    setTenders([{ id: cryptoRandom(), method: "cash", amount: round2(total) }]);
-  }
-  function setExactCard() {
-    setTenders([{ id: cryptoRandom(), method: "card", amount: round2(total) }]);
+  useEffect(() => {
+    onUiStateRef.current = onUiState;
+  }, [onUiState]);
+
+  useEffect(() => {
+    if (open) {
+      finishing.current = false;
+      drawerKicked.current = false;
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (prevPending.current && !pending && open) {
+      finishing.current = false;
+    }
+    prevPending.current = pending;
+  }, [pending, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (step === "choose") onUiStateRef.current?.({ phase: "choose" });
+    else if (step === "card") onUiStateRef.current?.({ phase: "pay-card" });
+    else {
+      onUiStateRef.current?.({
+        phase: tender.enough && given > 0 ? "change" : "pay-cash",
+        given,
+        change: tender.change,
+      });
+    }
+  }, [open, step, given, tender.enough, tender.change]);
+
+  function openDrawerOnce() {
+    if (drawerKicked.current) return;
+    drawerKicked.current = true;
+    kickCashDrawer();
   }
 
-  function handleConfirm() {
-    if (!isReady) return;
-    // For cash overpayment we record the actual sale total against cash, not
-    // the bigger tendered amount, so the books balance exactly. The cashier
-    // hands back the displayed change.
-    const payments: { method: Method; amount: number }[] = [];
-    let outstanding = total;
-    for (const t of tenders) {
-      if (outstanding <= 0) break;
-      const take = t.method === "cash" ? Math.min(t.amount, outstanding) : t.amount;
-      const amt = round2(take);
-      if (amt > 0) {
-        payments.push({ method: t.method, amount: amt });
-        outstanding = round2(outstanding - amt);
+  function goCash() {
+    openDrawerOnce();
+    setStep("cash");
+  }
+
+  useEffect(() => {
+    if (open && step === "cash") openDrawerOnce();
+  }, [open, step]);
+
+  function finishCash(nextGiven: number) {
+    if (finishing.current || pending) return;
+    const result = evaluateCashTender(total, nextGiven);
+    if (!result.enough) return;
+    finishing.current = true;
+    openDrawerOnce();
+    onUiState?.({ phase: "change", given: result.given, change: result.change });
+    onConfirm([{ method: "cash", amount: result.due }]);
+  }
+
+  function finishCard() {
+    if (finishing.current || pending) return;
+    finishing.current = true;
+    onConfirm([{ method: "card", amount: round2(total) }]);
+  }
+
+  function applyNote(note: number) {
+    const next = round2(given + note);
+    const result = evaluateCashTender(total, next);
+    setBuffer(formatBuffer(next));
+    if (result.enough) finishCash(next);
+  }
+
+  function applyExact() {
+    setBuffer(formatBuffer(total));
+    finishCash(total);
+  }
+
+  function onKey(key: string) {
+    setBuffer((prev) => appendCashKey(prev, key));
+  }
+
+  useEffect(() => {
+    if (!open || step !== "cash" || pending) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") return;
+      if (e.key === "Enter" && tender.enough) {
+        e.preventDefault();
+        finishCash(given);
+        return;
+      }
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        onKey("back");
+        return;
+      }
+      if (e.key === "." || e.key === ",") {
+        e.preventDefault();
+        onKey(".");
+        return;
+      }
+      if (/^\d$/.test(e.key)) {
+        e.preventDefault();
+        onKey(e.key);
       }
     }
-    if (payments.length === 0) return;
-    onConfirm(payments);
-  }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, step, pending, tender.enough, given]);
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+    <Dialog open={open} onOpenChange={(v) => !v && !pending && onClose()}>
+      <DialogContent
+        showCloseButton={!pending}
+        className="gap-5 sm:max-w-3xl"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        data-no-hid-scan=""
+      >
         <DialogHeader>
-          <DialogTitle>Take payment</DialogTitle>
-          <DialogDescription>
-            Total due <strong className="text-foreground">{formatEuro(total)}</strong>. Add as many
-            tenders as you need - card, cash, or split.
+          <DialogTitle className="text-2xl">Take payment</DialogTitle>
+          <DialogDescription className="text-base">
+            Due{" "}
+            <span className="text-foreground text-xl font-semibold tabular-nums">
+              {formatAmount(total)}
+            </span>
+            {cashOnly ? " · Cash only while offline" : null}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="outline" onClick={setExactCash}>
-            Exact cash
-          </Button>
-          <Button type="button" size="sm" variant="outline" onClick={setExactCard}>
-            Exact card
-          </Button>
-        </div>
+        {step === "choose" ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <PayChoice
+              icon={<Banknote className="size-12" />}
+              title="Cash"
+              className="border-emerald-500/40 hover:border-emerald-600 hover:bg-emerald-500/10"
+              onClick={goCash}
+            />
+            <PayChoice
+              icon={<CreditCard className="size-12" />}
+              title="Card"
+              className="border-sky-500/40 hover:border-sky-600 hover:bg-sky-500/10"
+              onClick={() => setStep("card")}
+            />
+          </div>
+        ) : null}
 
-        <ul className="space-y-2">
-          {tenders.map((t, idx) => (
-            <li
-              key={t.id}
-              className="border-border bg-muted/40 flex items-end gap-2 rounded-lg border p-2"
+        {step === "cash" ? (
+          <CashPad
+            total={total}
+            buffer={buffer}
+            tender={tender}
+            notes={notes}
+            pending={pending}
+            formatAmount={formatAmount}
+            showBack={!cashOnly}
+            onBack={() => {
+              setBuffer("");
+              setStep("choose");
+            }}
+            onNote={applyNote}
+            onExact={applyExact}
+            onKey={onKey}
+            onComplete={() => finishCash(given)}
+          />
+        ) : null}
+
+        {step === "card" ? (
+          <div className="space-y-5">
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground inline-flex h-11 items-center gap-1 text-base"
+              onClick={() => setStep("choose")}
+              disabled={pending}
             >
-              <div className="flex-1 space-y-1">
-                <Label className="text-xs">Method</Label>
-                <select
-                  value={t.method}
-                  onChange={(e) => update(t.id, { method: e.target.value as Method })}
-                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
-                >
-                  {tenderMethods.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="w-32 space-y-1">
-                <Label className="text-xs">Amount (€)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  value={t.amount}
-                  onChange={(e) => update(t.id, { amount: Number(e.target.value) || 0 })}
-                />
-              </div>
-              {tenders.length > 1 ? (
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => remove(t.id)}
-                  className="text-muted-foreground hover:text-destructive mb-px size-9"
-                  aria-label={`Remove tender ${idx + 1}`}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-
-        <Button type="button" variant="ghost" size="sm" onClick={add}>
-          <Plus className="size-3.5" />
-          Add another tender
-        </Button>
-
-        <div className="border-border bg-card mt-2 space-y-1 rounded-lg border p-3 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Total due</span>
-            <span className="font-mono">{formatEuro(total)}</span>
+              <ArrowLeft className="size-4" />
+              Back
+            </button>
+            <p className="text-muted-foreground text-base">Confirm after the machine accepts.</p>
+            <Button
+              type="button"
+              size="lg"
+              className="h-20 w-full text-xl"
+              disabled={pending}
+              onClick={finishCard}
+            >
+              {pending ? (
+                <Loader2 className="size-6 animate-spin" />
+              ) : (
+                <CreditCard className="size-6" />
+              )}
+              Confirm card payment
+            </Button>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Tendered</span>
-            <span className="font-mono">{formatEuro(tendered)}</span>
-          </div>
-          <div className="flex items-center justify-between font-semibold">
-            <span>Change</span>
-            <span className="font-mono">
-              {change > 0 ? formatEuro(change) : "-"}
-              {change > 0 && hasCash ? (
-                <Badge variant="outline" className="ml-2">
-                  give back
-                </Badge>
-              ) : null}
-            </span>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
-            Cancel
-          </Button>
-          <Button type="button" onClick={handleConfirm} disabled={!isReady || pending}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : "Complete sale"}
-          </Button>
-        </DialogFooter>
+        ) : null}
       </DialogContent>
     </Dialog>
   );
 }
 
-function round2(n: number) {
-  return Math.round(n * 100) / 100;
+function PayChoice({
+  icon,
+  title,
+  hint,
+  onClick,
+  className,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  hint?: string;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "border-border bg-card focus-visible:ring-ring flex min-h-32 flex-col items-start gap-3 rounded-2xl border-2 p-6 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none",
+        className,
+      )}
+    >
+      <span className="text-primary">{icon}</span>
+      <span className="text-3xl font-semibold tracking-tight">{title}</span>
+      {hint ? <span className="text-muted-foreground text-sm">{hint}</span> : null}
+    </button>
+  );
 }
 
-function cryptoRandom() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return `t_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+function CashPad({
+  total,
+  buffer,
+  tender,
+  notes,
+  pending,
+  formatAmount,
+  showBack,
+  onBack,
+  onNote,
+  onExact,
+  onKey,
+  onComplete,
+}: {
+  total: number;
+  buffer: string;
+  tender: ReturnType<typeof evaluateCashTender>;
+  notes: number[];
+  pending: boolean;
+  formatAmount: (n: number) => string;
+  showBack: boolean;
+  onBack: () => void;
+  onNote: (note: number) => void;
+  onExact: () => void;
+  onKey: (key: string) => void;
+  onComplete: () => void;
+}) {
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "."] as const;
+
+  return (
+    <div className="space-y-4">
+      {showBack ? (
+        <button
+          type="button"
+          className="text-muted-foreground hover:text-foreground inline-flex h-11 items-center gap-1 text-base"
+          onClick={onBack}
+          disabled={pending}
+        >
+          <ArrowLeft className="size-4" />
+          Back
+        </button>
+      ) : null}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="border-border rounded-2xl border p-5">
+          <p className="text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase">
+            Note given
+          </p>
+          <p className="mt-1 text-5xl font-semibold tracking-tight tabular-nums">
+            {buffer ? formatAmount(tender.given) : formatAmount(0)}
+          </p>
+        </div>
+        <div
+          className={cn(
+            "rounded-2xl border p-5",
+            tender.enough ? "border-emerald-500/50 bg-emerald-500/10" : "border-border bg-muted/40",
+          )}
+        >
+          <p className="text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase">
+            {tender.enough ? "Change to give" : "Still due"}
+          </p>
+          <p
+            className={cn(
+              "mt-1 text-5xl font-semibold tracking-tight tabular-nums",
+              tender.enough ? "text-emerald-700 dark:text-emerald-400" : "text-foreground",
+            )}
+          >
+            {tender.enough ? formatAmount(tender.change) : formatAmount(tender.short || total)}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Button
+          type="button"
+          variant="secondary"
+          className="h-16 text-lg font-semibold"
+          disabled={pending}
+          onClick={onExact}
+        >
+          Exact
+        </Button>
+        {notes.map((note) => (
+          <Button
+            key={note}
+            type="button"
+            variant="outline"
+            className="h-16 text-lg font-semibold tabular-nums"
+            disabled={pending}
+            onClick={() => onNote(note)}
+          >
+            {formatAmount(note)}
+          </Button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        {keys.map((key) => (
+          <Button
+            key={key}
+            type="button"
+            variant="outline"
+            className="h-14 text-lg font-semibold"
+            disabled={pending}
+            onClick={() => onKey(key === "clear" ? "clear" : key)}
+          >
+            {key === "clear" ? "C" : key}
+          </Button>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          className="col-span-3 h-12"
+          disabled={pending}
+          onClick={() => onKey("back")}
+        >
+          <Delete className="size-4" />
+          Delete
+        </Button>
+      </div>
+
+      <Button
+        type="button"
+        size="lg"
+        className="h-20 w-full text-xl"
+        disabled={pending || !tender.enough}
+        onClick={onComplete}
+      >
+        {pending ? (
+          <Loader2 className="size-6 animate-spin" />
+        ) : tender.enough ? (
+          <>Complete · give {formatAmount(tender.change)}</>
+        ) : (
+          "Tap the note first"
+        )}
+      </Button>
+    </div>
+  );
+}
+
+function formatBuffer(n: number): string {
+  const v = round2(n);
+  if (v === 0) return "";
+  return Number.isInteger(v) ? String(v) : v.toFixed(2);
 }

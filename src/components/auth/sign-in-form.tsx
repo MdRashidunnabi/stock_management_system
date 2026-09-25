@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { signInSchema, type SignInInput } from "@/lib/auth/schemas";
 import { signInAction } from "@/lib/auth/actions";
+import { useT } from "@/components/i18n/locale-provider";
+import { displayMessage } from "@/lib/i18n/display";
 
 interface Props {
   next?: string;
@@ -19,8 +21,11 @@ interface Props {
 }
 
 export function SignInForm({ next, initialError }: Props) {
+  const { t } = useT();
   const [pending, startTransition] = useTransition();
-  const [serverError, setServerError] = useState<string | null>(initialError ?? null);
+  const [serverError, setServerError] = useState<string | null>(
+    initialError ? displayMessage(t, initialError) : null,
+  );
 
   const form = useForm<SignInInput>({
     resolver: zodResolver(signInSchema),
@@ -36,19 +41,19 @@ export function SignInForm({ next, initialError }: Props) {
     startTransition(async () => {
       const res = await signInAction(values);
       if (res?.serverError) {
-        setServerError(res.serverError);
+        setServerError(displayMessage(t, res.serverError));
         return;
       }
       if (res?.validationErrors) {
-        setServerError("Please check the form for errors.");
+        setServerError(t("auth.formCheck"));
         return;
       }
       if (res?.data && res.data.ok === false) {
-        setServerError(res.data.message);
+        setServerError(displayMessage(t, res.data.message));
         return;
       }
       // success - the action redirected
-      toast.success("Signed in");
+      toast.success(t("auth.signedIn"));
     });
   }
 
@@ -61,7 +66,7 @@ export function SignInForm({ next, initialError }: Props) {
       ) : null}
 
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t("auth.email")}</Label>
         <Input
           id="email"
           type="email"
@@ -72,18 +77,20 @@ export function SignInForm({ next, initialError }: Props) {
           {...form.register("email")}
         />
         {form.formState.errors.email ? (
-          <p className="text-destructive text-xs">{form.formState.errors.email.message}</p>
+          <p className="text-destructive text-xs">
+            {displayMessage(t, form.formState.errors.email.message)}
+          </p>
         ) : null}
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">{t("auth.password")}</Label>
           <Link
             href="/forgot-password"
             className="text-muted-foreground hover:text-foreground text-xs underline-offset-2 hover:underline"
           >
-            Forgot?
+            {t("auth.forgot")}
           </Link>
         </div>
         <Input
@@ -95,23 +102,19 @@ export function SignInForm({ next, initialError }: Props) {
           {...form.register("password")}
         />
         {form.formState.errors.password ? (
-          <p className="text-destructive text-xs">{form.formState.errors.password.message}</p>
+          <p className="text-destructive text-xs">
+            {displayMessage(t, form.formState.errors.password.message)}
+          </p>
         ) : null}
       </div>
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? <Loader2 className="size-4 animate-spin" /> : "Sign in"}
+        {pending ? <Loader2 className="size-4 animate-spin" /> : t("common.signIn")}
       </Button>
 
-      <p className="text-muted-foreground text-center text-sm">
-        New to ShopOS?{" "}
-        <Link
-          href="/signup"
-          className="text-foreground font-medium underline-offset-2 hover:underline"
-        >
-          Create an account
-        </Link>
-      </p>
+      <Button asChild variant="outline" className="w-full">
+        <Link href="/signup">{t("common.createAccount")}</Link>
+      </Button>
     </form>
   );
 }

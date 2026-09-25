@@ -14,30 +14,11 @@ import {
   type ManualCashMovementType,
 } from "@/lib/pos/sessions/schemas";
 
-const TYPE_LABEL: Record<
-  ManualCashMovementType,
-  { label: string; hint: string; sign: "in" | "out" }
-> = {
-  pay_in: {
-    label: "Pay-in",
-    sign: "in",
-    hint: "Owner / manager adds cash to the drawer.",
-  },
-  pay_out: {
-    label: "Pay-out",
-    sign: "out",
-    hint: "Cash taken out of the drawer for any reason.",
-  },
-  cash_drop: {
-    label: "Cash drop",
-    sign: "out",
-    hint: "Cash moved to the safe or bank deposit.",
-  },
-  expense: {
-    label: "Petty expense",
-    sign: "out",
-    hint: "Cash paid out for a small expense (kept the receipt!).",
-  },
+const TYPE_LABEL: Record<ManualCashMovementType, string> = {
+  pay_in: "Pay-in",
+  pay_out: "Pay-out",
+  cash_drop: "Cash drop",
+  expense: "Petty expense",
 };
 
 export function CashMovementForm({ sessionId }: { sessionId: string }) {
@@ -69,7 +50,7 @@ export function CashMovementForm({ sessionId }: { sessionId: string }) {
         return;
       }
       if (res?.data?.ok) {
-        toast.success(`${meta.label} recorded`);
+        toast.success(`${meta} recorded`);
         setAmount("");
         setReason("");
         router.refresh();
@@ -90,7 +71,7 @@ export function CashMovementForm({ sessionId }: { sessionId: string }) {
           >
             {MANUAL_CASH_MOVEMENT_TYPES.map((v) => (
               <option key={v} value={v}>
-                {TYPE_LABEL[v].label} ({TYPE_LABEL[v].sign === "in" ? "+ cash in" : "- cash out"})
+                {TYPE_LABEL[v]}
               </option>
             ))}
           </select>
@@ -116,7 +97,7 @@ export function CashMovementForm({ sessionId }: { sessionId: string }) {
           id="cm-reason"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder={meta.hint}
+          placeholder="Reason"
           maxLength={200}
         />
       </div>

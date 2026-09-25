@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useTransition } from "react";
 import { ImageIcon, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { uploadProductImage } from "@/lib/catalog/products/upload-image";
@@ -47,10 +47,6 @@ export function ProductImageField({ productId, value, onChange, disabled }: Prop
           <ImageIcon className="size-4" />
           Product image
         </CardTitle>
-        <CardDescription className="text-xs">
-          Shown in Products and POS. Paste a link or upload a photo (JPEG, PNG, WebP, GIF, max 5
-          MB).
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-start gap-4">

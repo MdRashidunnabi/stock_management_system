@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { formatEuro } from "@/lib/utils";
+import { formatMoney } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -14,13 +14,16 @@ import type { TopProductRow } from "@/lib/reports/queries";
 interface Props {
   rows: TopProductRow[];
   emptyHint?: string;
+  currency?: string;
+  locale?: string;
 }
 
-export function TopProducts({ rows, emptyHint }: Props) {
+export function TopProducts({ rows, emptyHint, currency = "EUR", locale = "en" }: Props) {
+  const money = (n: number) => formatMoney(n, currency, locale);
   if (rows.length === 0) {
     return (
       <p className="text-muted-foreground p-6 text-center text-sm">
-        {emptyHint ?? "No sales in this period yet — top-movers will appear here."}
+        {emptyHint ?? "No sales yet."}
       </p>
     );
   }
@@ -45,10 +48,8 @@ export function TopProducts({ rows, emptyHint }: Props) {
                 {r.sku ? <div className="text-muted-foreground font-mono">{r.sku}</div> : null}
               </TableCell>
               <TableCell className="text-right font-mono text-xs">{r.qty}</TableCell>
-              <TableCell className="text-right font-mono text-xs">
-                {formatEuro(r.revenue)}
-              </TableCell>
-              <TableCell className="text-right font-mono text-xs">{formatEuro(r.profit)}</TableCell>
+              <TableCell className="text-right font-mono text-xs">{money(r.revenue)}</TableCell>
+              <TableCell className="text-right font-mono text-xs">{money(r.profit)}</TableCell>
               <TableCell className="text-right font-mono text-xs">
                 {r.margin_pct.toFixed(1)}%
               </TableCell>

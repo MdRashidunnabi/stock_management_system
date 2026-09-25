@@ -5,7 +5,7 @@ import { Copy, Loader2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -78,10 +78,6 @@ export function TeamSettingsPanel({ members, invites, branches, canManage }: Pro
               <UserPlus className="size-5" />
               Invite team member
             </CardTitle>
-            <CardDescription>
-              Share the invite link with your colleague. They create an account (or sign in) and
-              join your shop.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={invite} className="grid gap-4 sm:grid-cols-2">

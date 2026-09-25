@@ -29,9 +29,9 @@ export default async function ShopHomePage({ params }: { params: Promise<{ slug:
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-bold text-stone-900 dark:text-stone-50">Popular products</h2>
+          <h2 className="text-lg font-bold">Popular products</h2>
           <p className="text-muted-foreground text-sm">
-            Choose a category on the left, then use + / − on each product.
+            Choose a category, then use + / − on each product.
           </p>
         </div>
         <ProductGrid shopSlug={shop.slug} products={products} />

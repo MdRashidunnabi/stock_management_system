@@ -36,16 +36,11 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="size-5" />
-          <h1 className="text-2xl font-semibold tracking-tight">Audit log</h1>
-        </div>
-        <p className="text-muted-foreground text-sm">
-          Every create, update, and delete on the rows that affect inventory, cash, customers, and
-          suppliers is recorded by a database trigger. Because the trigger lives in Postgres, even
-          direct SQL or service-role tools end up here.
-        </p>
+      <header className="flex items-center gap-2">
+        <ShieldCheck className="size-5" />
+        <h1 className="text-2xl font-semibold tracking-tight" data-guide="audit">
+          Audit log
+        </h1>
       </header>
 
       <form
@@ -134,12 +129,6 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
           </Suspense>
         )}
       </section>
-
-      <p className="text-muted-foreground text-xs">
-        Showing the most recent {rows.length} entries{" "}
-        {filter.limit < 500 ? `(limit ${filter.limit})` : ""}. Click any row to expand and view a
-        field-level before / after diff.
-      </p>
     </div>
   );
 }

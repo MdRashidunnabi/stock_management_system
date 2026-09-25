@@ -96,10 +96,22 @@ docker compose -f docker-compose.prod.yml build --no-cache app
 echo "==> Starting stack..."
 docker compose -f docker-compose.prod.yml up -d
 
+echo "==> Seeding demo data (Susu552813 — quick)..."
+cp .env.production .env.local
+docker run --rm -v "$APP_DIR:/app" -w /app node:22-bookworm \
+  bash -c "npm ci --ignore-scripts && npx tsx --env-file=.env.local src/db/seed-susu552813.ts"
+
 echo ""
 echo "==> Done. Open: ${APP_URL}"
 echo "    Demo login: owner@susu552813.shopos.local / DemoPass123!"
 echo "    Storefront: ${APP_URL}/shop/susu552813"
+echo ""
+echo "    Needscarlow (1,261 products) — run once on the VPS (5-15 min):"
+echo "      cd $APP_DIR && cp .env.production .env.local"
+echo "      docker run --rm -v $APP_DIR:/app -w /app node:22-bookworm \\"
+echo "        bash -c 'npm ci --ignore-scripts && npx tsx --env-file=.env.local src/db/seed-needscarlow.ts'"
+echo "    Then rebuild so product images are included:"
+echo "      docker compose -f docker-compose.prod.yml build app && docker compose -f docker-compose.prod.yml up -d"
 echo ""
 echo "    Add to Supabase Auth → URL configuration:"
 echo "      Site URL: ${APP_URL}"

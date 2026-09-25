@@ -1,10 +1,11 @@
-import { formatEuro } from "@/lib/utils";
+import { formatMoney } from "@/lib/utils";
 import type { DailySalesPoint } from "@/lib/reports/queries";
 
 interface Props {
   series: DailySalesPoint[];
-  /** Highlight the last N points (default 1 = today). */
   highlightLast?: number;
+  currency?: string;
+  locale?: string;
 }
 
 /**
@@ -12,7 +13,8 @@ interface Props {
  * Each day is a column; height is proportional to the maximum revenue
  * across the series. The label below shows DD/MM.
  */
-export function SalesChart({ series, highlightLast = 1 }: Props) {
+export function SalesChart({ series, highlightLast = 1, currency = "EUR", locale = "en" }: Props) {
+  const money = (n: number) => formatMoney(n, currency, locale);
   if (series.length === 0) {
     return (
       <p className="text-muted-foreground p-6 text-center text-sm">No sales yet in this window.</p>
@@ -32,7 +34,7 @@ export function SalesChart({ series, highlightLast = 1 }: Props) {
           Daily revenue · {series.length} day{series.length === 1 ? "" : "s"}
         </span>
         <span>
-          {formatEuro(total)} ({totalCount} sale{totalCount === 1 ? "" : "s"})
+          {money(total)} ({totalCount} sale{totalCount === 1 ? "" : "s"})
         </span>
       </div>
       <div className="border-border/80 from-card to-muted/20 relative rounded-xl border bg-gradient-to-b p-3">
@@ -44,7 +46,7 @@ export function SalesChart({ series, highlightLast = 1 }: Props) {
               <div
                 key={p.day}
                 className="group flex h-full flex-1 flex-col items-center justify-end"
-                title={`${p.day} · ${formatEuro(p.revenue)} (${p.salesCount} sale${p.salesCount === 1 ? "" : "s"})`}
+                title={`${p.day} · ${money(p.revenue)} (${p.salesCount} sale${p.salesCount === 1 ? "" : "s"})`}
               >
                 <div
                   className={

@@ -18,6 +18,10 @@ import {
 import type { OfflineCatalogRow, OfflineSaleRow } from "@/lib/pos/offline/storage";
 import { cartLineToCommitItem } from "@/lib/pos/misc-product";
 import type { CartLine } from "@/lib/pos/schemas";
+import { getOrCreateDeviceId } from "@/lib/license/device";
+import { evaluateLicenseLease } from "@/lib/license/lease";
+import { readPackedLicense } from "@/lib/license/store";
+import { verifyLeaseSignature } from "@/lib/license/verify-client";
 
 export interface UseOfflinePosArgs {
   tenantId: string;
@@ -146,6 +150,22 @@ export function useOfflinePos({ tenantId, branchId }: UseOfflinePosArgs): UseOff
 
   const enqueueSale = useCallback(
     async (cart: CartLine[], totalSnapshot: number) => {
+      const deviceId = getOrCreateDeviceId();
+      const packed = readPackedLicense(tenantId);
+      const signatureOk = packed
+        ? await verifyLeaseSignature(
+            packed.lease,
+            packed.signature,
+            window.__SHOPOS_LICENSE_PUBKEY ?? "",
+          )
+        : false;
+      if (!packed || !signatureOk) {
+        throw new Error("This till is not activated. Connect to the internet and sign in once.");
+      }
+      const decision = evaluateLicenseLease(packed.lease, { deviceId, tenantId });
+      if (!decision.allowed) {
+        throw new Error(decision.reason);
+      }
       const items = cart.map((l) => ({
         productId: l.productId,
         name: l.name,
@@ -177,6 +197,7 @@ export function useOfflinePos({ tenantId, branchId }: UseOfflinePosArgs): UseOff
         const out = await commitPosSaleAction({
           branchId: row.branchId,
           clientUuid: row.clientUuid,
+          deviceId: getOrCreateDeviceId() || undefined,
           items: row.items.map((it) =>
             cartLineToCommitItem({
               productId: it.productId,

@@ -3,11 +3,13 @@ export type ShopOSDesktopBridge = {
   version: string;
   platform: string;
   isDesktop: true;
+  openCashDrawer?: () => Promise<{ ok: boolean }> | { ok: boolean };
 };
 
 declare global {
   interface Window {
     shopOSDesktop?: ShopOSDesktopBridge;
+    __SHOPOS_LICENSE_PUBKEY?: string;
   }
 }
 
@@ -16,6 +18,7 @@ export function isShopOSDesktop(): boolean {
 }
 
 export function getShopOSDesktopVersion(): string | null {
+  if (typeof window === "undefined") return null;
   return window.shopOSDesktop?.version ?? null;
 }
 

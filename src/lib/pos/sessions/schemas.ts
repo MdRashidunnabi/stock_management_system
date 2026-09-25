@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { entityIdSchema } from "@/lib/entity-id";
+import { SHIFT_CODES, type ShiftCode } from "@/lib/pos/shifts";
 
 /**
  * Cash movement types the cashier can record by hand. The other types
@@ -33,6 +34,16 @@ export const openSessionSchema = z.object({
     .max(200, "Note is too long")
     .optional()
     .transform((v) => (v ? v.trim() : v)),
+  deviceId: z.string().trim().min(8).max(80).optional(),
+  tillNumber: z.coerce.number().int().min(1).max(10).optional(),
+  shiftCode: z.enum(SHIFT_CODES),
+  businessDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date")
+    .refine((v) => {
+      const t = Date.parse(`${v}T00:00:00Z`);
+      return Number.isFinite(t);
+    }, "Pick a valid date"),
 });
 export type OpenSessionInput = z.input<typeof openSessionSchema>;
 
@@ -63,7 +74,17 @@ export const cashMovementSchema = z.object({
     .optional()
     .transform((v) => (v ? v.trim() : v)),
 });
-export type CashMovementInput = z.input<typeof cashMovementSchema>;
+export const saveShiftAccountSchema = z.object({
+  branchId: entityIdSchema,
+  businessDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date"),
+  shiftCode: z.enum(SHIFT_CODES),
+  notes: z
+    .string()
+    .max(400)
+    .optional()
+    .transform((v) => (v ? v.trim() : v)),
+});
+export type SaveShiftAccountInput = z.input<typeof saveShiftAccountSchema>;
 
 /* ---------------------------------- View shapes ---------------------------------- */
 
@@ -76,6 +97,10 @@ export interface SessionListRow {
   expected_cash: number | null;
   counted_cash: number | null;
   cash_difference: number | null;
+  shift_code: ShiftCode;
+  business_date: string;
+  device_id: string | null;
+  till_number: number | null;
   branch: { id: string; name: string; code: string } | null;
   cashier_label: string;
 }
@@ -105,6 +130,10 @@ export interface SessionSummary {
     counted_cash: number | null;
     cash_difference: number | null;
     closing_note: string | null;
+    shift_code: ShiftCode;
+    business_date: string;
+    device_id: string | null;
+    till_number: number | null;
   };
   totals: {
     sales_count: number;
@@ -127,4 +156,45 @@ export interface SessionSummary {
     cash_out: number;
     expected: number;
   };
+}
+
+export interface ShiftAccountTillRow {
+  session: SessionSummary["session"];
+  totals: SessionSummary["totals"];
+  payments: SessionSummary["payments"];
+  cash_running: SessionSummary["cash_running"];
+}
+
+export interface ShiftAccountView {
+  branch: { id: string; name: string; code: string } | null;
+  business_date: string;
+  shift_code: ShiftCode;
+  tills: SessionSummary[];
+  combined: {
+    sales_count: number;
+    items_count: number;
+    gross: number;
+    net: number;
+    vat: number;
+    discount: number;
+    cash_expected: number;
+    cash_counted: number | null;
+    cash_difference: number | null;
+    payments: Array<{ method: string; count: number; total: number }>;
+  };
+  open_till_count: number;
+  closed_till_count: number;
+  saved: {
+    id: string;
+    status: string;
+    notes: string | null;
+    finalised_at: string | null;
+  } | null;
+}
+
+export interface TillSlot {
+  number: number;
+  device_id: string | null;
+  open: boolean;
+  cashier_label: string | null;
 }

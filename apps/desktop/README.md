@@ -79,3 +79,16 @@ Add `apps/desktop/build/icon.ico` (256×256) before building. Without it, Electr
 | `?kiosk=1`    | Hides sidebar; desktop auto-enables via `DesktopShell`         |
 
 Same Supabase session cookies as Chrome — one login for web and desktop.
+
+## Licensing (download is not a licence)
+
+The `.exe` can be public. It is only a shell around your hosted ShopOS URL.
+
+What stops unpaid use:
+
+1. The till must **sign in** to your ShopOS servers.
+2. ShopOS issues a **signed till lease** (24h, with a 7-day offline grace) only if the shop subscription is allowed.
+3. Sales (online and the offline queue) are refused without a valid lease. After grace, the till must check in again.
+4. Owners (and platform staff) can **revoke a till** under Settings → Tills. That device cannot get a new sell lease until restored.
+
+Point packaged builds at production (`config.default.json` `appUrl`). Do not ship an installer that points at a private/local backend a customer could replace without also controlling your production URL.

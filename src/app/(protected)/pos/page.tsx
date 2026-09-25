@@ -7,10 +7,13 @@ import { getOpenSessionForBranch } from "@/lib/pos/sessions/actions";
 import { PosTerminal } from "@/components/pos/pos-terminal";
 import { DesktopPosBadge } from "@/components/pos/desktop-pos-badge";
 import { Badge } from "@/components/ui/badge";
-import { formatDateTimeIE, formatEuro } from "@/lib/utils";
+import { formatDateTime, formatMoney } from "@/lib/utils";
+import { getRequestLocale } from "@/lib/i18n/get-locale";
+import { getMessages, interpolate } from "@/lib/i18n/messages";
+import { formatShiftLabel, formatTillLabel } from "@/lib/pos/shifts";
 
 export const metadata = {
-  title: "POS · ShopOS",
+  title: "Till · ShopOS",
 };
 
 const ALLOWED_ROLES = new Set(["owner", "manager", "cashier", "warehouse"]);
@@ -18,14 +21,14 @@ const ALLOWED_ROLES = new Set(["owner", "manager", "cashier", "warehouse"]);
 export default async function PosPage() {
   const tenant = await getCurrentTenant();
   if (!tenant) redirect("/onboarding");
+  const locale = await getRequestLocale();
+  const m = getMessages(locale);
+
   if (!ALLOWED_ROLES.has(tenant.role)) {
     return (
       <div className="border-border bg-card mx-auto max-w-md rounded-xl border p-6 text-center">
-        <h1 className="text-lg font-semibold">No access</h1>
-        <p className="text-muted-foreground mt-2 text-sm">
-          Your role on <strong>{tenant.tenantName}</strong> ({tenant.role}) does not allow taking
-          payments. Ask the shop owner to grant you the cashier or manager role.
-        </p>
+        <h1 className="text-lg font-semibold">{m.pos.noAccessTitle}</h1>
+        <p className="text-muted-foreground mt-2 text-sm">{m.pos.noAccessBody}</p>
       </div>
     );
   }
@@ -34,11 +37,8 @@ export default async function PosPage() {
   if (branches.length === 0) {
     return (
       <div className="border-border bg-card mx-auto max-w-md rounded-xl border p-6 text-center">
-        <h1 className="text-lg font-semibold">No active branch</h1>
-        <p className="text-muted-foreground mt-2 text-sm">
-          You need at least one active branch to start selling. Add one from the Onboarding wizard
-          or in branch settings.
-        </p>
+        <h1 className="text-lg font-semibold">{m.pos.noBranchTitle}</h1>
+        <p className="text-muted-foreground mt-2 text-sm">{m.pos.noBranchBody}</p>
       </div>
     );
   }
@@ -50,24 +50,25 @@ export default async function PosPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="mb-1 flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">Point of sale</h1>
-            <DesktopPosBadge />
-          </div>
-          <p className="text-muted-foreground text-sm">
-            Take payments, print receipts, and update stock - all in one tap.
-          </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight" data-guide="pos">
+            {m.pos.title}
+          </h1>
+          <DesktopPosBadge />
         </div>
         {openSession ? (
           <Link
             href={`/sessions/${openSession.id}`}
             className="border-border bg-card hover:bg-accent flex items-center gap-3 rounded-md border px-3 py-2 text-xs"
           >
-            <Badge variant="default">Till open</Badge>
+            <Badge variant="default">{m.pos.tillOpen}</Badge>
             <span className="text-muted-foreground">
-              Since {formatDateTimeIE(openSession.opened_at)} · float{" "}
-              <strong>{formatEuro(openSession.opening_cash)}</strong>
+              {formatTillLabel(openSession.till_number)} ·{" "}
+              {formatShiftLabel(openSession.shift_code)} ·{" "}
+              {interpolate(m.pos.since, {
+                when: formatDateTime(openSession.opened_at, tenant.timezone, tenant.locale),
+                amount: formatMoney(openSession.opening_cash, tenant.currency, tenant.locale),
+              })}
             </span>
           </Link>
         ) : (
@@ -75,12 +76,20 @@ export default async function PosPage() {
             href={`/sessions/open${defaultBranchId ? `?branch=${defaultBranchId}` : ""}`}
             className="border-input bg-card hover:bg-accent inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium"
           >
-            <KeyRound className="size-4" /> Open till
+            <KeyRound className="size-4" /> {m.pos.openTill}
           </Link>
         )}
       </div>
 
-      <PosTerminal tenantId={tenantId} branches={branches} defaultBranchId={defaultBranchId} />
+      <PosTerminal
+        tenantId={tenantId}
+        shopName={tenant.tenantName}
+        branches={branches}
+        defaultBranchId={defaultBranchId}
+        currency={tenant.currency}
+        locale={tenant.locale}
+        vatRates={tenant.vatRates}
+      />
     </div>
   );
 }

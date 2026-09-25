@@ -40,7 +40,7 @@ export default async function ShopCategoryPage({
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-50">{active.name}</h1>
+        <h1 className="text-2xl font-bold">{active.name}</h1>
         <p className="text-muted-foreground text-sm">
           {active.productCount} products · tap + to add to your cart
         </p>

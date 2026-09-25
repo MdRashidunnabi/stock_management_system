@@ -50,9 +50,7 @@ export function DesktopAppPanel() {
     return (
       <div className="space-y-3">
         <p className="text-muted-foreground text-sm">
-          You are running <strong>ShopOS Desktop</strong>
-          {desktopVersion ? ` v${desktopVersion}` : ""}. Updates to POS and stock sync when you are
-          online; offline sales queue locally like the browser PWA.
+          ShopOS Desktop{desktopVersion ? ` v${desktopVersion}` : ""}
         </p>
         <Button variant="outline" asChild>
           <Link href="/pos?kiosk=1">Open POS (kiosk)</Link>
@@ -68,10 +66,7 @@ export function DesktopAppPanel() {
           <Monitor className="size-4" />
           Windows desktop app
         </p>
-        <p className="text-muted-foreground text-sm">
-          Install ShopOS on a till PC. Same login as the web app; opens POS in kiosk mode with
-          barcode-friendly full screen.
-        </p>
+        <p className="text-muted-foreground text-sm">Install on a till PC.</p>
         {DOWNLOAD_URL ? (
           <Button asChild>
             <a href={DOWNLOAD_URL} download rel="noopener noreferrer">
@@ -105,10 +100,7 @@ export function DesktopAppPanel() {
           <Smartphone className="size-4" />
           Install as app (PWA)
         </p>
-        <p className="text-muted-foreground text-sm">
-          In Chrome or Edge on Windows, install ShopOS from the browser menu for a desktop shortcut
-          without the .exe. Starts at <strong>/pos</strong> with offline support.
-        </p>
+        <p className="text-muted-foreground text-sm">Chrome or Edge shortcut, no installer.</p>
         {pwaInstalled ? (
           <p className="text-sm text-emerald-700 dark:text-emerald-400">
             App is installed on this device.

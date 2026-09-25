@@ -46,8 +46,7 @@ export function BranchesPanel({ branches, licensedBranchCount }: Props) {
         <CardHeader>
           <CardTitle>Your branches</CardTitle>
           <CardDescription>
-            Each branch can have its own stock on the website. Customers pick a branch when they
-            shop online. ({branches.length} of {licensedBranchCount} used)
+            {branches.length} of {licensedBranchCount} used
           </CardDescription>
         </CardHeader>
         <CardContent>

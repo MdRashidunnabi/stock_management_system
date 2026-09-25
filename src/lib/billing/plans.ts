@@ -61,6 +61,24 @@ export function calculateMonthlyCents(shopTier: ShopTier, branchTier: BranchTier
   return shops + branches;
 }
 
+/** Map how many shops / branches the owner actually added onto a billed plan. */
+export function planFromCounts(
+  shopCount: number,
+  maxBranchesPerShop: number,
+): {
+  shopTier: ShopTier;
+  branchTier: BranchTier;
+  monthlyCents: number;
+} {
+  const shopTier = normalizeShopTier(Math.max(1, shopCount));
+  const branchTier = normalizeBranchTier(Math.max(1, maxBranchesPerShop));
+  return {
+    shopTier,
+    branchTier,
+    monthlyCents: calculateMonthlyCents(shopTier, branchTier),
+  };
+}
+
 export function formatPlanSummary(shopTier: ShopTier, branchTier: BranchTier): string {
   const total = calculateMonthlyCents(shopTier, branchTier);
   const euros = (total / 100).toFixed(2);

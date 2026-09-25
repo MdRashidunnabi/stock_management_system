@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDateTimeIE, formatEuro } from "@/lib/utils";
+import { formatShiftLabel, formatTillLabel } from "@/lib/pos/shifts";
 
 export const metadata = { title: "Till sessions · ShopOS" };
 
@@ -28,33 +29,34 @@ export default async function SessionsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Till sessions</h1>
-          <p className="text-muted-foreground text-sm">
-            Each shift the cashier opens a till with a starting cash float, takes payments, and
-            closes it with a counted cash total. The variance lands here.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight" data-guide="sessions">
+            Till sessions
+          </h1>
         </div>
-        <Link
-          href="/sessions/open"
-          className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium"
-        >
-          <KeyRound className="size-4" /> Open a till
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/sessions/shift"
+            className="border-input bg-card hover:bg-accent inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium"
+          >
+            Final accounting
+          </Link>
+          <Link
+            href="/sessions/open"
+            className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium"
+          >
+            <KeyRound className="size-4" /> Open a till
+          </Link>
+        </div>
       </div>
 
       <SessionsTable
         title="Open right now"
-        emptyHint="No till is open. Use the button above to start a shift."
+        emptyHint="No till is open."
         rows={open}
         showVariance={false}
       />
 
-      <SessionsTable
-        title="Closed"
-        emptyHint="Closed sessions will appear here after you finish a shift."
-        rows={closed}
-        showVariance={true}
-      />
+      <SessionsTable title="Closed" emptyHint="None yet." rows={closed} showVariance={true} />
     </div>
   );
 }
@@ -81,6 +83,8 @@ function SessionsTable({
             <TableHeader>
               <TableRow>
                 <TableHead>Branch</TableHead>
+                <TableHead>Till</TableHead>
+                <TableHead>Shift</TableHead>
                 <TableHead>Opened</TableHead>
                 <TableHead>Closed</TableHead>
                 <TableHead>Cashier</TableHead>
@@ -109,6 +113,13 @@ function SessionsTable({
                   <TableRow key={s.id} className="hover:bg-muted/40">
                     <TableCell className="text-xs whitespace-nowrap">
                       {s.branch ? `${s.branch.code} · ${s.branch.name}` : "-"}
+                    </TableCell>
+                    <TableCell className="text-xs font-medium whitespace-nowrap">
+                      {formatTillLabel(s.till_number)}
+                    </TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      {formatShiftLabel(s.shift_code)}
+                      <span className="text-muted-foreground"> · {s.business_date}</span>
                     </TableCell>
                     <TableCell className="text-xs whitespace-nowrap">
                       {formatDateTimeIE(s.opened_at)}

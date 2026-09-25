@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import type { DeliverySettings } from "@/lib/storefront/delivery";
+import { parseShopTemplateId, type ShopTemplateId } from "@/lib/storefront/templates";
 
 export interface StorefrontSettingsRow {
   tenantId: string;
@@ -24,6 +25,7 @@ export interface StorefrontSettingsRow {
   youtubeUrl: string | null;
   instagramUrl: string | null;
   onlinePriceMarkupPct: number;
+  themeId: ShopTemplateId;
 }
 
 export async function getStorefrontSettingsForTenant(
@@ -42,7 +44,7 @@ export async function getStorefrontSettingsForTenant(
   const { data: sf, error } = await supabase
     .from("tenant_storefronts")
     .select(
-      "enabled, public_site_name, custom_domain, logo_url, delivery_standard_fee, delivery_free_over, delivery_min_order, enable_takeaway, enable_online_payment, order_notice, footer_about, phone, whatsapp, call_us_label, facebook_url, twitter_url, youtube_url, instagram_url, online_price_markup_pct",
+      "enabled, public_site_name, custom_domain, logo_url, delivery_standard_fee, delivery_free_over, delivery_min_order, enable_takeaway, enable_online_payment, order_notice, footer_about, phone, whatsapp, call_us_label, facebook_url, twitter_url, youtube_url, instagram_url, online_price_markup_pct, theme_id",
     )
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -75,5 +77,6 @@ export async function getStorefrontSettingsForTenant(
     youtubeUrl: sf.youtube_url,
     instagramUrl: sf.instagram_url,
     onlinePriceMarkupPct: Number(sf.online_price_markup_pct ?? 0.5),
+    themeId: parseShopTemplateId(sf.theme_id),
   };
 }

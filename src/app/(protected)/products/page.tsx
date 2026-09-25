@@ -16,7 +16,7 @@ import {
 import { listLookupsForProductForm, listProducts } from "@/lib/catalog/products/actions";
 import { requireTenant } from "@/lib/auth/tenant";
 import { listBranchesForCurrentTenant } from "@/lib/pos/actions";
-import { cn, formatEuro } from "@/lib/utils";
+import { cn, formatMoney } from "@/lib/utils";
 
 export const metadata = { title: "Products - ShopOS" };
 
@@ -43,6 +43,7 @@ export default async function ProductsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const tenant = await requireTenant();
+  const money = (n: number) => formatMoney(n, tenant.currency, tenant.locale);
   const sp = await searchParams;
 
   const canWrite = ["owner", "manager", "warehouse"].includes(tenant.role);
@@ -89,16 +90,12 @@ export default async function ProductsPage({
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
-          <p className="text-muted-foreground text-sm">
-            Manage your full catalogue. Available stock is shown per branch (sellable units only).
-            {activeBranch ? (
-              <>
-                {" "}
-                Viewing: <span className="text-foreground font-medium">{activeBranch.code}</span>
-              </>
-            ) : null}
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight" data-guide="products">
+            Products
+          </h1>
+          {activeBranch ? (
+            <p className="text-muted-foreground text-sm">{activeBranch.code}</p>
+          ) : null}
         </div>
         {canWrite ? (
           <div className="flex gap-2">
@@ -121,7 +118,6 @@ export default async function ProductsPage({
       <Card>
         <CardHeader>
           <CardTitle>Filters</CardTitle>
-          <CardDescription>Submit to apply. Empty values are ignored.</CardDescription>
         </CardHeader>
         <CardContent>
           <form
@@ -222,9 +218,7 @@ export default async function ProductsPage({
         </CardHeader>
         <CardContent className="p-0">
           {rows.length === 0 ? (
-            <p className="text-muted-foreground p-6 text-sm">
-              No products match these filters. Try clearing them, or add your first product.
-            </p>
+            <p className="text-muted-foreground p-6 text-sm">No products.</p>
           ) : (
             <Table>
               <TableHeader>
@@ -297,10 +291,10 @@ export default async function ProductsPage({
                       )}
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs">
-                      {formatEuro(Number(p.purchase_price ?? 0))}
+                      {money(Number(p.purchase_price ?? 0))}
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs">
-                      {formatEuro(Number(p.selling_price ?? 0))}
+                      {money(Number(p.selling_price ?? 0))}
                     </TableCell>
                     <TableCell className="text-center text-xs">
                       {p.vat_code}

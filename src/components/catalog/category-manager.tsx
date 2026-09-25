@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -82,10 +82,6 @@ export function CategoryManager({ categories, canWrite }: Props) {
       <Card>
         <CardHeader>
           <CardTitle>Add a category</CardTitle>
-          <CardDescription>
-            Categories help group products on the POS and online shop. The slug is generated for you
-            - leave it blank unless you want a specific URL.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           {!canWrite ? (
@@ -141,16 +137,10 @@ export function CategoryManager({ categories, canWrite }: Props) {
       <Card>
         <CardHeader>
           <CardTitle>All categories ({categories.length})</CardTitle>
-          <CardDescription>
-            Archived categories stay in the database for historical reports - you can restore them
-            at any time.
-          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {categories.length === 0 ? (
-            <p className="text-muted-foreground p-6 text-sm">
-              No categories yet. Add your first one above.
-            </p>
+            <p className="text-muted-foreground p-6 text-sm">No categories yet.</p>
           ) : (
             <Table>
               <TableHeader>

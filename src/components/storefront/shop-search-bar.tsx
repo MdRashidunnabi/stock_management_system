@@ -46,7 +46,7 @@ export function ShopSearchBar({ shopSlug, categories, phone, callUsLabel }: Prop
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
       <form
         onSubmit={submit}
-        className="bg-muted/60 border-border/60 flex min-w-0 flex-1 items-stretch overflow-hidden rounded-full border shadow-inner"
+        className="shop-search-pill bg-muted/60 border-border/60 flex min-w-0 flex-1 items-stretch overflow-hidden border shadow-inner"
       >
         <Input
           type="search"

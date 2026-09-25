@@ -117,4 +117,19 @@ begin
   where pr.tenant_id = v_tenant_id
   on conflict (tenant_id, branch_id, product_id, variant_id, state) do update
     set quantity = excluded.quantity;
+
+  -- Demo login should skip checkout: testers receive credentials up front.
+  update public.tenant_billing
+  set card_on_file = true,
+      card_last4 = '1881',
+      card_brand = 'visa'
+  where tenant_id = v_tenant_id;
+
+  update public.billing_accounts ba
+  set card_on_file = true,
+      card_last4 = '1881',
+      card_brand = 'visa'
+  from public.tenants t
+  where t.id = v_tenant_id
+    and t.billing_account_id = ba.id;
 end $$;

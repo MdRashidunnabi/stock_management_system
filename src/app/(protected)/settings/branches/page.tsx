@@ -21,11 +21,9 @@ export default async function BranchesSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Branches</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Add locations for this shop. Your online store lets customers choose a branch to see local
-          products and stock.
-        </p>
+        <h1 className="text-2xl font-bold" data-guide="branches">
+          Branches
+        </h1>
       </div>
       <BranchesPanel
         branches={branches ?? []}

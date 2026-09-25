@@ -29,10 +29,9 @@ export default async function NewProductPage() {
       </Link>
 
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">New product</h1>
-        <p className="text-muted-foreground text-sm">
-          Add a single item. For larger imports, use the bulk CSV import instead.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight" data-guide="new-product">
+          New product
+        </h1>
       </header>
 
       <ProductForm
@@ -42,6 +41,7 @@ export default async function NewProductPage() {
         brands={brands}
         suppliers={suppliers}
         onlinePriceMarkupPct={storefront?.onlinePriceMarkupPct ?? 0.5}
+        vatRates={tenant.vatRates}
       />
     </div>
   );

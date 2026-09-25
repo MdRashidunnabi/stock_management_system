@@ -5,10 +5,11 @@ import Link from "next/link";
 import { QuantityStepper } from "@/components/storefront/quantity-stepper";
 import { useCart } from "@/components/storefront/cart-context";
 import { Button } from "@/components/ui/button";
-import { formatEuro } from "@/lib/utils";
+import { useShopMoney } from "@/components/storefront/shop-money";
 
 export function CartShell({ shopSlug }: { shopSlug: string }) {
   const { lines, subtotal, setQty, removeLine } = useCart();
+  const money = useShopMoney();
 
   if (lines.length === 0) {
     return (
@@ -34,7 +35,7 @@ export function CartShell({ shopSlug }: { shopSlug: string }) {
             </div>
             <div className="min-w-0 flex-1 space-y-2">
               <p className="font-semibold text-stone-900 dark:text-stone-50">{line.name}</p>
-              <p className="text-primary dark:text-success">{formatEuro(line.unitPrice)} each</p>
+              <p className="text-primary dark:text-success">{money(line.unitPrice)} each</p>
               <div className="flex flex-wrap items-center gap-2">
                 <QuantityStepper
                   size="sm"
@@ -56,14 +57,14 @@ export function CartShell({ shopSlug }: { shopSlug: string }) {
                 </Button>
               </div>
             </div>
-            <p className="shrink-0 font-bold">{formatEuro(line.unitPrice * line.qty)}</p>
+            <p className="shrink-0 font-bold">{money(line.unitPrice * line.qty)}</p>
           </li>
         ))}
       </ul>
 
       <div className="flex items-center justify-between rounded-2xl border bg-white px-4 py-3 dark:bg-stone-900">
         <span className="font-medium">Subtotal</span>
-        <span className="text-primary text-xl font-bold">{formatEuro(subtotal)}</span>
+        <span className="text-primary text-xl font-bold">{money(subtotal)}</span>
       </div>
 
       <Button asChild size="lg" className="bg-primary hover:bg-primary/90 w-full rounded-full">

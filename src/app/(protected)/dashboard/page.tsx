@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   ArrowRight,
   BarChart3,
-  CheckCircle2,
   Coins,
   FilePlus2,
   KeyRound,
@@ -19,10 +18,11 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { requireTenant, requireUser } from "@/lib/auth/tenant";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatEuro } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatMoney } from "@/lib/utils";
+import { getRequestLocale } from "@/lib/i18n/get-locale";
+import { getMessages, interpolate } from "@/lib/i18n/messages";
 import {
   getDailySalesSeries,
   getLowStockRows,
@@ -58,8 +58,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
   const user = await requireUser();
   const tenant = await requireTenant();
+  const money = (n: number) => formatMoney(n, tenant.currency, tenant.locale);
 
-  const periodRange = getPeriodRange(period);
+  const periodRange = getPeriodRange(period, new Date(), tenant.timezone);
   const priorRange = getPriorPeriodRange(periodRange);
 
   const supabase = await createClient();
@@ -104,21 +105,26 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         ? "bad"
         : "warn";
 
+  const locale = await getRequestLocale();
+  const m = getMessages(locale);
+  const greetName =
+    (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name) ||
+    user.email?.split("@")[0] ||
+    "";
+
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-2">
-          <Badge variant="info" className="rounded-full px-2 py-0.5 text-xs">
-            Live dashboard · sales & stock
-          </Badge>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Welcome back, {user.user_metadata?.full_name ?? user.email?.split("@")[0]}
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl" data-guide="dashboard">
+            {interpolate(m.dash.hello, { name: greetName })}
           </h1>
           <p className="text-muted-foreground text-sm">
-            <span className="text-foreground font-medium">{tenant.tenantName}</span> · signed in as{" "}
-            <span className="capitalize">{tenant.role}</span> · viewing{" "}
-            <span className="text-foreground font-medium">{periodRange.label.toLowerCase()}</span>
+            {interpolate(m.dash.shopLine, {
+              shop: tenant.tenantName,
+              role: tenant.role,
+              period: periodRange.label.toLowerCase(),
+            })}
           </p>
         </div>
         <PeriodTabs active={period} />
@@ -128,37 +134,39 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiTile
           icon={<TrendingUp className="size-4" />}
-          label="Revenue"
-          value={formatEuro(salesSummary.grossRevenue)}
-          hint={`${salesSummary.salesCount} sale${salesSummary.salesCount === 1 ? "" : "s"}`}
+          label={m.dash.revenue}
+          value={money(salesSummary.grossRevenue)}
+          hint={`${salesSummary.salesCount} ${salesSummary.salesCount === 1 ? m.dash.sale : m.dash.salesPlural}`}
           trend={revenueDelta}
           href="/sales"
         />
         <KpiTile
           icon={<Sparkles className="size-4" />}
-          label="Gross profit"
-          value={formatEuro(salesSummary.grossProfit)}
-          hint={`${salesSummary.grossMarginPct.toFixed(1)}% margin · cost ${formatEuro(salesSummary.costOfGoods)}`}
+          label={m.dash.profit}
+          value={money(salesSummary.grossProfit)}
+          hint={`${salesSummary.grossMarginPct.toFixed(1)}% margin · cost ${money(salesSummary.costOfGoods)}`}
           trend={profitDelta}
           emphasis={salesSummary.grossProfit < 0 ? "bad" : "default"}
         />
         <KpiTile
           icon={<ShoppingCart className="size-4" />}
-          label="Avg basket"
-          value={formatEuro(salesSummary.averageBasket)}
+          label={m.dash.basket}
+          value={money(salesSummary.averageBasket)}
           hint={
-            salesSummary.salesCount > 0 ? `from ${salesSummary.salesCount} sales` : "no sales yet"
+            salesSummary.salesCount > 0
+              ? `${salesSummary.salesCount} ${m.dash.salesPlural}`
+              : m.dash.noSales
           }
           trend={basketDelta}
         />
         <KpiTile
           icon={<Coins className="size-4" />}
-          label="Cash variance"
-          value={formatEuro(sessionVariance.totalVariance)}
+          label={m.dash.variance}
+          value={money(sessionVariance.totalVariance)}
           hint={
             sessionVariance.closedSessions === 0
-              ? "no closed shifts"
-              : `${sessionVariance.closedSessions} shift${sessionVariance.closedSessions === 1 ? "" : "s"}`
+              ? m.dash.noShifts
+              : `${sessionVariance.closedSessions} ${m.dash.shifts}`
           }
           emphasis={sessionVariance.closedSessions > 0 ? varianceTone : "default"}
           href="/sessions"
@@ -169,31 +177,31 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiTile
           icon={<Receipt className="size-4" />}
-          label="Sales count"
+          label={m.dash.salesCount}
           value={salesSummary.salesCount.toString()}
-          hint={`prior period: ${priorSummary.salesCount}`}
+          hint={interpolate(m.dash.prior, { n: String(priorSummary.salesCount) })}
           trend={salesCountDelta}
         />
         <KpiTile
           icon={<KeyRound className="size-4" />}
-          label="Open tills"
+          label={m.dash.openTills}
           value={openTills.toString()}
-          hint={openTills === 0 ? "no shift in progress" : "shift in progress"}
+          hint={openTills === 0 ? m.dash.noShift : m.dash.shiftOn}
           href="/sessions"
           emphasis={openTills > 0 ? "good" : "default"}
         />
         <KpiTile
           icon={<FilePlus2 className="size-4" />}
-          label="Open POs"
+          label={m.dash.openPos}
           value={outstandingPos.count.toString()}
-          hint={`${formatEuro(outstandingPos.totalValue)} on order`}
+          hint={interpolate(m.dash.onOrder, { amount: money(outstandingPos.totalValue) })}
           href="/purchase-orders"
         />
         <KpiTile
           icon={<PackagePlus className="size-4" />}
-          label="Draft receipts"
+          label={m.dash.drafts}
           value={draftReceipts.toString()}
-          hint={draftReceipts === 0 ? "all caught up" : "needs finalising"}
+          hint={draftReceipts === 0 ? m.dash.caughtUp : m.dash.needsDone}
           href="/goods-receipts"
           emphasis={draftReceipts > 0 ? "warn" : "default"}
         />
@@ -204,15 +212,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
             <div className="space-y-1">
-              <CardTitle className="text-base">Daily revenue (last 14 days)</CardTitle>
-              <CardDescription className="text-xs">
-                Each bar is one day in Europe/Dublin time. The most recent bar is highlighted.
-              </CardDescription>
+              <CardTitle className="text-base">{m.dash.chart}</CardTitle>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <SalesChart series={series} highlightLast={1} />
+          <SalesChart
+            series={series}
+            highlightLast={1}
+            currency={tenant.currency}
+            locale={tenant.locale}
+          />
         </CardContent>
       </Card>
 
@@ -222,22 +232,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           <CardHeader>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <CardTitle className="text-base">Top movers · {periodRange.label}</CardTitle>
-                <CardDescription className="text-xs">
-                  Best-selling products by gross revenue. Profit uses each line&apos;s captured unit
-                  cost.
-                </CardDescription>
+                <CardTitle className="text-base">{m.dash.top}</CardTitle>
               </div>
               <Link
                 href="/sales"
                 className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
               >
-                All sales <ArrowRight className="size-3" />
+                {m.dash.sales} <ArrowRight className="size-3" />
               </Link>
             </div>
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <TopProducts rows={topProducts} />
+            <TopProducts rows={topProducts} currency={tenant.currency} locale={tenant.locale} />
           </CardContent>
         </Card>
 
@@ -248,18 +254,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               <div>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />
-                  Low stock
+                  {m.dash.low}
                 </CardTitle>
-                <CardDescription className="text-xs">
-                  Products at or below their per-branch <span className="font-mono">min_stock</span>
-                  .
-                </CardDescription>
               </div>
               <Link
                 href="/products"
                 className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
               >
-                Products <ArrowRight className="size-3" />
+                {m.nav.products} <ArrowRight className="size-3" />
               </Link>
             </div>
           </CardHeader>
@@ -274,21 +276,23 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-base">Recent shifts</CardTitle>
-              <CardDescription className="text-xs">
-                Closed tills in this window with their cash variance.
-              </CardDescription>
+              <CardTitle className="text-base">{m.dash.shifts}</CardTitle>
             </div>
             <Link
               href="/sessions"
               className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
             >
-              All shifts <ArrowRight className="size-3" />
+              {m.nav.sessions} <ArrowRight className="size-3" />
             </Link>
           </div>
         </CardHeader>
         <CardContent className="px-0 pb-0">
-          <RecentShifts rows={sessionVariance.rows} />
+          <RecentShifts
+            rows={sessionVariance.rows}
+            currency={tenant.currency}
+            locale={tenant.locale}
+            timezone={tenant.timezone}
+          />
         </CardContent>
       </Card>
 
@@ -297,22 +301,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Globe className="text-primary size-4" />
-            Your online store
+            {m.dash.online}
           </CardTitle>
-          <CardDescription className="text-xs">
-            Auto-linked to your catalog and stock. POS and web orders use the same available
-            quantity.
-          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <Button asChild>
             <Link href={`/shop/${tenant.tenantSlug}`} target="_blank" rel="noopener noreferrer">
-              Open shop
+              {m.dash.openShop}
               <ExternalLink className="size-3.5" />
             </Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/online-orders">Online orders</Link>
+            <Link href="/online-orders">{m.dash.onlineOrders}</Link>
           </Button>
         </CardContent>
       </Card>
@@ -320,44 +320,34 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       {/* Quick actions */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="text-primary size-5" />
-            <CardTitle className="text-lg">Regression-proof POS critical path</CardTitle>
-          </div>
-          <CardDescription>
-            Every release runs 48 Vitest unit tests (VAT maths, Dublin time periods incl. DST, audit
-            diffs, offline catalog ranking, sale-queue lifecycle), 173 smoke tests against the live
-            local Supabase, and 2 Playwright e2e specs that walk a real cashier through an online
-            sale and an offline-then-reconnect sale. Up next: production deploy on Vercel + Supabase
-            (Step 15).
-          </CardDescription>
+          <CardTitle className="text-base">{m.dash.quick}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
             <Button asChild>
               <Link href="/pos">
-                <ScanLine className="size-4" /> Take payment
+                <ScanLine className="size-4" /> {m.dash.takePayment}
               </Link>
             </Button>
             <Button asChild variant="outline">
               <Link href="/purchase-orders/new">
-                <FilePlus2 className="size-4" /> New purchase order
+                <FilePlus2 className="size-4" /> {m.dash.newPo}
               </Link>
             </Button>
             <Button asChild variant="outline">
               <Link href="/sessions/open">
-                <KeyRound className="size-4" /> Open a till
+                <KeyRound className="size-4" /> {m.dash.openTill}
               </Link>
             </Button>
             <Button asChild variant="ghost">
               <Link href="/sales">
-                <Receipt className="size-4" /> Recent sales
+                <Receipt className="size-4" /> {m.dash.sales}
               </Link>
             </Button>
             {(tenant.role === "owner" || tenant.role === "accountant") && (
               <Button asChild variant="ghost">
                 <Link href="/audit">
-                  <ShieldCheck className="size-4" /> View audit log
+                  <ShieldCheck className="size-4" /> {m.dash.audit}
                 </Link>
               </Button>
             )}
@@ -367,7 +357,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               <BarChart3 className="size-3" /> Payment mix:
               {salesSummary.paymentsByMethod.map((p) => (
                 <span key={p.method} className="capitalize">
-                  {p.method}: {formatEuro(p.amount)}
+                  {p.method}: {money(p.amount)}
                 </span>
               ))}
             </div>

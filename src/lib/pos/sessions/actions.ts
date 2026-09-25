@@ -2,15 +2,20 @@
 
 import { revalidatePath } from "next/cache";
 import { ActionError, staffActionClient } from "@/lib/safe-action";
+import { assertTillMaySell } from "@/lib/license/assert";
 import { createClient } from "@/lib/supabase/server";
 import {
   cashMovementSchema,
   closeSessionSchema,
   openSessionSchema,
+  saveShiftAccountSchema,
   type CashMovementRow,
   type SessionListRow,
   type SessionSummary,
+  type ShiftAccountView,
+  type TillSlot,
 } from "@/lib/pos/sessions/schemas";
+import { MAX_TILLS_PER_BRANCH, parseShiftCode, type ShiftCode } from "@/lib/pos/shifts";
 
 const POS_ROLES = ["owner", "manager", "cashier", "warehouse"] as const;
 
@@ -19,13 +24,18 @@ const POS_ROLES = ["owner", "manager", "cashier", "warehouse"] as const;
 export const openPosSessionAction = staffActionClient([...POS_ROLES])
   .metadata({ actionName: "pos.openSession" })
   .inputSchema(openSessionSchema)
-  .action(async ({ parsedInput }) => {
+  .action(async ({ parsedInput, ctx }) => {
+    await assertTillMaySell(ctx.tenant.tenantId, parsedInput.deviceId);
     const supabase = await createClient();
     const { data, error } = await supabase.rpc("open_pos_session", {
       p_branch_id: parsedInput.branchId,
       p_opening_cash: parsedInput.openingCash,
       p_terminal_id: parsedInput.terminalId,
       p_note: parsedInput.note,
+      p_shift_code: parsedInput.shiftCode,
+      p_business_date: parsedInput.businessDate,
+      p_device_id: parsedInput.deviceId,
+      p_till_number: parsedInput.tillNumber,
     });
     if (error) {
       throw new ActionError(friendlyError(error));
@@ -35,6 +45,7 @@ export const openPosSessionAction = staffActionClient([...POS_ROLES])
       throw new ActionError("Till could not be opened. Please try again.");
     }
     revalidatePath("/sessions");
+    revalidatePath("/sessions/shift");
     revalidatePath("/dashboard");
     revalidatePath("/pos");
     return { ok: true as const, sessionId };
@@ -56,6 +67,7 @@ export const closePosSessionAction = staffActionClient([...POS_ROLES])
       throw new ActionError(friendlyError(error));
     }
     revalidatePath("/sessions");
+    revalidatePath("/sessions/shift");
     revalidatePath(`/sessions/${parsedInput.sessionId}`);
     revalidatePath("/dashboard");
     revalidatePath("/pos");
@@ -88,6 +100,58 @@ export const recordCashMovementAction = staffActionClient([...POS_ROLES])
     return { ok: true as const, movementId: data as string };
   });
 
+export const saveShiftAccountAction = staffActionClient(["owner", "manager", "accountant"])
+  .metadata({ actionName: "pos.saveShiftAccount" })
+  .inputSchema(saveShiftAccountSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const view = await getShiftAccount(
+      parsedInput.branchId,
+      parsedInput.businessDate,
+      parsedInput.shiftCode,
+    );
+    if (!view || view.tills.length === 0) {
+      throw new ActionError("No tills found for that branch, date, and shift.");
+    }
+    const supabase = await createClient();
+    const snapshot = {
+      sales_count: view.combined.sales_count,
+      items_count: view.combined.items_count,
+      gross: view.combined.gross,
+      net: view.combined.net,
+      vat: view.combined.vat,
+      discount: view.combined.discount,
+      cash_expected: view.combined.cash_expected,
+      cash_counted: view.combined.cash_counted,
+      cash_difference: view.combined.cash_difference,
+      payments: view.combined.payments,
+      till_count: view.tills.length,
+      open_till_count: view.open_till_count,
+    };
+    const { data, error } = await supabase
+      .from("shift_accounts")
+      .upsert(
+        {
+          tenant_id: ctx.tenant.tenantId,
+          branch_id: parsedInput.branchId,
+          business_date: parsedInput.businessDate,
+          shift_code: parsedInput.shiftCode,
+          status: "finalised",
+          notes: parsedInput.notes ?? null,
+          totals: snapshot,
+          finalised_at: new Date().toISOString(),
+          finalised_by: ctx.user.id,
+        },
+        { onConflict: "tenant_id,branch_id,business_date,shift_code" },
+      )
+      .select("id")
+      .single();
+    if (error) throw new ActionError(friendlyError(error));
+    revalidatePath("/sessions");
+    revalidatePath("/sessions/shift");
+    revalidatePath("/dashboard");
+    return { ok: true as const, id: data.id as string };
+  });
+
 /* ------------------------------- Queries ------------------------------- */
 
 /** Returns the user's open session for a branch (if any). */
@@ -95,6 +159,9 @@ export async function getOpenSessionForBranch(branchId: string): Promise<{
   id: string;
   opened_at: string;
   opening_cash: number;
+  shift_code: ShiftCode;
+  business_date: string;
+  till_number: number | null;
 } | null> {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
@@ -102,7 +169,7 @@ export async function getOpenSessionForBranch(branchId: string): Promise<{
 
   const { data } = await supabase
     .from("pos_sessions")
-    .select("id, opened_at, opening_cash")
+    .select("id, opened_at, opening_cash, shift_code, business_date, till_number")
     .eq("branch_id", branchId)
     .eq("cashier_id", user.user.id)
     .eq("status", "open")
@@ -114,6 +181,9 @@ export async function getOpenSessionForBranch(branchId: string): Promise<{
     id: data.id,
     opened_at: data.opened_at,
     opening_cash: Number(data.opening_cash),
+    shift_code: parseShiftCode(data.shift_code),
+    business_date: data.business_date,
+    till_number: data.till_number != null ? Number(data.till_number) : null,
   };
 }
 
@@ -125,7 +195,7 @@ export async function listSessions(
     .from("pos_sessions")
     .select(
       `id, status, opened_at, closed_at, opening_cash, expected_cash, counted_cash, cash_difference,
-       cashier_id,
+       cashier_id, shift_code, business_date, device_id, till_number,
        branch:branches!pos_sessions_branch_id_fkey(id, name, code)`,
     )
     .order("opened_at", { ascending: false })
@@ -147,6 +217,10 @@ export async function listSessions(
     expected_cash: row.expected_cash != null ? Number(row.expected_cash) : null,
     counted_cash: row.counted_cash != null ? Number(row.counted_cash) : null,
     cash_difference: row.cash_difference != null ? Number(row.cash_difference) : null,
+    shift_code: parseShiftCode(row.shift_code),
+    business_date: row.business_date,
+    device_id: row.device_id,
+    till_number: row.till_number != null ? Number(row.till_number) : null,
     branch: pickFirst(row.branch),
     cashier_label: labels.get(row.cashier_id) ?? truncateUuid(row.cashier_id),
   }));
@@ -164,7 +238,7 @@ export async function getSessionWithSummary(sessionId: string): Promise<SessionS
     .from("pos_sessions")
     .select(
       `id, status, opened_at, closed_at, opening_cash, expected_cash, counted_cash,
-       cash_difference, closing_note, cashier_id,
+       cash_difference, closing_note, cashier_id, shift_code, business_date, device_id, till_number,
        branch:branches!pos_sessions_branch_id_fkey(id, name, code)`,
     )
     .eq("id", sessionId)
@@ -313,6 +387,10 @@ export async function getSessionWithSummary(sessionId: string): Promise<SessionS
       counted_cash: sess.counted_cash != null ? Number(sess.counted_cash) : null,
       cash_difference: sess.cash_difference != null ? Number(sess.cash_difference) : null,
       closing_note: sess.closing_note,
+      shift_code: parseShiftCode(sess.shift_code),
+      business_date: sess.business_date,
+      device_id: sess.device_id,
+      till_number: sess.till_number != null ? Number(sess.till_number) : null,
     },
     totals,
     payments,
@@ -320,6 +398,149 @@ export async function getSessionWithSummary(sessionId: string): Promise<SessionS
     cash_movements,
     cash_running,
   };
+}
+
+export async function getShiftAccount(
+  branchId: string,
+  businessDate: string,
+  shiftCode: ShiftCode,
+): Promise<ShiftAccountView | null> {
+  const supabase = await createClient();
+  const { data: sessions, error } = await supabase
+    .from("pos_sessions")
+    .select("id")
+    .eq("branch_id", branchId)
+    .eq("business_date", businessDate)
+    .eq("shift_code", shiftCode)
+    .order("opened_at", { ascending: true });
+  if (error) throw new Error(`Failed to load shift tills: ${error.message}`);
+
+  const tills = (
+    await Promise.all((sessions ?? []).map((row) => getSessionWithSummary(row.id)))
+  ).filter((s): s is SessionSummary => s != null);
+
+  const { data: branchRow } = await supabase
+    .from("branches")
+    .select("id, name, code")
+    .eq("id", branchId)
+    .maybeSingle();
+
+  const { data: savedRow } = await supabase
+    .from("shift_accounts")
+    .select("id, status, notes, finalised_at")
+    .eq("branch_id", branchId)
+    .eq("business_date", businessDate)
+    .eq("shift_code", shiftCode)
+    .maybeSingle();
+
+  const paymentMap = new Map<string, { method: string; count: number; total: number }>();
+  let sales_count = 0;
+  let items_count = 0;
+  let gross = 0;
+  let net = 0;
+  let vat = 0;
+  let discount = 0;
+  let cash_expected = 0;
+  let cash_counted = 0;
+  let countedAny = false;
+  let cash_difference = 0;
+
+  for (const till of tills) {
+    sales_count += till.totals.sales_count;
+    items_count += till.totals.items_count;
+    gross += till.totals.gross;
+    net += till.totals.net;
+    vat += till.totals.vat;
+    discount += till.totals.discount;
+    cash_expected += till.cash_running.expected;
+    if (till.session.counted_cash != null) {
+      countedAny = true;
+      cash_counted += till.session.counted_cash;
+    }
+    if (till.session.cash_difference != null) {
+      cash_difference += till.session.cash_difference;
+    }
+    for (const p of till.payments) {
+      const cur = paymentMap.get(p.method) ?? { method: p.method, count: 0, total: 0 };
+      cur.count += p.count;
+      cur.total += p.total;
+      paymentMap.set(p.method, cur);
+    }
+  }
+
+  return {
+    branch: branchRow,
+    business_date: businessDate,
+    shift_code: shiftCode,
+    tills,
+    combined: {
+      sales_count,
+      items_count,
+      gross: round2(gross),
+      net: round2(net),
+      vat: round2(vat),
+      discount: round2(discount),
+      cash_expected: round2(cash_expected),
+      cash_counted: countedAny ? round2(cash_counted) : null,
+      cash_difference: countedAny ? round2(cash_difference) : null,
+      payments: Array.from(paymentMap.values())
+        .map((p) => ({ ...p, total: round2(p.total) }))
+        .sort((a, b) => b.total - a.total),
+    },
+    open_till_count: tills.filter((t) => t.session.status === "open").length,
+    closed_till_count: tills.filter((t) => t.session.status !== "open").length,
+    saved: savedRow
+      ? {
+          id: savedRow.id,
+          status: savedRow.status,
+          notes: savedRow.notes,
+          finalised_at: savedRow.finalised_at,
+        }
+      : null,
+  };
+}
+
+export async function listTillSlots(branchId: string): Promise<TillSlot[]> {
+  const supabase = await createClient();
+  const [{ data: devices, error: dErr }, { data: openRows, error: oErr }] = await Promise.all([
+    supabase
+      .from("pos_devices")
+      .select("device_id, till_number")
+      .eq("branch_id", branchId)
+      .is("revoked_at", null),
+    supabase
+      .from("pos_sessions")
+      .select("till_number, cashier_id, device_id")
+      .eq("branch_id", branchId)
+      .eq("status", "open"),
+  ]);
+  if (dErr) throw new Error(`Failed to load tills: ${dErr.message}`);
+  if (oErr) throw new Error(`Failed to load open tills: ${oErr.message}`);
+
+  const cashierIds = Array.from(new Set((openRows ?? []).map((r) => r.cashier_id).filter(Boolean)));
+  const labels = await loadUserLabels(supabase, cashierIds);
+
+  const slots: TillSlot[] = [];
+  for (let n = 1; n <= MAX_TILLS_PER_BRANCH; n++) {
+    const device = (devices ?? []).find((d) => d.till_number === n);
+    const open = (openRows ?? []).find((r) => r.till_number === n);
+    slots.push({
+      number: n,
+      device_id: device?.device_id ?? null,
+      open: Boolean(open),
+      cashier_label: open ? (labels.get(open.cashier_id) ?? null) : null,
+    });
+  }
+  return slots;
+}
+
+export async function listTillSlotsByBranch(
+  branchIds: string[],
+): Promise<Record<string, TillSlot[]>> {
+  const entries = await Promise.all(
+    branchIds.map(async (id) => [id, await listTillSlots(id)] as const),
+  );
+  return Object.fromEntries(entries);
 }
 
 /* ------------------------------ Utilities ------------------------------ */
@@ -366,6 +587,15 @@ function friendlyError(error: { code?: string; message: string }): string {
   if (error.code === "42501") return "You don't have permission to do that on this till.";
   if (error.code === "23505" && /already have an open till/i.test(error.message)) {
     return "You already have an open till on this branch. Close it first.";
+  }
+  if (error.code === "23505" && /already has an open session/i.test(error.message)) {
+    return "This till computer already has an open session. Close it first.";
+  }
+  if (error.code === "23505" && /Till \d+ is already/i.test(error.message)) {
+    return error.message.replace(/^.*Till/, "Till");
+  }
+  if (error.code === "P0001" || /already has 10 tills/i.test(error.message)) {
+    return error.message;
   }
   if (error.code === "22023") return error.message;
   return error.message;

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ActionError, authActionClient, staffActionClient } from "@/lib/safe-action";
 import {
-  demoCardSchema,
+  paymentCardSchema,
   extendTrialSchema,
   platformTenantActionSchema,
 } from "@/lib/billing/schemas";
@@ -15,13 +15,11 @@ import { createClient } from "@/lib/supabase/server";
 
 export const attachDemoCardAction = staffActionClient(["owner"])
   .metadata({ actionName: "billing.attachDemoCard" })
-  .inputSchema(demoCardSchema)
+  .inputSchema(paymentCardSchema)
   .action(async ({ parsedInput, ctx }) => {
     const provider = getBillingProvider();
     if (provider.name !== "demo") {
-      throw new ActionError(
-        "Card collection uses Stripe in production. Connect Stripe keys first.",
-      );
+      throw new ActionError("Card collection is not available. Contact support.");
     }
     await provider.attachDemoCard(ctx.tenant.tenantId, parsedInput);
     revalidatePath("/settings/billing");

@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import type { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -123,7 +123,6 @@ export function SupplierForm({ mode, initial, canWrite }: Props) {
       <Card>
         <CardHeader>
           <CardTitle>Identity</CardTitle>
-          <CardDescription>How this supplier appears on POs and invoices.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Field

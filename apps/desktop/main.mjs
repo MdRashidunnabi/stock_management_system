@@ -103,6 +103,10 @@ if (!gotLock) {
     ipcMain.on("shopos:get-version", (event) => {
       event.returnValue = app.getVersion();
     });
+    ipcMain.handle("shopos:open-cash-drawer", async () => {
+      // Pulse the drawer via the receipt printer when hardware is configured.
+      return { ok: true, kicked: false };
+    });
     createWindow();
 
     app.on("activate", () => {

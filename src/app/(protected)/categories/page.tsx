@@ -14,10 +14,9 @@ export default async function CategoriesPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Categories</h1>
-        <p className="text-muted-foreground text-sm">
-          Group products for navigation, reporting, and the online shop.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight" data-guide="categories">
+          Categories
+        </h1>
       </header>
 
       <CategoryManager categories={categories} canWrite={canWrite} />

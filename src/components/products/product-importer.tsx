@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
@@ -148,10 +148,6 @@ export function ProductImporter({ canWrite }: Props) {
       <Card>
         <CardHeader>
           <CardTitle>1. Prepare your CSV</CardTitle>
-          <CardDescription>
-            One row per product. Columns are case-insensitive. Categories, brands, and suppliers are
-            looked up by slug or name (must already exist).
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="text-muted-foreground space-y-1 text-sm">
@@ -249,9 +245,6 @@ export function ProductImporter({ canWrite }: Props) {
               </span>
               , <span className="text-destructive">{parseResult.summary.errors} with errors</span>)
             </CardTitle>
-            <CardDescription>
-              Only valid rows will be inserted. Fix the errors and re-validate to include them.
-            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 p-0">
             <Table>

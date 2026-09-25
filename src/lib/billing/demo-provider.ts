@@ -2,15 +2,31 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { DemoCardInput } from "@/lib/billing/types";
+import {
+  detectCardBrand,
+  digitsOnly,
+  isExpiryInFuture,
+  isValidCardNumber,
+  isValidCardholderName,
+  isValidCvc,
+} from "@/lib/billing/card";
 
 function sanitizeCard(card: DemoCardInput) {
-  const digits = card.cardNumber.replace(/\D/g, "");
-  if (digits.length < 13 || digits.length > 19) {
-    throw new Error("Enter a valid card number (demo mode accepts any test number).");
+  if (!isValidCardholderName(card.cardholderName)) {
+    throw new Error("Enter the name as it appears on the card.");
   }
-  const last4 = digits.slice(-4);
-  const brand = digits.startsWith("4") ? "visa" : digits.startsWith("5") ? "mastercard" : "card";
-  return { last4, brand };
+  if (!isValidCardNumber(card.cardNumber)) {
+    throw new Error("That card number is not valid.");
+  }
+  if (!isExpiryInFuture(card.expiryMonth, card.expiryYear)) {
+    throw new Error("Enter a valid expiry date.");
+  }
+  const brand = detectCardBrand(card.cardNumber);
+  if (!brand || !isValidCvc(card.cvc, brand)) {
+    throw new Error("Enter a valid security code.");
+  }
+  const digits = digitsOnly(card.cardNumber);
+  return { last4: digits.slice(-4), brand };
 }
 
 async function billingAccountIdForTenant(tenantId: string): Promise<string | null> {

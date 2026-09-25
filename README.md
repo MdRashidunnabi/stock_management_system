@@ -1,12 +1,9 @@
 # ShopOS
 
-The Retail Operating System for Irish independent shops.
+The Retail Operating System for shops in any country.
 POS, stock, suppliers, branches, and online sales in one platform.
 
-- Currency: EUR
-- Locale: en-IE
-- Timezone: Europe/Dublin
-- VAT-ready for Ireland (23% / 13.5% / 9% / 4.8% / 0%)
+- Currency, timezone, and VAT follow the country chosen at signup
 - Hosting target: Vercel + Supabase
 
 See [BUSINESS_AND_PRODUCT_PLAN.md](./BUSINESS_AND_PRODUCT_PLAN.md) for the full

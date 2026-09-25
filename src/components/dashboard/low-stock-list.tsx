@@ -18,10 +18,7 @@ export function LowStockList({ rows }: Props) {
   if (rows.length === 0) {
     return (
       <div className="space-y-2 p-6 text-center">
-        <p className="text-muted-foreground text-sm">
-          No low-stock alerts. Set a per-branch <span className="font-mono">min_stock</span> on a
-          product to start tracking reorders.
-        </p>
+        <p className="text-muted-foreground text-sm">No low stock.</p>
       </div>
     );
   }

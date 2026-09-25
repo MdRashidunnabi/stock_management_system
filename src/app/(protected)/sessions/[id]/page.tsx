@@ -8,6 +8,7 @@ import { ZReport } from "@/components/pos/sessions/z-report";
 import { CashMovementForm } from "@/components/pos/sessions/cash-movement-form";
 import { CloseSessionDialog } from "@/components/pos/sessions/close-session-dialog";
 import { ReceiptPrintButton } from "@/components/pos/receipt-print-button";
+import { formatShiftLabel, nextShiftOpen } from "@/lib/pos/shifts";
 
 export const metadata = { title: "Till session · ShopOS" };
 
@@ -20,6 +21,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
   if (!summary) notFound();
 
   const isOpen = summary.session.status === "open";
+  const next = nextShiftOpen(summary.session.shift_code, summary.session.business_date);
 
   return (
     <div className="space-y-4 print:space-y-2">
@@ -44,7 +46,16 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
                 expectedCash={summary.cash_running.expected}
               />
             </>
-          ) : null}
+          ) : (
+            <Link
+              href={`/sessions/open?shift=${next.shift}&date=${next.businessDate}${
+                summary.session.branch ? `&branch=${summary.session.branch.id}` : ""
+              }`}
+              className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium"
+            >
+              Open for {formatShiftLabel(next.shift)}
+            </Link>
+          )}
           <ReceiptPrintButton />
         </div>
       </div>
@@ -61,26 +72,12 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
                 <Badge variant="default" className="capitalize">
                   open
                 </Badge>
-                <span className="text-muted-foreground text-xs">
-                  Live X-Report. Refresh after each sale.
-                </span>
+                <span className="text-muted-foreground text-xs">X-report</span>
               </div>
-              <h2 className="text-sm font-semibold">Record a cash movement</h2>
-              <p className="text-muted-foreground mt-1 text-xs">
-                Use this for cash drops to the safe, petty expenses, or extra cash added to the
-                drawer.
-              </p>
+              <h2 className="text-sm font-semibold">Cash movement</h2>
               <div className="mt-3">
                 <CashMovementForm sessionId={summary.session.id} />
               </div>
-            </div>
-
-            <div className="border-border bg-card rounded-lg border p-4">
-              <h2 className="text-sm font-semibold">End the shift</h2>
-              <p className="text-muted-foreground mt-1 text-xs">
-                Count the cash in the drawer, then use the red <strong>Close till</strong> button at
-                the top right of this page (next to Open POS).
-              </p>
             </div>
           </aside>
         </div>

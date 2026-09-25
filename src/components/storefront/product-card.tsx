@@ -43,7 +43,7 @@ export function ProductCard({ shopSlug, product }: Props) {
   }
 
   return (
-    <article className="bg-card border-border/80 flex h-full flex-col overflow-hidden rounded-2xl border shadow-sm transition-shadow hover:shadow-md">
+    <article className="shop-product-card bg-card border-border/80 flex h-full flex-col overflow-hidden border shadow-sm transition-shadow hover:shadow-md">
       <Link href={href} className="block">
         <div className="bg-background relative aspect-[4/3]">
           {product.primaryImageUrl ? (

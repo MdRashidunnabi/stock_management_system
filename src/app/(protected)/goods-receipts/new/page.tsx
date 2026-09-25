@@ -92,11 +92,6 @@ export default async function NewGoodsReceiptPage({
           <ArrowLeft className="size-3" /> {po ? po.po_number : "Goods receipts"}
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">New goods receipt</h1>
-        <p className="text-muted-foreground text-sm">
-          {po
-            ? `Pre-filled from purchase order ${po.po_number}. Adjust the actual quantities you received before finalising.`
-            : "Log goods that arrived from a supplier without a prior purchase order."}
-        </p>
       </div>
 
       <NewGoodsReceiptForm

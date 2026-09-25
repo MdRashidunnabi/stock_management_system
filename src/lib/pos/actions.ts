@@ -5,6 +5,7 @@ import { z } from "zod";
 import { entityIdSchema } from "@/lib/entity-id";
 import { createClient } from "@/lib/supabase/server";
 import { ActionError, staffActionClient } from "@/lib/safe-action";
+import { assertTillMaySell } from "@/lib/license/assert";
 import {
   commitSaleSchema,
   type ProductSearchResult,
@@ -107,7 +108,8 @@ export const searchProductsForPos = staffActionClient([...POS_ROLES])
 export const commitPosSaleAction = staffActionClient([...POS_ROLES])
   .metadata({ actionName: "pos.commitSale" })
   .inputSchema(commitSaleSchema)
-  .action(async ({ parsedInput }) => {
+  .action(async ({ parsedInput, ctx }) => {
+    await assertTillMaySell(ctx.tenant.tenantId, parsedInput.deviceId);
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -191,7 +193,7 @@ export async function getSale(id: string): Promise<SaleFullRow | null> {
     .select(
       `id, tenant_id, receipt_number, status, channel,
        subtotal, discount_total, vat_total, total, rounding, vat_breakdown,
-       notes, created_at,
+       notes, created_at, pos_session_id,
        branch:branches!sales_branch_id_fkey(id, name, code),
        customer:customers(id, full_name, email)`,
     )
@@ -200,23 +202,35 @@ export async function getSale(id: string): Promise<SaleFullRow | null> {
   if (sErr) throw new Error(`Failed to load sale: ${sErr.message}`);
   if (!sale) return null;
 
-  const [{ data: items, error: iErr }, { data: payments, error: pErr }] = await Promise.all([
-    supabase
-      .from("sale_items")
-      .select(
-        `id, position, name_snapshot, sku_snapshot, quantity, unit_price,
+  const [{ data: items, error: iErr }, { data: payments, error: pErr }, sessionRes] =
+    await Promise.all([
+      supabase
+        .from("sale_items")
+        .select(
+          `id, position, name_snapshot, sku_snapshot, quantity, unit_price,
          vat_code, vat_rate, discount, line_total_gross, line_total_net, line_vat`,
-      )
-      .eq("sale_id", id)
-      .order("position", { ascending: true }),
-    supabase
-      .from("payments")
-      .select("id, method, amount, status, card_brand, card_last4, external_ref, captured_at")
-      .eq("sale_id", id)
-      .order("created_at", { ascending: true }),
-  ]);
+        )
+        .eq("sale_id", id)
+        .order("position", { ascending: true }),
+      supabase
+        .from("payments")
+        .select("id, method, amount, status, card_brand, card_last4, external_ref, captured_at")
+        .eq("sale_id", id)
+        .order("created_at", { ascending: true }),
+      sale.pos_session_id
+        ? supabase
+            .from("pos_sessions")
+            .select("till_number")
+            .eq("id", sale.pos_session_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
   if (iErr) throw new Error(`Failed to load sale items: ${iErr.message}`);
   if (pErr) throw new Error(`Failed to load payments: ${pErr.message}`);
+  const tillNumber =
+    sessionRes.data && "till_number" in sessionRes.data && sessionRes.data.till_number != null
+      ? Number(sessionRes.data.till_number)
+      : null;
 
   return {
     id: sale.id,
@@ -233,6 +247,7 @@ export async function getSale(id: string): Promise<SaleFullRow | null> {
       (sale.vat_breakdown as Record<string, { rate: number; base: number; vat: number }>) ?? {},
     notes: sale.notes,
     created_at: sale.created_at,
+    till_number: tillNumber,
     branch: sale.branch
       ? Array.isArray(sale.branch)
         ? (sale.branch[0] ?? null)

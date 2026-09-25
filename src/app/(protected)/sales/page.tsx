@@ -28,10 +28,9 @@ export default async function SalesIndexPage() {
     <div className="space-y-4">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Recent sales</h1>
-          <p className="text-muted-foreground text-sm">
-            Last 100 receipts from every branch in your shop.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight" data-guide="sales">
+            Recent sales
+          </h1>
         </div>
         <Link
           href="/pos"

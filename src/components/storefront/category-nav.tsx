@@ -6,17 +6,25 @@ interface Props {
   shopSlug: string;
   categories: StorefrontCategory[];
   activeSlug?: string | null;
+  variant?: "list" | "chips";
 }
 
-export function CategoryNav({ shopSlug, categories, activeSlug }: Props) {
+export function CategoryNav({ shopSlug, categories, activeSlug, variant = "list" }: Props) {
   const base = `/shop/${shopSlug}`;
+  const chips = variant === "chips";
 
   const linkClass = (active: boolean) =>
     cn(
-      "flex w-full items-center justify-between gap-1 rounded-lg px-2 py-2 text-left text-xs font-medium transition-colors sm:gap-2 sm:px-3 sm:py-2.5 sm:text-sm",
+      chips
+        ? "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm"
+        : "flex w-full items-center justify-between gap-1 rounded-lg px-2 py-2 text-left text-xs font-medium transition-colors sm:gap-2 sm:px-3 sm:py-2.5 sm:text-sm",
       active
-        ? "bg-primary text-white shadow-sm"
-        : "text-foreground/80 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20",
+        ? chips
+          ? "border-primary bg-primary text-primary-foreground"
+          : "bg-primary text-primary-foreground shadow-sm"
+        : chips
+          ? "border-border bg-card text-foreground/80 hover:border-primary hover:text-primary"
+          : "text-foreground/80 hover:bg-primary/10 hover:text-primary",
     );
 
   const countClass = (active: boolean) =>
@@ -26,7 +34,7 @@ export function CategoryNav({ shopSlug, categories, activeSlug }: Props) {
     );
 
   return (
-    <nav className="flex flex-col gap-0.5" aria-label="Categories">
+    <nav className="shop-category-nav flex flex-col gap-0.5" aria-label="Categories">
       <p className="text-muted-foreground mb-1.5 px-1 text-[10px] font-semibold tracking-wide uppercase sm:mb-2 sm:px-3 sm:text-xs">
         Categories
       </p>
@@ -40,7 +48,9 @@ export function CategoryNav({ shopSlug, categories, activeSlug }: Props) {
           className={linkClass(activeSlug === c.slug)}
         >
           <span className="truncate">{c.name}</span>
-          <span className={countClass(activeSlug === c.slug)}>{c.productCount}</span>
+          {chips ? null : (
+            <span className={countClass(activeSlug === c.slug)}>{c.productCount}</span>
+          )}
         </Link>
       ))}
     </nav>

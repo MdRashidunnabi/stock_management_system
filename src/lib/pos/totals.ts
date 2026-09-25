@@ -11,19 +11,13 @@
  */
 
 import type { CartLine } from "@/lib/pos/schemas";
+import { DEFAULT_VAT_RATES, vatRateMap, type VatRates } from "@/lib/geo/countries";
 
 /**
- * Irish VAT rates as of 2026.
- * Keep this in sync with `app.vat_rates` constants on the server side.
+ * Default VAT bands (Ireland). Used when a shop's country rates are not passed,
+ * so existing tests and receipts stay consistent.
  */
-export const VAT_RATES: Record<string, number> = {
-  STD: 0.23, // Standard
-  RED: 0.135, // Reduced (e.g. fuel, building services)
-  SEC: 0.09, // Second reduced (hospitality, hairdressing)
-  LIV: 0.048, // Livestock
-  ZER: 0, // Zero-rated (most food, children's clothing)
-  EXE: 0, // VAT-exempt
-};
+export const VAT_RATES: Record<string, number> = vatRateMap(DEFAULT_VAT_RATES);
 
 export interface CartTotals {
   subtotal: number; // Net (ex-VAT)
@@ -43,19 +37,21 @@ export function round2(n: number): number {
 /**
  * Compute totals for a cart of lines.
  *
- * Each line's price can be VAT-inclusive (typical for Irish retail
+ * Each line's price can be VAT-inclusive (typical for retail
  * shelf prices) or VAT-exclusive. Discounts are applied before VAT is
- * derived, so the line behaves the same way Revenue.ie expects on the
- * receipt.
+ * derived, so the line matches what the server recomputes on the receipt.
  */
-export function computeCartTotals(cart: CartLine[]): CartTotals {
+export function computeCartTotals(
+  cart: CartLine[],
+  rates: Record<string, number> | VatRates = VAT_RATES,
+): CartTotals {
   let subtotal = 0;
   let vat = 0;
   let total = 0;
   let discount = 0;
 
   for (const line of cart) {
-    const rate = VAT_RATES[line.vatCode] ?? 0;
+    const rate = (rates as Record<string, number>)[line.vatCode] ?? 0;
     const grossBase = line.unitPrice * line.qty;
 
     let lineGross: number;

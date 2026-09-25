@@ -1,50 +1,52 @@
 import Link from "next/link";
 import { Store } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { AuthNav } from "@/components/auth/auth-nav";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { getRequestLocale } from "@/lib/i18n/get-locale";
+import { getMessages } from "@/lib/i18n/messages";
 
-/**
- * Visual shell shared by every auth-related page (login, signup, forgot,
- * reset, verify-email). Pure presentation - no redirect logic.
- */
-export function AuthShell({ children }: { children: React.ReactNode }) {
+export async function AuthShell({ children }: { children: React.ReactNode }) {
+  const locale = await getRequestLocale();
+  const m = getMessages(locale);
+
   return (
     <div className="min-h-dvh">
-      <div className="mx-auto flex min-h-dvh max-w-md flex-col px-6 py-10">
-        <header className="mb-8 flex items-center justify-between">
+      <div className="mx-auto flex min-h-dvh max-w-md flex-col px-6 py-8">
+        <header className="mb-8 flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-2 font-semibold">
-            <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-xl shadow-md">
+            <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-xl">
               <Store className="size-4" />
             </span>
-            <span className="from-primary to-info bg-gradient-to-r bg-clip-text text-lg font-bold text-transparent">
-              ShopOS
-            </span>
+            <span className="text-lg font-bold">{m.brand}</span>
           </Link>
-          <span className="bg-secondary text-secondary-foreground rounded-full px-2.5 py-0.5 text-xs font-medium">
-            Ireland
-          </span>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <LanguageSwitcher compact />
+            <AuthNav />
+          </div>
         </header>
 
         <main className="flex flex-1 flex-col justify-center">
-          <Card className="border-primary/15 overflow-hidden shadow-lg">
-            <div className="from-primary/10 via-info/5 to-secondary/30 h-1 bg-gradient-to-r" />
+          <Card className="overflow-hidden">
+            <div className="bg-primary h-1" />
             <CardContent className="pt-6">{children}</CardContent>
           </Card>
         </main>
 
-        <footer className="text-muted-foreground mt-10 text-center text-xs">
-          By continuing you agree to our{" "}
+        <footer className="text-muted-foreground mt-8 text-center text-xs">
+          {m.auth.agree}{" "}
           <Link
             href="/legal/terms"
             className="text-primary font-medium underline-offset-2 hover:underline"
           >
-            Terms
+            {m.common.terms}
           </Link>{" "}
-          and{" "}
+          {m.auth.and}{" "}
           <Link
             href="/legal/privacy"
             className="text-primary font-medium underline-offset-2 hover:underline"
           >
-            Privacy Policy
+            {m.common.privacy}
           </Link>
           .
         </footer>

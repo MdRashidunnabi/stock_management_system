@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ExternalLink, Globe, Settings } from "lucide-react";
+import { ExternalLink, Globe } from "lucide-react";
 import { StorefrontSettingsForm } from "@/components/storefront/storefront-settings-form";
 import { requireRole } from "@/lib/auth/tenant";
 import { getStorefrontSettingsForTenant } from "@/lib/storefront/settings-queries";
@@ -19,7 +19,9 @@ export default async function StorefrontSettingsPage() {
   if (!settings) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Online shop settings</h1>
+        <h1 className="text-2xl font-bold" data-guide="storefront">
+          Online shop settings
+        </h1>
         <p className="text-muted-foreground text-sm">
           Your shop does not have an online storefront row yet. Complete onboarding or contact
           support.
@@ -32,15 +34,9 @@ export default async function StorefrontSettingsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="text-muted-foreground mb-1 flex items-center gap-2 text-sm">
-            <Settings className="size-4" />
-            Settings
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">Online shop</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Website name, footer, contact, social links, online pricing defaults, delivery, and
-            checkout for {settings.tenantDisplayName}.
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight" data-guide="storefront">
+            Online shop
+          </h1>
         </div>
         <Button variant="outline" asChild>
           <Link href={shopPath} target="_blank" rel="noopener noreferrer">

@@ -1,0 +1,339 @@
+/* Public shop templates. Variables are set on [data-shop-theme] so the admin app is unchanged. */
+
+[data-shop-theme] {
+  --shop-radius: 1rem;
+  --shop-radius-lg: 1.25rem;
+  --radius: var(--shop-radius);
+  --shop-notice-bar: var(--header-gradient);
+  --shop-notice-fg: #fff;
+  --shop-hero-bg: linear-gradient(
+    135deg,
+    var(--primary),
+    color-mix(in srgb, var(--primary) 55%, #0ea5e9)
+  );
+  --shop-hero-fg: #fff;
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--foreground);
+  color-scheme: light;
+}
+
+[data-shop-theme] .shop-notice-bar {
+  background: var(--shop-notice-bar);
+  color: var(--shop-notice-fg);
+  border-bottom: 1px solid rgb(255 255 255 / 0.12);
+}
+
+[data-shop-theme] .shop-hero {
+  background: var(--shop-hero-bg);
+  color: var(--shop-hero-fg);
+  border-radius: var(--shop-radius-lg);
+}
+
+[data-shop-theme] .shop-product-card,
+[data-shop-theme] .shop-panel {
+  border-radius: var(--shop-radius);
+}
+
+[data-shop-theme] .shop-search-pill {
+  border-radius: 999px;
+}
+
+[data-shop-density="compact"] .shop-product-grid {
+  gap: 0.75rem;
+}
+
+[data-shop-density="airy"] .shop-product-grid {
+  gap: 1.5rem;
+}
+
+[data-shop-density="airy"] .shop-shell {
+  max-width: 68rem;
+}
+
+[data-shop-density="compact"] .shop-shell {
+  max-width: 82rem;
+}
+
+[data-shop-header="centered"] .shop-header-row {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+[data-shop-header="centered"] .shop-brand {
+  justify-content: center;
+}
+
+[data-shop-header="plain"] .shop-notice-bar {
+  display: none;
+}
+
+[data-shop-nav="top"] .shop-catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+[data-shop-nav="top"] .shop-catalog-aside {
+  position: static;
+  max-height: none;
+  overflow: visible;
+}
+
+[data-shop-nav="top"] .shop-category-nav {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+[data-shop-nav="top"] .shop-category-nav > p {
+  width: 100%;
+}
+
+/* 1. Market — grocery teal */
+[data-shop-theme="market"] {
+  --background: #f4f8fb;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --primary: #059669;
+  --primary-foreground: #ffffff;
+  --muted: #eef2f7;
+  --muted-foreground: #64748b;
+  --border: #cbd5e1;
+  --accent: #d1fae5;
+  --accent-foreground: #065f46;
+  --info: #0284c7;
+  --shop-notice-bar: linear-gradient(90deg, #047857, #0d9488, #0284c7);
+  --shop-hero-bg: linear-gradient(135deg, #059669, #0f766e, #0284c7);
+}
+
+/* 2. Noir — dark gold */
+[data-shop-theme="noir"] {
+  color-scheme: dark;
+  --background: #0b0b0d;
+  --foreground: #f5f0e6;
+  --card: #16161a;
+  --card-foreground: #f5f0e6;
+  --primary: #d4a017;
+  --primary-foreground: #1a1204;
+  --muted: #1f1f24;
+  --muted-foreground: #a8a29e;
+  --border: #2a2a32;
+  --accent: #2a2416;
+  --accent-foreground: #f5d07a;
+  --info: #e8c547;
+  --shop-radius: 0.25rem;
+  --shop-radius-lg: 0.4rem;
+  --shop-notice-bar: #111113;
+  --shop-hero-bg: #16161a;
+  --shop-hero-fg: #f5f0e6;
+}
+
+[data-shop-theme="noir"] .shop-search-pill {
+  border-radius: 0.25rem;
+}
+
+[data-shop-theme="noir"] .shop-product-card {
+  box-shadow: none;
+  border-color: #2a2a32;
+}
+
+/* 3. Linen — bakery cream */
+[data-shop-theme="linen"] {
+  --background: #f7f1e8;
+  --foreground: #3f2e22;
+  --card: #fffaf3;
+  --card-foreground: #3f2e22;
+  --primary: #c45c26;
+  --primary-foreground: #fffaf3;
+  --muted: #efe4d4;
+  --muted-foreground: #7a624c;
+  --border: #e4d3bb;
+  --accent: #f3e0c8;
+  --accent-foreground: #7c2d12;
+  --info: #b45309;
+  --shop-radius: 1.5rem;
+  --shop-radius-lg: 2rem;
+  --shop-notice-bar: #c45c26;
+  --shop-hero-bg: #fffaf3;
+  --shop-hero-fg: #3f2e22;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+[data-shop-theme="linen"] .shop-hero {
+  border: 1px solid var(--border);
+}
+
+/* 4. Harbor — coastal navy */
+[data-shop-theme="harbor"] {
+  --background: #f0f7fb;
+  --foreground: #0c2744;
+  --card: #ffffff;
+  --card-foreground: #0c2744;
+  --primary: #0369a1;
+  --primary-foreground: #ffffff;
+  --muted: #e0f2fe;
+  --muted-foreground: #3d5a73;
+  --border: #bae6fd;
+  --accent: #e0f2fe;
+  --accent-foreground: #075985;
+  --info: #0284c7;
+  --shop-notice-bar: linear-gradient(90deg, #0c2744, #0369a1);
+  --shop-hero-bg: linear-gradient(120deg, #0c2744, #0369a1 55%, #38bdf8);
+}
+
+/* 5. Blossom — boutique blush */
+[data-shop-theme="blossom"] {
+  --background: #fdf4f7;
+  --foreground: #4a2030;
+  --card: #ffffff;
+  --card-foreground: #4a2030;
+  --primary: #db2777;
+  --primary-foreground: #ffffff;
+  --muted: #fce7f3;
+  --muted-foreground: #9d4b6c;
+  --border: #f9a8d4;
+  --accent: #fce7f3;
+  --accent-foreground: #9d174d;
+  --info: #e11d48;
+  --shop-radius: 1.25rem;
+  --shop-notice-bar: #db2777;
+  --shop-hero-bg: #fff;
+  --shop-hero-fg: #4a2030;
+}
+
+[data-shop-theme="blossom"] .shop-hero {
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 40px rgb(219 39 119 / 0.08);
+}
+
+[data-shop-theme="blossom"] .shop-product-card {
+  box-shadow: 0 8px 24px rgb(219 39 119 / 0.08);
+}
+
+/* 6. Harvest — farm amber */
+[data-shop-theme="harvest"] .shop-product-card {
+  border-width: 2px;
+}
+
+[data-shop-theme="harvest"] {
+  --background: #fbf6ea;
+  --foreground: #3b2a14;
+  --card: #fff8e7;
+  --card-foreground: #3b2a14;
+  --primary: #b45309;
+  --primary-foreground: #fffbeb;
+  --muted: #f3e4c4;
+  --muted-foreground: #7c5a2a;
+  --border: #e7d3a3;
+  --accent: #fde68a;
+  --accent-foreground: #78350f;
+  --info: #ca8a04;
+  --shop-radius: 0.75rem;
+  --shop-notice-bar: #3f6212;
+  --shop-hero-bg: #b45309;
+}
+
+/* 7. Metro — urban mono */
+[data-shop-theme="metro"] {
+  --background: #f4f4f5;
+  --foreground: #09090b;
+  --card: #ffffff;
+  --card-foreground: #09090b;
+  --primary: #18181b;
+  --primary-foreground: #fafafa;
+  --muted: #e4e4e7;
+  --muted-foreground: #52525b;
+  --border: #d4d4d8;
+  --accent: #e4e4e7;
+  --accent-foreground: #18181b;
+  --info: #2563eb;
+  --shop-radius: 0;
+  --shop-radius-lg: 0;
+  --shop-notice-bar: #09090b;
+  --shop-hero-bg: #18181b;
+}
+
+[data-shop-theme="metro"] .shop-search-pill {
+  border-radius: 0;
+}
+
+[data-shop-theme="metro"] h1,
+[data-shop-theme="metro"] h2 {
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+}
+
+/* 8. Grove — organic forest */
+[data-shop-theme="grove"] .shop-hero {
+  padding-block: 3.5rem;
+}
+
+[data-shop-theme="grove"] {
+  --background: #f3f6f1;
+  --foreground: #142117;
+  --card: #ffffff;
+  --card-foreground: #142117;
+  --primary: #3f6212;
+  --primary-foreground: #f7fee7;
+  --muted: #e8efe3;
+  --muted-foreground: #4d5c4a;
+  --border: #c5d4bc;
+  --accent: #ecfccb;
+  --accent-foreground: #365314;
+  --info: #4d7c0f;
+  --shop-radius: 1.75rem;
+  --shop-radius-lg: 2.25rem;
+  --shop-notice-bar: #142117;
+  --shop-hero-bg: linear-gradient(160deg, #142117, #3f6212 70%, #84cc16);
+}
+
+/* 9. Sunset — coral energy */
+[data-shop-theme="sunset"] {
+  --background: #fff7ed;
+  --foreground: #431407;
+  --card: #ffffff;
+  --card-foreground: #431407;
+  --primary: #ea580c;
+  --primary-foreground: #fff7ed;
+  --muted: #ffedd5;
+  --muted-foreground: #9a3412;
+  --border: #fdba74;
+  --accent: #ffedd5;
+  --accent-foreground: #9a3412;
+  --info: #f97316;
+  --shop-radius: 1.15rem;
+  --shop-notice-bar: linear-gradient(90deg, #c2410c, #ea580c, #f59e0b);
+  --shop-hero-bg: linear-gradient(125deg, #9a3412, #ea580c 45%, #f59e0b);
+}
+
+/* 10. Slate — professional indigo */
+[data-shop-theme="slate"] {
+  --background: #f1f5f9;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --primary: #4338ca;
+  --primary-foreground: #eef2ff;
+  --muted: #e2e8f0;
+  --muted-foreground: #475569;
+  --border: #cbd5e1;
+  --accent: #e0e7ff;
+  --accent-foreground: #312e81;
+  --info: #4f46e5;
+  --shop-radius: 0.5rem;
+  --shop-radius-lg: 0.75rem;
+  --shop-notice-bar: #1e293b;
+  --shop-hero-bg: #eef2ff;
+  --shop-hero-fg: #1e1b4b;
+}
+
+[data-shop-theme="slate"] .shop-hero {
+  border: 1px solid var(--border);
+}
+
+[data-shop-theme="slate"] .shop-search-pill {
+  border-radius: 0.5rem;
+}

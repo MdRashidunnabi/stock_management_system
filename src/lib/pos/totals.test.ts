@@ -110,6 +110,17 @@ describe("computeCartTotals: Irish VAT", () => {
     expect(t.total).toBe(4.12);
   });
 
+  it("uses shop country rates when they are passed in", () => {
+    const bangladesh = { STD: 0.15, RED: 0.075, SEC: 0.05, LIV: 0, ZER: 0, EXE: 0 };
+    const t = computeCartTotals(
+      [line({ unitPrice: 10, vatCode: "STD", vatIncluded: false })],
+      bangladesh,
+    );
+    expect(t.subtotal).toBe(10);
+    expect(t.vat).toBe(1.5);
+    expect(t.total).toBe(11.5);
+  });
+
   it("treats unknown VAT codes as 0% (defensive)", () => {
     const t = computeCartTotals([line({ unitPrice: 10, vatCode: "UNKNOWN", vatIncluded: true })]);
     expect(t.total).toBe(10);

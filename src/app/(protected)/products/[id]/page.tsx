@@ -62,6 +62,7 @@ export default async function EditProductPage({ params }: Props) {
         brands={lookups.brands}
         suppliers={lookups.suppliers}
         onlinePriceMarkupPct={storefront?.onlinePriceMarkupPct ?? 0.5}
+        vatRates={tenant.vatRates}
       />
     </div>
   );

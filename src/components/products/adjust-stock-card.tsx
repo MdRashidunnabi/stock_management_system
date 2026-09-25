@@ -6,7 +6,7 @@ import { Loader2, Package } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,7 +24,7 @@ interface Props {
 
 export function AdjustStockCard({
   productId,
-  productName,
+  productName: _productName,
   baseUnit,
   branchStock,
   canWrite,
@@ -160,10 +160,6 @@ export function AdjustStockCard({
           <Package className="size-4" />
           Adjust stock
         </CardTitle>
-        <CardDescription className="text-xs">
-          Set the shelf count or add/remove units for <strong>{productName}</strong>. Changes are
-          logged in the audit trail.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">

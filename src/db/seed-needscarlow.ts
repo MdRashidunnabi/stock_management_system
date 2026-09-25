@@ -154,6 +154,28 @@ async function main() {
       on conflict (id) do nothing
     `;
 
+    await sql`
+      insert into public.tenant_storefronts (
+        tenant_id, branch_id, enabled, hero_title, hero_subtitle, order_notice, public_site_name
+      )
+      values (
+        ${TENANT_ID},
+        ${BRANCH_ID},
+        true,
+        'Needscarlow',
+        'Order online — stock stays in sync with our shop in Carlow',
+        'We will confirm your order by phone.',
+        'Needscarlow'
+      )
+      on conflict (tenant_id) do update set
+        branch_id = excluded.branch_id,
+        enabled = true,
+        hero_title = excluded.hero_title,
+        hero_subtitle = excluded.hero_subtitle,
+        order_notice = excluded.order_notice,
+        public_site_name = excluded.public_site_name
+    `;
+
     await sql`delete from public.stock_balances where tenant_id = ${TENANT_ID}`;
     await sql`delete from public.products where tenant_id = ${TENANT_ID}`;
 
@@ -263,7 +285,9 @@ async function main() {
     await sql.end({ timeout: 10 });
   }
 
-  console.info("\n[needscarlow] done. Sign in at http://localhost:3000/login");
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  console.info(`\n[needscarlow] done. Sign in at ${appUrl}/login`);
+  console.info(`  Online shop: ${appUrl}/shop/needscarlow`);
   console.info("  Shop: Needscarlow (switch tenant if you belong to multiple)");
   for (const u of DEMO_USERS) {
     console.info(`  ${u.email}  /  ${PASSWORD}`);

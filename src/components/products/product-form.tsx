@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import type { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { IE_VAT_RATES } from "@/lib/constants";
+import { vatPickerOptions, type VatRates } from "@/lib/geo/countries";
 import {
   archiveProductAction,
   createProductAction,
@@ -47,6 +47,7 @@ interface Props {
   categories: LookupItem[];
   brands: LookupItem[];
   suppliers: LookupItem[];
+  vatRates?: VatRates;
   /** Default % added to selling price for online shop when manual online price is empty. */
   onlinePriceMarkupPct?: number;
 }
@@ -60,8 +61,9 @@ export function ProductForm({
   categories,
   brands,
   suppliers,
-  onlinePriceMarkupPct = 0.5,
+  vatRates,
 }: Props) {
+  const vatOptions = vatPickerOptions(vatRates);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [archivePending, startArchive] = useTransition();
@@ -177,7 +179,6 @@ export function ProductForm({
       <Card>
         <CardHeader>
           <CardTitle>Basics</CardTitle>
-          <CardDescription>Name, codes, and what shows on receipts.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Field
@@ -226,7 +227,6 @@ export function ProductForm({
       <Card>
         <CardHeader>
           <CardTitle>Classification</CardTitle>
-          <CardDescription>Used for navigation, filtering, and reports.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <Field label="Category" error={form.formState.errors.categoryId?.message}>
@@ -316,10 +316,6 @@ export function ProductForm({
       <Card>
         <CardHeader>
           <CardTitle>Pricing & VAT</CardTitle>
-          <CardDescription>
-            Irish retailers usually display prices VAT-inclusive. The receipt will break out the VAT
-            line automatically.
-          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Field label="Purchase price (€)" hint="Weighted average">
@@ -356,7 +352,7 @@ export function ProductForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {IE_VAT_RATES.map((r) => (
+                    {vatOptions.map((r) => (
                       <SelectItem key={r.code} value={r.code}>
                         {r.label}
                       </SelectItem>
@@ -392,11 +388,6 @@ export function ProductForm({
       <Card>
         <CardHeader>
           <CardTitle>Online shop only</CardTitle>
-          <CardDescription>
-            These prices apply on your public website only — till / POS prices are unchanged. Leave
-            online price empty to use selling price + {onlinePriceMarkupPct}% (change default in
-            Online shop settings).
-          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Field

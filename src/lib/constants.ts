@@ -1,37 +1,28 @@
-/**
- * Country / locale defaults for ShopOS Ireland.
- * These are runtime defaults; tenants can override per-shop where applicable.
- */
+import { DEFAULT_VAT_RATES, type VatCode as GeoVatCode } from "@/lib/geo/countries";
 
 export const APP_NAME = "ShopOS";
-export const APP_DESCRIPTION = "Retail Operating System for Irish independent shops.";
+export const APP_DESCRIPTION = "Retail operating system for shops in any country.";
 
+/** Fallback only — real shops use the country chosen at signup. */
 export const DEFAULT_COUNTRY = "IE";
-export const DEFAULT_LOCALE = "en-IE";
+export const DEFAULT_LOCALE = "en";
 export const DEFAULT_CURRENCY = "EUR";
-export const DEFAULT_TIMEZONE = "Europe/Dublin";
+export const DEFAULT_TIMEZONE = "UTC";
 
-/**
- * Ireland VAT rates as of 2025/2026.
- * NOTE: tax rates change. Verify current values with a Revenue.ie-registered
- * accountant before relying on them for fiscal documents.
- */
+/** @deprecated Use vatPickerOptions(tenant.vatRates). Kept for older imports. */
 export const IE_VAT_RATES = [
-  { code: "STD", label: "Standard (23%)", rate: 0.23 },
-  { code: "RED", label: "Reduced (13.5%)", rate: 0.135 },
-  { code: "SEC", label: "Second Reduced (9%)", rate: 0.09 },
-  { code: "LIV", label: "Livestock (4.8%)", rate: 0.048 },
-  { code: "ZER", label: "Zero (0%)", rate: 0.0 },
-  { code: "EXE", label: "Exempt", rate: 0.0 },
+  { code: "STD", label: "Standard (23%)", rate: DEFAULT_VAT_RATES.STD },
+  { code: "RED", label: "Reduced (13.5%)", rate: DEFAULT_VAT_RATES.RED },
+  { code: "SEC", label: "Second reduced (9%)", rate: DEFAULT_VAT_RATES.SEC },
+  { code: "LIV", label: "Super-reduced (4.8%)", rate: DEFAULT_VAT_RATES.LIV },
+  { code: "ZER", label: "Zero (0%)", rate: 0 },
+  { code: "EXE", label: "Exempt", rate: 0 },
 ] as const;
 
-export type VatCode = (typeof IE_VAT_RATES)[number]["code"];
+export type VatCode = GeoVatCode;
 
 export const DEFAULT_VAT_CODE: VatCode = "STD";
 
-/**
- * Payment methods commonly used in Irish retail.
- */
 export const PAYMENT_METHODS = [
   { code: "CASH", label: "Cash" },
   { code: "CARD", label: "Card" },
@@ -39,10 +30,10 @@ export const PAYMENT_METHODS = [
   { code: "APPLE_PAY", label: "Apple Pay" },
   { code: "GOOGLE_PAY", label: "Google Pay" },
   { code: "REVOLUT", label: "Revolut" },
-  { code: "BANK_TRANSFER", label: "Bank Transfer (SEPA)" },
-  { code: "STORE_CREDIT", label: "Store Credit" },
-  { code: "CUSTOMER_ACCOUNT", label: "Customer Account (B2B)" },
-  { code: "VOUCHER", label: "Voucher / Gift Card" },
+  { code: "BANK_TRANSFER", label: "Bank transfer" },
+  { code: "STORE_CREDIT", label: "Store credit" },
+  { code: "CUSTOMER_ACCOUNT", label: "Customer account (B2B)" },
+  { code: "VOUCHER", label: "Voucher / gift card" },
 ] as const;
 
 export type PaymentMethodCode = (typeof PAYMENT_METHODS)[number]["code"];

@@ -17,11 +17,9 @@ export default async function PlatformHomePage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Shop control centre</h1>
-        <p className="text-muted-foreground mt-1 max-w-2xl text-sm">
-          Manage every customer shop in one place. Use plain actions — record payment, extend trial,
-          or pause a shop if they have not paid.
-        </p>
+        <h1 className="text-2xl font-bold" data-guide="platform">
+          Shop control centre
+        </h1>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

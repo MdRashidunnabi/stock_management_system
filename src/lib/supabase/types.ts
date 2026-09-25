@@ -880,6 +880,60 @@ export type Database = {
           },
         ];
       };
+      pos_devices: {
+        Row: {
+          created_at: string;
+          device_id: string;
+          id: string;
+          label: string | null;
+          last_heartbeat_at: string;
+          revoked_at: string | null;
+          tenant_id: string;
+          branch_id: string | null;
+          till_number: number | null;
+          user_agent: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          device_id: string;
+          id?: string;
+          label?: string | null;
+          last_heartbeat_at?: string;
+          revoked_at?: string | null;
+          tenant_id: string;
+          branch_id?: string | null;
+          till_number?: number | null;
+          user_agent?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          device_id?: string;
+          id?: string;
+          label?: string | null;
+          last_heartbeat_at?: string;
+          revoked_at?: string | null;
+          tenant_id?: string;
+          branch_id?: string | null;
+          till_number?: number | null;
+          user_agent?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pos_devices_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pos_devices_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       pos_sessions: {
         Row: {
           branch_id: string;
@@ -895,6 +949,10 @@ export type Database = {
           manager_pin_used: boolean;
           opened_at: string;
           opening_cash: number;
+          shift_code: Database["public"]["Enums"]["pos_shift_code"];
+          business_date: string;
+          device_id: string | null;
+          till_number: number | null;
           status: Database["public"]["Enums"]["pos_session_status"];
           tenant_id: string;
           terminal_id: string | null;
@@ -914,6 +972,10 @@ export type Database = {
           manager_pin_used?: boolean;
           opened_at?: string;
           opening_cash?: number;
+          shift_code?: Database["public"]["Enums"]["pos_shift_code"];
+          business_date?: string;
+          device_id?: string | null;
+          till_number?: number | null;
           status?: Database["public"]["Enums"]["pos_session_status"];
           tenant_id: string;
           terminal_id?: string | null;
@@ -933,6 +995,10 @@ export type Database = {
           manager_pin_used?: boolean;
           opened_at?: string;
           opening_cash?: number;
+          shift_code?: Database["public"]["Enums"]["pos_shift_code"];
+          business_date?: string;
+          device_id?: string | null;
+          till_number?: number | null;
           status?: Database["public"]["Enums"]["pos_session_status"];
           tenant_id?: string;
           terminal_id?: string | null;
@@ -958,6 +1024,66 @@ export type Database = {
             columns: ["terminal_id"];
             isOneToOne: false;
             referencedRelation: "pos_terminals";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      shift_accounts: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          branch_id: string;
+          business_date: string;
+          shift_code: Database["public"]["Enums"]["pos_shift_code"];
+          status: Database["public"]["Enums"]["shift_account_status"];
+          notes: string | null;
+          totals: Json;
+          finalised_at: string | null;
+          finalised_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          branch_id: string;
+          business_date: string;
+          shift_code: Database["public"]["Enums"]["pos_shift_code"];
+          status?: Database["public"]["Enums"]["shift_account_status"];
+          notes?: string | null;
+          totals?: Json;
+          finalised_at?: string | null;
+          finalised_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          branch_id?: string;
+          business_date?: string;
+          shift_code?: Database["public"]["Enums"]["pos_shift_code"];
+          status?: Database["public"]["Enums"]["shift_account_status"];
+          notes?: string | null;
+          totals?: Json;
+          finalised_at?: string | null;
+          finalised_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "shift_accounts_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "shift_accounts_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
             referencedColumns: ["id"];
           },
         ];
@@ -1364,6 +1490,7 @@ export type Database = {
           id: string;
           is_platform_staff: boolean;
           locale: string;
+          country: string | null;
           phone: string | null;
           updated_at: string;
         };
@@ -1375,6 +1502,7 @@ export type Database = {
           id: string;
           is_platform_staff?: boolean;
           locale?: string;
+          country?: string | null;
           phone?: string | null;
           updated_at?: string;
         };
@@ -1386,6 +1514,7 @@ export type Database = {
           id?: string;
           is_platform_staff?: boolean;
           locale?: string;
+          country?: string | null;
           phone?: string | null;
           updated_at?: string;
         };
@@ -2209,6 +2338,7 @@ export type Database = {
           updated_at: string;
           updated_by: string | null;
           vat_number: string | null;
+          vat_rates: Json | null;
         };
         Insert: {
           country?: string;
@@ -2227,6 +2357,7 @@ export type Database = {
           updated_at?: string;
           updated_by?: string | null;
           vat_number?: string | null;
+          vat_rates?: Json | null;
         };
         Update: {
           country?: string;
@@ -2245,6 +2376,7 @@ export type Database = {
           updated_at?: string;
           updated_by?: string | null;
           vat_number?: string | null;
+          vat_rates?: Json | null;
         };
         Relationships: [];
       };
@@ -2519,6 +2651,7 @@ export type Database = {
           youtube_url: string | null;
           instagram_url: string | null;
           online_price_markup_pct: number;
+          theme_id: string;
           created_at: string;
           updated_at: string;
         };
@@ -2548,6 +2681,7 @@ export type Database = {
           youtube_url?: string | null;
           instagram_url?: string | null;
           online_price_markup_pct?: number;
+          theme_id?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -2577,6 +2711,7 @@ export type Database = {
           youtube_url?: string | null;
           instagram_url?: string | null;
           online_price_markup_pct?: number;
+          theme_id?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -2772,6 +2907,10 @@ export type Database = {
           p_note?: string;
           p_opening_cash?: number;
           p_terminal_id?: string;
+          p_shift_code?: Database["public"]["Enums"]["pos_shift_code"];
+          p_business_date?: string;
+          p_device_id?: string;
+          p_till_number?: number;
         };
         Returns: string;
       };
@@ -2900,6 +3039,7 @@ export type Database = {
           p_slug: string;
           p_timezone?: string;
           p_vat_number?: string;
+          p_vat_rates?: Json;
           p_plan_shop_tier?: number;
           p_plan_branch_tier?: number;
           p_monthly_amount_cents?: number;
@@ -2949,6 +3089,8 @@ export type Database = {
         | "partially_refunded"
         | "voided";
       pos_session_status: "open" | "closed" | "force_closed";
+      pos_shift_code: "morning" | "evening" | "night";
+      shift_account_status: "open" | "finalised";
       purchase_order_status:
         | "draft"
         | "submitted"
@@ -3153,6 +3295,8 @@ export const Constants = {
         "voided",
       ],
       pos_session_status: ["open", "closed", "force_closed"],
+      pos_shift_code: ["morning", "evening", "night"],
+      shift_account_status: ["open", "finalised"],
       purchase_order_status: [
         "draft",
         "submitted",

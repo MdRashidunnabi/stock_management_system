@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser, requireUser } from "@/lib/auth/tenant";
@@ -7,7 +8,7 @@ import { getCurrentUser, requireUser } from "@/lib/auth/tenant";
 /**
  * Platform staff = profiles.is_platform_staff OR super_admin/support_admin on any tenant.
  */
-export async function isPlatformStaff(): Promise<boolean> {
+export const isPlatformStaff = cache(async (): Promise<boolean> => {
   const supabase = await createClient();
   const user = await getCurrentUser();
   if (!user) return false;
@@ -29,7 +30,7 @@ export async function isPlatformStaff(): Promise<boolean> {
     .limit(1);
 
   return (roles?.length ?? 0) > 0;
-}
+});
 
 export async function requirePlatformStaff() {
   await requireUser();

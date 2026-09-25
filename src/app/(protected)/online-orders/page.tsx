@@ -29,10 +29,9 @@ export default async function OnlineOrdersPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Online orders</h1>
-          <p className="text-muted-foreground text-sm">
-            Orders from your public shop share the same stock as POS.
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight" data-guide="online-orders">
+            Online orders
+          </h1>
         </div>
         <div className="flex flex-wrap gap-2">
           {canEditStorefront ? (
@@ -49,14 +48,6 @@ export default async function OnlineOrdersPage() {
           </Button>
         </div>
       </div>
-
-      <p className="text-muted-foreground rounded-lg border border-dashed p-3 text-xs">
-        Your store URL:{" "}
-        <Link href={shopUrl} className="text-success font-medium underline">
-          {shopUrl}
-        </Link>
-        — created automatically when you onboard. Products and stock come from this app.
-      </p>
 
       <Table>
         <TableHeader>

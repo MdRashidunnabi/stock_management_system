@@ -42,8 +42,8 @@ function addEnv(name, value, target) {
   console.info(`  + ${name} → ${target}`);
   const r = spawnSync(
     "npx",
-    ["vercel", "env", "add", name, target, "--force"],
-    { input: value, encoding: "utf8", stdio: ["pipe", "inherit", "inherit"] },
+    ["vercel", "env", "add", name, target, "--value", value, "--force", "--yes"],
+    { stdio: "inherit" },
   );
   if (r.status !== 0) process.exit(r.status ?? 1);
 }

@@ -1,121 +1,67 @@
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Store, ShoppingCart, BarChart3, Boxes } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ScanLine, Boxes, Globe, BarChart3 } from "lucide-react";
+import { PublicHeader } from "@/components/layout/public-header";
+import { getRequestLocale } from "@/lib/i18n/get-locale";
+import { getMessages } from "@/lib/i18n/messages";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const locale = await getRequestLocale();
+  const m = getMessages(locale);
+
+  const features = [
+    { icon: ScanLine, title: m.home.fPos, hint: m.home.fPosHint },
+    { icon: Boxes, title: m.home.fStock, hint: m.home.fStockHint },
+    { icon: Globe, title: m.home.fOnline, hint: m.home.fOnlineHint },
+    { icon: BarChart3, title: m.home.fReports, hint: m.home.fReportsHint },
+  ];
+
   return (
-    <main className="flex min-h-dvh items-start justify-center p-6 sm:items-center sm:p-10">
-      <div className="mx-auto w-full max-w-4xl space-y-10">
-        <div className="space-y-4 text-center">
-          <Badge className="rounded-full px-3 py-1 text-xs font-medium">
-            ShopOS · Ireland · v0.1.0
-          </Badge>
-          <h1 className="from-primary via-info to-secondary-foreground bg-gradient-to-r bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-5xl">
-            The Retail Operating System for Irish Shops
-          </h1>
-          <p className="text-muted-foreground mx-auto max-w-2xl text-base sm:text-lg">
-            POS, stock, suppliers, branches, and online sales in one platform — built for shop
-            owners, not accountants.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs">
-            <Badge variant="success">EUR</Badge>
-            <Badge variant="info">en-IE</Badge>
-            <Badge variant="secondary">Europe/Dublin</Badge>
-            <Badge variant="warning">VAT ready</Badge>
-          </div>
-        </div>
+    <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-4 pb-24 sm:px-6">
+      <PublicHeader />
 
-        <Separator className="bg-primary/20" />
+      <section className="flex flex-1 flex-col justify-center py-8 sm:py-12">
+        <p className="text-primary text-sm font-semibold tracking-wide">{m.home.kicker}</p>
+        <h1 className="mt-2 text-4xl font-bold tracking-tight text-balance sm:text-5xl">
+          {m.home.headline}
+        </h1>
+        <p className="text-muted-foreground mt-3 max-w-md text-lg">{m.home.sub}</p>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <FeatureCard
-            icon={<ShoppingCart className="size-5" />}
-            accent="primary"
-            title="POS"
-            description="Fast tablet POS with scanner, cash drawer, and receipt printer support."
-          />
-          <FeatureCard
-            icon={<Boxes className="size-5" />}
-            accent="info"
-            title="Stock Ledger"
-            description="Every movement tracked — sale, receipt, transfer, return, expiry."
-          />
-          <FeatureCard
-            icon={<Store className="size-5" />}
-            accent="secondary"
-            title="Multi-branch"
-            description="One owner dashboard, many shops, real-time transfers."
-          />
-          <FeatureCard
-            icon={<BarChart3 className="size-5" />}
-            accent="warning"
-            title="Owner Reports"
-            description="Daily profit, cash variance, top movers — on your phone."
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Link
-            href="/login"
-            className="border-primary/20 from-primary/5 hover:border-primary bg-card rounded-xl border bg-gradient-to-br p-5 transition hover:shadow-lg"
-          >
-            <div className="text-primary text-sm font-semibold">Sign in</div>
-            <div className="text-muted-foreground text-xs">Owners, managers, and cashiers</div>
-          </Link>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/signup"
-            className="border-info/25 from-info/5 hover:border-info bg-card rounded-xl border bg-gradient-to-br p-5 transition hover:shadow-lg"
+            className="bg-primary text-primary-foreground shadow-primary/25 rounded-2xl px-6 py-3.5 text-center text-base font-semibold shadow-lg"
           >
-            <div className="text-info text-sm font-semibold">Create an account</div>
-            <div className="text-muted-foreground text-xs">30-day pilot, no card required</div>
+            {m.home.ctaNew}
+          </Link>
+          <Link
+            href="/login"
+            className="border-border bg-card rounded-xl border px-6 py-3.5 text-center text-base font-semibold"
+          >
+            {m.home.ctaIn}
+          </Link>
+          <Link
+            href="/demo"
+            className="text-muted-foreground hover:text-foreground rounded-xl px-6 py-3.5 text-center text-base font-medium"
+          >
+            {m.home.ctaDemo}
           </Link>
         </div>
 
-        <div className="border-primary/20 bg-primary/5 text-muted-foreground rounded-xl border border-dashed p-4 text-center text-xs">
-          POS, stock, online shop, and Irish VAT — one colourful, professional workspace.
-        </div>
-      </div>
+        <ul className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {features.map((item) => (
+            <li
+              key={item.title}
+              className="bg-card rounded-2xl border border-black/5 p-4 shadow-sm dark:border-white/10"
+            >
+              <span className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-xl">
+                <item.icon className="size-5" aria-hidden />
+              </span>
+              <p className="mt-3 text-sm font-semibold">{item.title}</p>
+              <p className="text-muted-foreground mt-0.5 text-xs">{item.hint}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
     </main>
-  );
-}
-
-function FeatureCard({
-  icon,
-  title,
-  description,
-  accent,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  accent: "primary" | "info" | "secondary" | "warning";
-}) {
-  const iconWrap = {
-    primary: "bg-primary/15 text-primary",
-    info: "bg-info/15 text-info",
-    secondary: "bg-secondary text-secondary-foreground",
-    warning: "bg-warning/15 text-warning",
-  }[accent];
-
-  return (
-    <Card className="overflow-hidden">
-      <div
-        className={`h-1 ${accent === "primary" ? "bg-primary" : accent === "info" ? "bg-info" : accent === "warning" ? "bg-warning" : "bg-secondary"}`}
-      />
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className={cn("flex size-10 items-center justify-center rounded-lg", iconWrap)}>
-            {icon}
-          </div>
-          <CardTitle className="text-base">{title}</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <CardDescription className="text-sm">{description}</CardDescription>
-      </CardContent>
-    </Card>
   );
 }

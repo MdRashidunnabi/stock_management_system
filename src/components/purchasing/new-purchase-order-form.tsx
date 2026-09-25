@@ -11,13 +11,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getSafeActionData, getSafeActionError } from "@/lib/parse-safe-action-result";
 import { createPurchaseOrderAction } from "@/lib/purchasing/orders/actions";
-import { formatEuro } from "@/lib/utils";
+import { formatMoney } from "@/lib/utils";
 import {
   VAT_CODES,
   type ProductLite,
   type SupplierLite,
   type VatCode,
 } from "@/lib/purchasing/schemas";
+import { vatRateMap, type VatRates } from "@/lib/geo/countries";
+import { VAT_RATES as DEFAULT_POS_VAT } from "@/lib/pos/totals";
 
 interface BranchOption {
   id: string;
@@ -29,6 +31,8 @@ interface Props {
   branches: BranchOption[];
   suppliers: SupplierLite[];
   products: ProductLite[];
+  vatRates?: VatRates;
+  currency?: string;
 }
 
 interface LineRow {
@@ -40,14 +44,7 @@ interface LineRow {
   notes: string;
 }
 
-const VAT_RATES: Record<VatCode, number> = {
-  STD: 0.23,
-  RED: 0.135,
-  SEC: 0.09,
-  LIV: 0.048,
-  ZER: 0,
-  EXE: 0,
-};
+const VAT_RATES: Record<VatCode, number> = DEFAULT_POS_VAT as Record<VatCode, number>;
 
 const VAT_LABELS: Record<VatCode, string> = {
   STD: "Standard 23%",
@@ -73,7 +70,15 @@ function emptyRow(defaults?: Partial<LineRow>): LineRow {
   };
 }
 
-export function NewPurchaseOrderForm({ branches, suppliers, products }: Props) {
+export function NewPurchaseOrderForm({
+  branches,
+  suppliers,
+  products,
+  vatRates,
+  currency = "EUR",
+}: Props) {
+  const rates = vatRates ? vatRateMap(vatRates) : VAT_RATES;
+  const money = (n: number) => formatMoney(n, currency);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -119,7 +124,7 @@ export function NewPurchaseOrderForm({ branches, suppliers, products }: Props) {
       const cost = Number(r.unitCost) || 0;
       if (qty <= 0 || cost < 0) continue;
       const lineNet = qty * cost;
-      const lineVat = lineNet * VAT_RATES[r.vatCode];
+      const lineVat = lineNet * (rates[r.vatCode] ?? 0);
       subtotal += lineNet;
       vat += lineVat;
     }
@@ -128,7 +133,7 @@ export function NewPurchaseOrderForm({ branches, suppliers, products }: Props) {
       vat: round2(vat),
       total: round2(subtotal + vat),
     };
-  }, [rows]);
+  }, [rows, rates]);
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -273,7 +278,7 @@ export function NewPurchaseOrderForm({ branches, suppliers, products }: Props) {
                         <p className="text-muted-foreground mt-1 text-xs">
                           unit: {product.base_unit}
                           {product.purchase_price != null
-                            ? ` · last cost ${formatEuro(product.purchase_price)}`
+                            ? ` · last cost ${money(product.purchase_price)}`
                             : ""}
                         </p>
                       ) : null}
@@ -312,7 +317,7 @@ export function NewPurchaseOrderForm({ branches, suppliers, products }: Props) {
                       </select>
                     </td>
                     <td className="p-2 text-right font-mono text-xs">
-                      {formatEuro(round2(lineSubtotal))}
+                      {money(round2(lineSubtotal))}
                     </td>
                     <td className="p-2">
                       <Button
@@ -335,14 +340,14 @@ export function NewPurchaseOrderForm({ branches, suppliers, products }: Props) {
                 <td colSpan={4} className="p-2 text-right text-xs font-medium">
                   Subtotal
                 </td>
-                <td className="p-2 text-right font-mono text-xs">{formatEuro(totals.subtotal)}</td>
+                <td className="p-2 text-right font-mono text-xs">{money(totals.subtotal)}</td>
                 <td />
               </tr>
               <tr>
                 <td colSpan={4} className="p-2 text-right text-xs font-medium">
                   VAT (estimated)
                 </td>
-                <td className="p-2 text-right font-mono text-xs">{formatEuro(totals.vat)}</td>
+                <td className="p-2 text-right font-mono text-xs">{money(totals.vat)}</td>
                 <td />
               </tr>
               <tr className="border-border border-t">
@@ -350,7 +355,7 @@ export function NewPurchaseOrderForm({ branches, suppliers, products }: Props) {
                   Total
                 </td>
                 <td className="p-2 text-right font-mono text-sm font-semibold">
-                  {formatEuro(totals.total)}
+                  {money(totals.total)}
                 </td>
                 <td />
               </tr>

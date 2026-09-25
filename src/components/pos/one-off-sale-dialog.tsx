@@ -19,10 +19,17 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pending?: boolean;
+  formatAmount?: (n: number) => string;
   onConfirm: (amount: number) => void;
 }
 
-export function OneOffSaleDialog({ open, onOpenChange, pending, onConfirm }: Props) {
+export function OneOffSaleDialog({
+  open,
+  onOpenChange,
+  pending,
+  onConfirm,
+  formatAmount = formatEuro,
+}: Props) {
   const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
   function reset() {
@@ -34,7 +41,7 @@ export function OneOffSaleDialog({ open, onOpenChange, pending, onConfirm }: Pro
     setError(null);
     const n = Number(amount.replace(",", "."));
     if (amount.trim() === "" || !Number.isFinite(n)) {
-      setError("Enter the sale amount in euro.");
+      setError("Enter the sale amount.");
       return;
     }
     if (n < 0.01) {
@@ -59,16 +66,13 @@ export function OneOffSaleDialog({ open, onOpenChange, pending, onConfirm }: Pro
         onOpenChange(next);
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" data-no-hid-scan="">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Tag className="size-4" />
             One-off sale
           </DialogTitle>
-          <DialogDescription>
-            For an item that is not in your product list. Enter the total you want to charge
-            (VAT-inclusive).
-          </DialogDescription>
+          <DialogDescription>Enter the amount.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">
@@ -94,7 +98,7 @@ export function OneOffSaleDialog({ open, onOpenChange, pending, onConfirm }: Pro
           {error ? <p className="text-destructive text-xs">{error}</p> : null}
           {amount.trim() !== "" && Number.isFinite(Number(amount)) ? (
             <p className="text-muted-foreground text-xs">
-              Charge: {formatEuro(Math.round(Number(amount.replace(",", ".")) * 100) / 100)}
+              Charge: {formatAmount(Math.round(Number(amount.replace(",", ".")) * 100) / 100)}
             </p>
           ) : null}
         </div>

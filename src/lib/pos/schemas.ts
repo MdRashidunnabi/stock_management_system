@@ -71,6 +71,8 @@ export const commitSaleSchema = z.object({
    * deduplicates so the cashier never charges twice.
    */
   clientUuid: entityIdSchema.optional(),
+  /** Bound till id from the signed ShopOS lease. Used to refuse revoked devices. */
+  deviceId: z.string().trim().min(8).max(80).optional(),
 });
 
 export type CommitSaleInput = z.input<typeof commitSaleSchema>;
@@ -135,6 +137,7 @@ export interface SaleFullRow {
   vat_breakdown: Record<string, { rate: number; base: number; vat: number }>;
   notes: string | null;
   created_at: string;
+  till_number: number | null;
   branch: { id: string; name: string; code: string } | null;
   customer: { id: string; full_name: string; email: string | null } | null;
   items: Array<{

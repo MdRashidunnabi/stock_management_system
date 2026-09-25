@@ -71,6 +71,20 @@ export const updateStorefrontSettingsSchema = z.object({
   youtubeUrl: optionalUrl,
   instagramUrl: optionalUrl,
   onlinePriceMarkupPct: z.coerce.number().min(0).max(50),
+  themeId: z
+    .enum([
+      "market",
+      "noir",
+      "linen",
+      "harbor",
+      "blossom",
+      "harvest",
+      "metro",
+      "grove",
+      "sunset",
+      "slate",
+    ])
+    .default("market"),
 });
 
 export type PlaceOnlineOrderInput = z.infer<typeof placeOnlineOrderSchema>;

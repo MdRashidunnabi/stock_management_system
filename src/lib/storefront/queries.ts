@@ -6,6 +6,7 @@ import type { DeliverySettings } from "@/lib/storefront/delivery";
 import { resolveStorefrontLogoUrl } from "@/lib/storefront/logo-url";
 import { computeOnlinePriceDisplay } from "@/lib/storefront/pricing";
 import { getStockDisplay, type StockDisplay } from "@/lib/storefront/stock-display";
+import { parseShopTemplateId, type ShopTemplateId } from "@/lib/storefront/templates";
 
 export interface StorefrontShop {
   tenantId: string;
@@ -35,6 +36,9 @@ export interface StorefrontShop {
   youtubeUrl: string | null;
   instagramUrl: string | null;
   branches: StorefrontBranchOption[];
+  currency: string;
+  locale: string;
+  themeId: ShopTemplateId;
 }
 
 export interface StorefrontCategory {
@@ -93,7 +97,7 @@ export const getStorefrontShop = cache(
 
     const { data: tenant, error } = await admin
       .from("tenants")
-      .select("id, slug, display_name, status")
+      .select("id, slug, display_name, status, currency, default_locale")
       .eq("slug", normalized)
       .in("status", ["trial", "active", "past_due"])
       .maybeSingle();
@@ -103,7 +107,7 @@ export const getStorefrontShop = cache(
     const { data: storefront } = await admin
       .from("tenant_storefronts")
       .select(
-        "enabled, branch_id, tagline, phone, whatsapp, hero_title, hero_subtitle, order_notice, low_stock_threshold, public_site_name, custom_domain, logo_url, delivery_standard_fee, delivery_free_over, delivery_min_order, enable_takeaway, enable_online_payment, footer_about, call_us_label, facebook_url, twitter_url, youtube_url, instagram_url, online_price_markup_pct",
+        "enabled, branch_id, tagline, phone, whatsapp, hero_title, hero_subtitle, order_notice, low_stock_threshold, public_site_name, custom_domain, logo_url, delivery_standard_fee, delivery_free_over, delivery_min_order, enable_takeaway, enable_online_payment, footer_about, call_us_label, facebook_url, twitter_url, youtube_url, instagram_url, online_price_markup_pct, theme_id",
       )
       .eq("tenant_id", tenant.id)
       .eq("enabled", true)
@@ -166,6 +170,9 @@ export const getStorefrontShop = cache(
       youtubeUrl: storefront.youtube_url,
       instagramUrl: storefront.instagram_url,
       branches,
+      currency: tenant.currency ?? "EUR",
+      locale: tenant.default_locale ?? "en",
+      themeId: parseShopTemplateId(storefront.theme_id),
     };
   },
 );

@@ -16,12 +16,12 @@ export function ShopHeader({ shop, categories, cartCount = 0 }: Props) {
 
   return (
     <header className="bg-card/95 border-border/80 sticky top-0 z-40 border-b backdrop-blur-md">
-      <div className="app-header-bar px-4 py-2 text-center text-xs font-medium">
+      <div className="shop-notice-bar px-4 py-2 text-center text-xs font-medium">
         {shop.orderNotice ?? "Pay on delivery — we will confirm your order by phone."}
       </div>
-      <div className="mx-auto max-w-6xl space-y-3 px-4 py-3 sm:px-6">
-        <div className="flex items-center justify-between gap-3">
-          <Link href={base} className="flex min-w-0 shrink-0 items-center">
+      <div className="shop-shell mx-auto max-w-6xl space-y-3 px-4 py-3 sm:px-6">
+        <div className="shop-header-row flex items-center justify-between gap-3">
+          <Link href={base} className="shop-brand flex min-w-0 shrink-0 items-center">
             {shop.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img

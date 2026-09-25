@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { env } from "@/lib/env";
@@ -8,12 +9,9 @@ import type { Database } from "@/lib/supabase/types";
  *
  * - Reads/writes cookies via Next's cookies() so the user's session is fresh.
  * - Still uses the anon key, so RLS policies are enforced by the auth context.
- *
- * Usage:
- *   const supabase = await createClient();
- *   const { data: { user } } = await supabase.auth.getUser();
+ * - Wrapped in React `cache()` so one request does not open many clients.
  */
-export async function createClient() {
+export const createClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createServerClient<Database>(
@@ -37,4 +35,4 @@ export async function createClient() {
       },
     },
   );
-}
+});

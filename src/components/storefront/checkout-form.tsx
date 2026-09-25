@@ -16,7 +16,8 @@ import {
   type DeliverySettings,
   type FulfillmentType,
 } from "@/lib/storefront/delivery";
-import { cn, formatEuro } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useShopMoney } from "@/components/storefront/shop-money";
 
 type PaymentMethod = "cod" | "online_card";
 
@@ -37,6 +38,7 @@ function minPickupLocal(): string {
 export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlinePayment }: Props) {
   const router = useRouter();
   const { lines, subtotal, clear } = useCart();
+  const money = useShopMoney();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [fulfillment, setFulfillment] = useState<FulfillmentType>("delivery");
@@ -114,19 +116,17 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
         <dl className="mt-2 space-y-1 text-sm">
           <div className="flex justify-between">
             <dt className="text-muted-foreground">Products</dt>
-            <dd className="font-mono">{formatEuro(subtotal)}</dd>
+            <dd className="font-mono">{money(subtotal)}</dd>
           </div>
           <div className="flex justify-between">
             <dt className="text-muted-foreground">Delivery</dt>
             <dd className="font-mono">
-              {quote.fee === 0 ? <span className="text-primary">Free</span> : formatEuro(quote.fee)}
+              {quote.fee === 0 ? <span className="text-primary">Free</span> : money(quote.fee)}
             </dd>
           </div>
           <div className="flex justify-between border-t border-stone-200 pt-2 dark:border-stone-700">
             <dt className="font-semibold">Total</dt>
-            <dd className="text-primary text-primary text-lg font-bold">
-              {formatEuro(orderTotal)}
-            </dd>
+            <dd className="text-primary text-primary text-lg font-bold">{money(orderTotal)}</dd>
           </div>
         </dl>
         <p className="text-muted-foreground mt-2 text-xs">{quote.label}</p>
@@ -302,7 +302,7 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
         disabled={pending}
       >
         {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-        Place order — {formatEuro(orderTotal)}
+        Place order — {money(orderTotal)}
       </Button>
     </form>
   );

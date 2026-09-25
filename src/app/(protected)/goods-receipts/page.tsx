@@ -27,11 +27,9 @@ export default async function GoodsReceiptsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Goods receipts</h1>
-          <p className="text-muted-foreground text-sm">
-            Each receipt records what actually arrived from a supplier. Finalising a receipt updates
-            stock balances and the weighted-average product cost.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight" data-guide="goods-receipts">
+            Goods receipts
+          </h1>
         </div>
         <Link
           href="/goods-receipts/new"
@@ -44,9 +42,7 @@ export default async function GoodsReceiptsPage() {
       <div className="border-border bg-card overflow-x-auto rounded-lg border">
         {receipts.length === 0 ? (
           <div className="space-y-2 p-10 text-center">
-            <p className="text-muted-foreground text-sm">
-              No goods receipts yet. When supplier deliveries arrive, log them here.
-            </p>
+            <p className="text-muted-foreground text-sm">No goods receipts yet.</p>
           </div>
         ) : (
           <Table>

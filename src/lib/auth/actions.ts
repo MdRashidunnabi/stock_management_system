@@ -21,18 +21,24 @@ import { getPostAuthRedirectPath } from "@/lib/auth/routing";
  * shown to end-users verbatim. Anything else falls back to a generic message.
  */
 function mapAuthError(message: string | undefined): string {
-  if (!message) return "Something went wrong. Please try again.";
+  if (!message) return "errors.generic";
   const m = message.toLowerCase();
-  if (m.includes("invalid login")) return "Email or password is incorrect.";
-  if (m.includes("email not confirmed"))
-    return "Please confirm your email before signing in. Check your inbox.";
-  if (m.includes("user already registered"))
-    return "An account with this email already exists. Try signing in.";
-  if (m.includes("password") && m.includes("at least"))
-    return "Password is too weak. Use at least 8 characters with letters and numbers.";
-  if (m.includes("rate limit"))
-    return "Too many attempts. Please wait a minute before trying again.";
-  return message;
+  if (
+    m.includes("fetch failed") ||
+    m.includes("enotfound") ||
+    m.includes("failed to fetch") ||
+    m.includes("network")
+  ) {
+    return "errors.unreachable";
+  }
+  if (m.includes("invalid login")) return "errors.badLogin";
+  if (m.includes("email not confirmed")) return "errors.emailUnconfirmed";
+  if (m.includes("user already registered") || m.includes("already been registered")) {
+    return "errors.emailTaken";
+  }
+  if (m.includes("password") && m.includes("at least")) return "errors.passwordWeak";
+  if (m.includes("rate limit")) return "errors.rateLimit";
+  return "errors.generic";
 }
 
 /**
@@ -84,6 +90,7 @@ export const signUpAction = actionClient
         emailRedirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/dashboard`,
         data: {
           full_name: parsedInput.fullName,
+          country: parsedInput.country,
           marketing_opt_in: parsedInput.marketingOptIn ?? false,
         },
       },
@@ -100,7 +107,7 @@ export const signUpAction = actionClient
     if (data.user && identities.length === 0) {
       return {
         ok: false as const,
-        message: "An account with this email already exists. Try signing in.",
+        message: "errors.emailTaken",
       };
     }
 
@@ -174,7 +181,7 @@ export const setActiveTenantAction = authActionClient
     if (!ok) {
       return {
         ok: false as const,
-        message: "You don't have access to that shop.",
+        message: "errors.shopAccess",
       };
     }
     await writeActiveTenantCookie(parsedInput.tenantId);

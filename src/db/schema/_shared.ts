@@ -33,6 +33,10 @@ export const userRole = pgEnum("user_role", [
 
 export const posSessionStatus = pgEnum("pos_session_status", ["open", "closed", "force_closed"]);
 
+export const posShiftCode = pgEnum("pos_shift_code", ["morning", "evening", "night"]);
+
+export const shiftAccountStatus = pgEnum("shift_account_status", ["open", "finalised"]);
+
 export const saleChannel = pgEnum("sale_channel", ["pos", "online", "b2b", "phone"]);
 
 export const saleStatus = pgEnum("sale_status", [

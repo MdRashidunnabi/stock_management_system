@@ -10,10 +10,18 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { SubscriptionBanner } from "@/components/billing/subscription-banner";
 import { DesktopShell } from "@/components/desktop/desktop-shell";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { getTenantSubscriptionAccess } from "@/lib/billing/queries";
 import { isPlatformStaff } from "@/lib/platform/auth";
+import { LicenseHeartbeat } from "@/components/license/license-heartbeat";
+import { getLicensePublicKeySpkiB64 } from "@/lib/license/sign";
 
-const BILLING_ALLOWED_PREFIXES = ["/settings/billing", "/billing/", "/onboarding/subscribe"];
+const BILLING_ALLOWED_PREFIXES = [
+  "/settings/billing",
+  "/settings/tills",
+  "/billing/",
+  "/onboarding/subscribe",
+];
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -34,6 +42,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") ?? "";
   const onBillingRoute = BILLING_ALLOWED_PREFIXES.some((p) => pathname.startsWith(p));
+  const isCustomerDisplay = pathname === "/pos/display";
 
   if (access && !access.canUseApp && !onBillingRoute) {
     redirect("/billing/locked");
@@ -51,6 +60,14 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   const profileInitial =
     user.user_metadata?.full_name?.[0]?.toUpperCase() ?? user.email?.[0]?.toUpperCase() ?? "?";
 
+  if (isCustomerDisplay) {
+    return (
+      <LicenseHeartbeat tenantId={tenant.tenantId} verifyKey={getLicensePublicKeySpkiB64()}>
+        <div className="bg-background min-h-dvh">{children}</div>
+      </LicenseHeartbeat>
+    );
+  }
+
   return (
     <div className="min-h-dvh">
       <DesktopShell />
@@ -67,7 +84,8 @@ export default async function ProtectedLayout({ children }: { children: React.Re
           <TenantSwitcher current={tenant} memberships={memberships} />
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <LanguageSwitcher compact light />
           <div className="hidden text-xs sm:flex sm:flex-col sm:items-end">
             <span className="text-sm leading-none font-medium text-white">
               {user.user_metadata?.full_name ?? user.email}
@@ -87,7 +105,9 @@ export default async function ProtectedLayout({ children }: { children: React.Re
         <AppSidebar role={tenant.role} showPlatform={platform} />
         <main className="app-page min-w-0 flex-1">
           {access ? <SubscriptionBanner access={access} /> : null}
-          {children}
+          <LicenseHeartbeat tenantId={tenant.tenantId} verifyKey={getLicensePublicKeySpkiB64()}>
+            {children}
+          </LicenseHeartbeat>
         </main>
       </div>
     </div>

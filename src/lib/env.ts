@@ -55,6 +55,7 @@ const serverSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
+  LICENSE_SIGNING_SECRET: z.string().min(16).optional(),
 });
 
 const clientEnv = {
@@ -91,6 +92,7 @@ if (isServer) {
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     SENTRY_DSN: process.env.SENTRY_DSN,
+    LICENSE_SIGNING_SECRET: process.env.LICENSE_SIGNING_SECRET,
   };
 
   const parsed = serverSchema.safeParse(serverEnv);

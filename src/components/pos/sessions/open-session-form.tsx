@@ -11,6 +11,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getSafeActionData, getSafeActionError } from "@/lib/parse-safe-action-result";
 import { openPosSessionAction } from "@/lib/pos/sessions/actions";
+import { useTillLicense } from "@/components/license/license-heartbeat";
+import { TillLockedNotice } from "@/components/license/till-locked-notice";
+import {
+  defaultBusinessDateISO,
+  formatTillLabel,
+  suggestShiftCode,
+  type ShiftCode,
+} from "@/lib/pos/shifts";
+import { ShiftSelect } from "@/components/pos/sessions/shift-select";
+import { TillNumberPicker } from "@/components/pos/sessions/till-number-picker";
+import type { TillSlot } from "@/lib/pos/sessions/schemas";
 
 interface BranchOption {
   id: string;
@@ -21,10 +32,20 @@ interface BranchOption {
 interface Props {
   branches: BranchOption[];
   defaultBranchId: string | null;
+  defaultShift?: ShiftCode;
+  defaultBusinessDate?: string;
+  tillSlotsByBranch: Record<string, TillSlot[]>;
 }
 
-export function OpenSessionForm({ branches, defaultBranchId }: Props) {
+export function OpenSessionForm({
+  branches,
+  defaultBranchId,
+  defaultShift,
+  defaultBusinessDate,
+  tillSlotsByBranch,
+}: Props) {
   const router = useRouter();
+  const { canSell, reason: licenseReason, deviceId } = useTillLicense();
   const [pending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
   const initialBranchId = defaultBranchId ?? branches[0]?.id ?? "";
@@ -32,16 +53,36 @@ export function OpenSessionForm({ branches, defaultBranchId }: Props) {
   const activeBranchId = branchId || defaultBranchId || branches[0]?.id || "";
   const [openingCash, setOpeningCash] = useState<string>("0");
   const [note, setNote] = useState<string>("");
+  const [shiftCode, setShiftCode] = useState<ShiftCode>(defaultShift ?? suggestShiftCode());
+  const [businessDate, setBusinessDate] = useState<string>(
+    defaultBusinessDate ?? defaultBusinessDateISO(defaultShift ?? suggestShiftCode()),
+  );
+  const [tillNumber, setTillNumber] = useState<number | null>(null);
   const branchSelectRef = useRef<HTMLSelectElement>(null);
+  const slots = tillSlotsByBranch[activeBranchId] ?? [];
+  const mySlot = slots.find((s) => s.device_id && s.device_id === deviceId);
+  const resolvedTill = mySlot?.number ?? tillNumber;
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setServerError(null);
     startTransition(async () => {
+      if (!resolvedTill) {
+        setServerError("Pick Till 1 to Till 10 for this computer.");
+        return;
+      }
+      if (!canSell) {
+        setServerError(licenseReason);
+        return;
+      }
       const res = await openPosSessionAction({
         branchId: branchSelectRef.current?.value || activeBranchId,
         openingCash: Number(openingCash) || 0,
         note: note.trim() || undefined,
+        deviceId: deviceId || undefined,
+        tillNumber: resolvedTill ?? undefined,
+        shiftCode,
+        businessDate,
       });
       const err = getSafeActionError(res);
       if (err) {
@@ -50,7 +91,7 @@ export function OpenSessionForm({ branches, defaultBranchId }: Props) {
       }
       const data = getSafeActionData<{ ok: true; sessionId: string }>(res);
       if (data) {
-        toast.success("Till opened");
+        toast.success(`${formatTillLabel(resolvedTill)} opened`);
         router.push(`/sessions/${data.sessionId}`);
         router.refresh();
         return;
@@ -61,6 +102,7 @@ export function OpenSessionForm({ branches, defaultBranchId }: Props) {
 
   return (
     <form onSubmit={submit} className="space-y-5">
+      <TillLockedNotice />
       <div className="space-y-2">
         <Label htmlFor="branch">Branch</Label>
         <select
@@ -77,13 +119,37 @@ export function OpenSessionForm({ branches, defaultBranchId }: Props) {
             </option>
           ))}
         </select>
-        <p className="text-muted-foreground text-xs">
-          Each cashier can have one open till per branch at a time.
-        </p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="openingCash">Opening cash float (EUR)</Label>
+        <Label>Till number</Label>
+        <TillNumberPicker
+          slots={slots}
+          deviceId={deviceId}
+          value={resolvedTill}
+          onChange={setTillNumber}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="shift">Shift</Label>
+          <ShiftSelect id="shift" value={shiftCode} onChange={setShiftCode} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="businessDate">Business date</Label>
+          <Input
+            id="businessDate"
+            type="date"
+            value={businessDate}
+            onChange={(e) => setBusinessDate(e.target.value)}
+            required
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="openingCash">Opening cash</Label>
         <Input
           id="openingCash"
           type="number"
@@ -93,10 +159,6 @@ export function OpenSessionForm({ branches, defaultBranchId }: Props) {
           onChange={(e) => setOpeningCash(e.target.value)}
           placeholder="0.00"
         />
-        <p className="text-muted-foreground text-xs">
-          The cash you have in the drawer right now, before any sales. Used to compute the variance
-          when you close the till.
-        </p>
       </div>
 
       <div className="space-y-2">
@@ -107,7 +169,7 @@ export function OpenSessionForm({ branches, defaultBranchId }: Props) {
           maxLength={200}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="e.g. Morning shift, two €50 notes + coin float"
+          placeholder="Optional"
         />
       </div>
 
@@ -118,12 +180,17 @@ export function OpenSessionForm({ branches, defaultBranchId }: Props) {
         </Alert>
       ) : null}
 
-      <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto">
+      <Button
+        type="submit"
+        size="lg"
+        disabled={pending || !canSell || !resolvedTill}
+        className="w-full sm:w-auto"
+      >
         {pending ? (
           <Loader2 className="size-4 animate-spin" />
         ) : (
           <>
-            <KeyRound className="size-4" /> Open till
+            <KeyRound className="size-4" /> Open {formatTillLabel(resolvedTill)}
           </>
         )}
       </Button>

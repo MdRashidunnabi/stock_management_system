@@ -33,15 +33,15 @@ export default async function ShopProductPage({
     <div className="space-y-6">
       <Link
         href={`/shop/${shop.slug}`}
-        className="text-muted-foreground inline-flex items-center gap-1 text-sm font-medium hover:text-emerald-800"
+        className="text-muted-foreground hover:text-primary inline-flex items-center gap-1 text-sm font-medium"
       >
         <ChevronLeft className="size-4" />
         Back to shop
       </Link>
 
       <div className="grid gap-8 lg:grid-cols-2 lg:gap-10">
-        <div className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="aspect-square bg-stone-50 dark:bg-stone-900/50">
+        <div className="shop-panel bg-card overflow-hidden border shadow-sm">
+          <div className="bg-muted/40 aspect-square">
             {product.primaryImageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -59,13 +59,11 @@ export default async function ShopProductPage({
 
         <div className="space-y-5">
           {product.categoryName ? (
-            <p className="text-xs font-semibold tracking-wide text-emerald-700 uppercase">
+            <p className="text-primary text-xs font-semibold tracking-wide uppercase">
               {product.categoryName}
             </p>
           ) : null}
-          <h1 className="text-2xl font-bold tracking-tight text-stone-900 sm:text-3xl dark:text-stone-50">
-            {product.name}
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{product.name}</h1>
           {product.sku ? (
             <p className="text-muted-foreground font-mono text-xs">{product.sku}</p>
           ) : null}

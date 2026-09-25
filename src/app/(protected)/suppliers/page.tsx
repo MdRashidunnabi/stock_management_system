@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -25,10 +25,9 @@ export default async function SuppliersPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Suppliers</h1>
-          <p className="text-muted-foreground text-sm">
-            People and companies you buy stock from. Used on purchase orders and goods receipts.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight" data-guide="suppliers">
+            Suppliers
+          </h1>
         </div>
         {canWrite ? (
           <Button asChild>
@@ -43,16 +42,10 @@ export default async function SuppliersPage() {
       <Card>
         <CardHeader>
           <CardTitle>All suppliers ({suppliers.length})</CardTitle>
-          <CardDescription>
-            Click a supplier to edit. Archived suppliers cannot be used on new purchase orders but
-            stay available for historical records.
-          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {suppliers.length === 0 ? (
-            <p className="text-muted-foreground p-6 text-sm">
-              No suppliers yet. Add your first one with the button above.
-            </p>
+            <p className="text-muted-foreground p-6 text-sm">No suppliers yet.</p>
           ) : (
             <Table>
               <TableHeader>

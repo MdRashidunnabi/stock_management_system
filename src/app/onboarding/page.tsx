@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { getCurrentUser, requireUser } from "@/lib/auth/tenant";
 import { getBillingAccountForOwner, listOwnerShops } from "@/lib/billing/account-queries";
 
@@ -26,14 +27,18 @@ export default async function OnboardingPage() {
   return (
     <div className="bg-background min-h-dvh">
       <header className="border-border bg-card/40 sticky top-0 z-30 flex h-14 items-center justify-between border-b px-4 backdrop-blur sm:px-6">
-        <div className="text-muted-foreground text-xs">ShopOS - Ireland</div>
-        <SignOutButton />
+        <div className="text-muted-foreground text-xs">ShopOS</div>
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher compact />
+          <SignOutButton />
+        </div>
       </header>
 
       <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6 lg:py-12">
         <OnboardingWizard
           ownerEmail={user.email ?? "you"}
           ownerName={(user.user_metadata?.full_name as string | undefined) ?? null}
+          defaultCountry={(user.user_metadata?.country as string | undefined) ?? null}
         />
       </main>
     </div>

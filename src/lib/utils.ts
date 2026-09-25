@@ -1,53 +1,58 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-/**
- * Merge Tailwind class names safely (clsx + tailwind-merge).
- * Used by every UI component (shadcn/ui convention).
- */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/**
- * Format a number as Euro using Irish locale (en-IE).
- */
+export function formatMoney(
+  value: number,
+  currency = "EUR",
+  locale = "en",
+  options?: Intl.NumberFormatOptions,
+) {
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+      ...options,
+    }).format(value);
+  } catch {
+    return `${currency} ${Number(value).toFixed(2)}`;
+  }
+}
+
+/** ShopOS subscription billing stays in euro. Tenant till money uses formatMoney. */
 export function formatEuro(value: number, options?: Intl.NumberFormatOptions) {
-  return new Intl.NumberFormat("en-IE", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-    ...options,
-  }).format(value);
+  return formatMoney(value, "EUR", "en", options);
 }
 
-/**
- * Format a date in Europe/Dublin time zone.
- */
+export function formatDateTime(date: Date | string | number, timeZone = "UTC", locale = "en") {
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone,
+    }).format(typeof date === "string" || typeof date === "number" ? new Date(date) : date);
+  } catch {
+    return new Intl.DateTimeFormat(locale, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(typeof date === "string" || typeof date === "number" ? new Date(date) : date);
+  }
+}
+
+/** @deprecated Use formatDateTime with the shop timezone. */
 export function formatDateTimeIE(date: Date | string | number) {
-  return new Intl.DateTimeFormat("en-IE", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Europe/Dublin",
-  }).format(typeof date === "string" || typeof date === "number" ? new Date(date) : date);
+  return formatDateTime(date, "Europe/Dublin", "en-IE");
 }
 
-/**
- * Sleep helper for retries / debouncing in scripts.
- */
 export function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Convert a free-form display name into a URL-safe slug.
- *  - lowercase
- *  - strip diacritics ("Café" -> "cafe")
- *  - replace runs of non-alphanumerics with a single dash
- *  - trim leading/trailing dashes
- *  - clamp to 60 chars (matches our DB column comfort)
- */
 export function slugify(input: string): string {
   return input
     .normalize("NFD")

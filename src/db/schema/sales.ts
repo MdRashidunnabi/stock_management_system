@@ -1,5 +1,6 @@
 import {
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -19,6 +20,7 @@ import {
   paymentMethod,
   paymentStatus,
   posSessionStatus,
+  posShiftCode,
   saleChannel,
   saleStatus,
   updatedAt,
@@ -70,6 +72,10 @@ export const posSessions = pgTable(
     closingNote: text("closing_note"),
     closedBy: uuid("closed_by"),
     managerPinUsed: boolean("manager_pin_used").notNull().default(false),
+    shiftCode: posShiftCode("shift_code").notNull().default("morning"),
+    businessDate: date("business_date").notNull(),
+    deviceId: text("device_id"),
+    tillNumber: integer("till_number"),
     createdAt,
     updatedAt,
   },
@@ -77,6 +83,7 @@ export const posSessions = pgTable(
     index("pos_sessions_tenant_idx_d").on(t.tenantId),
     index("pos_sessions_branch_idx_d").on(t.branchId),
     index("pos_sessions_status_idx_d").on(t.tenantId, t.status),
+    index("pos_sessions_shift_idx_d").on(t.tenantId, t.branchId, t.businessDate, t.shiftCode),
   ],
 );
 

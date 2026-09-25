@@ -15,6 +15,8 @@ const PUBLIC_PATHS = [
   "/verify-email",
   "/legal/privacy",
   "/legal/terms",
+  "/demo",
+  "/~offline",
 ];
 
 const PUBLIC_PREFIXES_EXTRA = ["/invite/"];
@@ -22,6 +24,7 @@ const PUBLIC_PREFIXES_EXTRA = ["/invite/"];
 const PUBLIC_PREFIXES = [
   "/api/health",
   "/api/auth/",
+  "/api/locale",
   "/auth/",
   "/_next/",
   "/favicon",
@@ -30,6 +33,26 @@ const PUBLIC_PREFIXES = [
   "/static/",
   "/shop/",
   "/shops/",
+];
+
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/pos",
+  "/sales",
+  "/online-orders",
+  "/sessions",
+  "/products",
+  "/categories",
+  "/brands",
+  "/suppliers",
+  "/purchase-orders",
+  "/goods-receipts",
+  "/audit",
+  "/settings",
+  "/billing",
+  "/onboarding",
+  "/platform",
+  "/reset-password",
 ];
 
 /**
@@ -48,6 +71,12 @@ function isPublicPath(pathname: string) {
   if (PUBLIC_PATHS.includes(pathname)) return true;
   if (PUBLIC_PREFIXES_EXTRA.some((prefix) => pathname.startsWith(prefix))) return true;
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+function isProtectedPath(pathname: string) {
+  return PROTECTED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 }
 
 /**
@@ -106,7 +135,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // 3. Protected path with no session -> /login?next=...
-  if (!user && !isPublicPath(pathname) && !RECOVERY_REQUIRED.has(pathname)) {
+  if (!user && isProtectedPath(pathname) && !isPublicPath(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);

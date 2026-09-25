@@ -11,8 +11,11 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { forgotPasswordSchema, type ForgotPasswordInput } from "@/lib/auth/schemas";
 import { requestPasswordResetAction } from "@/lib/auth/actions";
+import { useT } from "@/components/i18n/locale-provider";
+import { displayMessage } from "@/lib/i18n/display";
 
 export function ForgotPasswordForm() {
+  const { t } = useT();
   const [pending, startTransition] = useTransition();
   const [sent, setSent] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -27,7 +30,7 @@ export function ForgotPasswordForm() {
     startTransition(async () => {
       const res = await requestPasswordResetAction(values);
       if (res?.serverError) {
-        setServerError(res.serverError);
+        setServerError(displayMessage(t, res.serverError));
         return;
       }
       if (res?.data?.ok) {
@@ -39,10 +42,7 @@ export function ForgotPasswordForm() {
   if (sent) {
     return (
       <Alert>
-        <AlertDescription>
-          If an account exists for <span className="font-medium">{sent}</span>, we&apos;ve sent a
-          password-reset link. Check your inbox (and the spam folder). The link expires in 1 hour.
-        </AlertDescription>
+        <AlertDescription>{t("auth.resetSent")}</AlertDescription>
       </Alert>
     );
   }
@@ -56,7 +56,7 @@ export function ForgotPasswordForm() {
       ) : null}
 
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t("auth.email")}</Label>
         <Input
           id="email"
           type="email"
@@ -67,21 +67,23 @@ export function ForgotPasswordForm() {
           {...form.register("email")}
         />
         {form.formState.errors.email ? (
-          <p className="text-destructive text-xs">{form.formState.errors.email.message}</p>
+          <p className="text-destructive text-xs">
+            {displayMessage(t, form.formState.errors.email.message)}
+          </p>
         ) : null}
       </div>
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? <Loader2 className="size-4 animate-spin" /> : "Send reset link"}
+        {pending ? <Loader2 className="size-4 animate-spin" /> : t("auth.sendLink")}
       </Button>
 
       <p className="text-muted-foreground text-center text-sm">
-        Remembered it?{" "}
+        {t("auth.remembered")}{" "}
         <Link
           href="/login"
           className="text-foreground font-medium underline-offset-2 hover:underline"
         >
-          Back to sign in
+          {t("common.signIn")}
         </Link>
       </p>
     </form>

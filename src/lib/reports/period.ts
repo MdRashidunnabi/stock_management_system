@@ -25,24 +25,28 @@ const TIMEZONE = "Europe/Dublin";
  * Compute midnight in Dublin local time as a UTC instant.
  * Handles DST: IE switches between IST/BST and GMT in March / October.
  */
-export function dublinStartOfDay(date: Date): Date {
+export function dublinStartOfDay(date: Date, timeZone = TIMEZONE): Date {
   const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: TIMEZONE,
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   });
   const parts = fmt.formatToParts(date);
   const get = (name: string) => parts.find((p) => p.type === name)?.value ?? "00";
-  const dublinDate = `${get("year")}-${get("month")}-${get("day")}`;
-  const utcMidnight = new Date(`${dublinDate}T00:00:00Z`);
-  const offsetMin = getDublinOffsetMinutes(utcMidnight);
+  const localDate = `${get("year")}-${get("month")}-${get("day")}`;
+  const utcMidnight = new Date(`${localDate}T00:00:00Z`);
+  const offsetMin = getOffsetMinutes(utcMidnight, timeZone);
   return new Date(utcMidnight.getTime() - offsetMin * 60_000);
 }
 
 export function getDublinOffsetMinutes(at: Date): number {
+  return getOffsetMinutes(at, TIMEZONE);
+}
+
+export function getOffsetMinutes(at: Date, timeZone = TIMEZONE): number {
   const dtf = new Intl.DateTimeFormat("en-GB", {
-    timeZone: TIMEZONE,
+    timeZone,
     timeZoneName: "shortOffset",
   });
   const tzPart = dtf.formatToParts(at).find((p) => p.type === "timeZoneName")?.value;
@@ -54,9 +58,9 @@ export function getDublinOffsetMinutes(at: Date): number {
   return hours * 60 + (hours < 0 ? -minutes : minutes);
 }
 
-export function toDublinIsoDate(date: Date): string {
+export function toDublinIsoDate(date: Date, timeZone = TIMEZONE): string {
   const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: TIMEZONE,
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -66,8 +70,12 @@ export function toDublinIsoDate(date: Date): string {
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
-export function getPeriodRange(period: ReportPeriod, now: Date = new Date()): PeriodRange {
-  const startOfToday = dublinStartOfDay(now);
+export function getPeriodRange(
+  period: ReportPeriod,
+  now: Date = new Date(),
+  timeZone = TIMEZONE,
+): PeriodRange {
+  const startOfToday = dublinStartOfDay(now, timeZone);
   if (period === "today") {
     return {
       fromIso: startOfToday.toISOString(),

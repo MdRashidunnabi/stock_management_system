@@ -27,7 +27,7 @@ export function ShopFooter({ shop, categories }: Props) {
 
   return (
     <footer className="border-border/80 bg-card mt-12 border-t">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:gap-10">
+      <div className="shop-shell mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:gap-10">
         <div className="space-y-3">
           <h2 className="text-base font-bold">About {shop.publicSiteName}</h2>
           <p className="text-muted-foreground text-sm leading-relaxed">

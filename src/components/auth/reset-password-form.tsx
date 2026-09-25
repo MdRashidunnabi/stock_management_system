@@ -12,8 +12,11 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { resetPasswordSchema, type ResetPasswordInput } from "@/lib/auth/schemas";
 import { updatePasswordAction } from "@/lib/auth/actions";
+import { useT } from "@/components/i18n/locale-provider";
+import { displayMessage } from "@/lib/i18n/display";
 
 export function ResetPasswordForm() {
+  const { t } = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -28,16 +31,16 @@ export function ResetPasswordForm() {
     startTransition(async () => {
       const res = await updatePasswordAction(values);
       if (res?.serverError) {
-        setServerError(res.serverError);
+        setServerError(displayMessage(t, res.serverError));
         return;
       }
       const data = res?.data;
       if (data && data.ok === false) {
-        setServerError(data.message);
+        setServerError(displayMessage(t, data.message));
         return;
       }
       if (data && data.ok === true) {
-        toast.success("Password updated. You can now sign in.");
+        toast.success(t("auth.passwordUpdated"));
         router.push("/dashboard");
       }
     });
@@ -52,7 +55,7 @@ export function ResetPasswordForm() {
       ) : null}
 
       <div className="space-y-2">
-        <Label htmlFor="password">New password</Label>
+        <Label htmlFor="password">{t("auth.password")}</Label>
         <Input
           id="password"
           type="password"
@@ -63,16 +66,16 @@ export function ResetPasswordForm() {
           {...form.register("password")}
         />
         {form.formState.errors.password ? (
-          <p className="text-destructive text-xs">{form.formState.errors.password.message}</p>
-        ) : (
-          <p className="text-muted-foreground text-xs">
-            At least 8 characters, including a letter and a number.
+          <p className="text-destructive text-xs">
+            {displayMessage(t, form.formState.errors.password.message)}
           </p>
+        ) : (
+          <p className="text-muted-foreground text-xs">{t("auth.passwordHint")}</p>
         )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirm new password</Label>
+        <Label htmlFor="confirmPassword">{t("auth.confirmPassword")}</Label>
         <Input
           id="confirmPassword"
           type="password"
@@ -83,13 +86,13 @@ export function ResetPasswordForm() {
         />
         {form.formState.errors.confirmPassword ? (
           <p className="text-destructive text-xs">
-            {form.formState.errors.confirmPassword.message}
+            {displayMessage(t, form.formState.errors.confirmPassword.message)}
           </p>
         ) : null}
       </div>
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? <Loader2 className="size-4 animate-spin" /> : "Update password"}
+        {pending ? <Loader2 className="size-4 animate-spin" /> : t("common.save")}
       </Button>
     </form>
   );

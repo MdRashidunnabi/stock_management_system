@@ -8,6 +8,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CASH_MOVEMENT_LABEL, type SessionSummary } from "@/lib/pos/sessions/schemas";
+import { formatShiftLabel, formatTillLabel } from "@/lib/pos/shifts";
+import { formatVatPercent } from "@/lib/pos/vat-display";
 import { formatDateTimeIE, formatEuro } from "@/lib/utils";
 
 const PAYMENT_LABEL: Record<string, string> = {
@@ -54,10 +56,11 @@ export function ZReport({ summary, shopName }: Props) {
           </p>
         ) : null}
         <p className="text-base font-semibold tracking-wide uppercase">
-          {isClosed ? "Z-Report" : "X-Report (live, till still open)"}
+          {isClosed ? "Z-Report" : "X-Report (live, till still open)"} ·{" "}
+          {formatShiftLabel(session.shift_code)} {session.business_date}
         </p>
         <p className="text-muted-foreground text-xs">
-          Cashier: <strong>{session.cashier_label}</strong>
+          {formatTillLabel(session.till_number)} · Cashier: <strong>{session.cashier_label}</strong>
         </p>
         <p className="text-muted-foreground text-xs">
           Opened {formatDateTimeIE(session.opened_at)}
@@ -134,9 +137,7 @@ export function ZReport({ summary, shopName }: Props) {
               {vat.map((v) => (
                 <TableRow key={v.vat_code}>
                   <TableCell className="font-mono">{v.vat_code}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {(v.rate * 100).toFixed(v.rate < 0.1 ? 1 : 0)}%
-                  </TableCell>
+                  <TableCell className="text-right font-mono">{formatVatPercent(v.rate)}</TableCell>
                   <TableCell className="text-right font-mono">{formatEuro(v.net)}</TableCell>
                   <TableCell className="text-right font-mono">{formatEuro(v.vat)}</TableCell>
                 </TableRow>

@@ -27,11 +27,9 @@ export default async function MyShopsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">My shops</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Switch between shops from the menu at the top. Each shop has its own products and
-            website.
-          </p>
+          <h1 className="text-2xl font-bold" data-guide="shops">
+            My shops
+          </h1>
           {planText ? (
             <p className="text-muted-foreground mt-2 text-xs">
               Plan: {planText} · {shops.length} of {licensed} shop(s) used

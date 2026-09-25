@@ -1,6 +1,9 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
-import { cn, formatEuro } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { OnlinePriceDisplay } from "@/lib/storefront/pricing";
+import { useShopMoney } from "@/components/storefront/shop-money";
 
 interface Props {
   pricing: OnlinePriceDisplay;
@@ -9,6 +12,7 @@ interface Props {
 }
 
 export function OnlinePrice({ pricing, size = "md", className }: Props) {
+  const money = useShopMoney();
   const priceClass =
     size === "lg"
       ? "text-3xl font-bold"
@@ -26,11 +30,11 @@ export function OnlinePrice({ pricing, size = "md", className }: Props) {
       <div className="flex flex-wrap items-baseline gap-2">
         {pricing.compareAtPrice != null ? (
           <span className="text-muted-foreground text-sm font-medium line-through decoration-2">
-            {formatEuro(pricing.compareAtPrice)}
+            {money(pricing.compareAtPrice)}
           </span>
         ) : null}
         <span className={cn("text-primary tracking-tight", priceClass)}>
-          {formatEuro(pricing.price)}
+          {money(pricing.price)}
         </span>
       </div>
     </div>

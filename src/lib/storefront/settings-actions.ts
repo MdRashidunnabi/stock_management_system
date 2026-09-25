@@ -34,6 +34,7 @@ export const updateStorefrontSettingsAction = staffActionClient([...SETTINGS_ROL
         youtube_url: parsedInput.youtubeUrl,
         instagram_url: parsedInput.instagramUrl,
         online_price_markup_pct: parsedInput.onlinePriceMarkupPct,
+        theme_id: parsedInput.themeId,
       })
       .eq("tenant_id", ctx.tenant.tenantId);
 

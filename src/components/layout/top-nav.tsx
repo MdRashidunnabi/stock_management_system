@@ -20,6 +20,7 @@ import {
   Truck,
   Globe,
   MapPin,
+  Monitor,
   Store,
   Users,
 } from "lucide-react";
@@ -123,6 +124,12 @@ const NAV_ITEMS: NavItem[] = [
     href: "/settings/team",
     label: "Team",
     icon: <Users className="size-4" />,
+    roles: ["owner", "manager"],
+  },
+  {
+    href: "/settings/tills",
+    label: "Tills",
+    icon: <Monitor className="size-4" />,
     roles: ["owner", "manager"],
   },
   {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { formatDateTimeIE, formatEuro } from "@/lib/utils";
+import { formatDateTime, formatMoney } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -13,15 +13,16 @@ import type { SessionVarianceRow } from "@/lib/reports/queries";
 
 interface Props {
   rows: SessionVarianceRow[];
+  currency?: string;
+  locale?: string;
+  timezone?: string;
 }
 
-export function RecentShifts({ rows }: Props) {
+export function RecentShifts({ rows, currency = "EUR", locale = "en", timezone = "UTC" }: Props) {
+  const money = (n: number) => formatMoney(n, currency, locale);
+  const when = (d: string) => formatDateTime(d, timezone, locale);
   if (rows.length === 0) {
-    return (
-      <p className="text-muted-foreground p-6 text-center text-sm">
-        No closed shifts in this period yet.
-      </p>
-    );
+    return <p className="text-muted-foreground p-6 text-center text-sm">No closed tills.</p>;
   }
   return (
     <div className="overflow-x-auto">
@@ -48,22 +49,20 @@ export function RecentShifts({ rows }: Props) {
                   : "text-rose-700 dark:text-rose-400";
             return (
               <TableRow key={r.id}>
-                <TableCell className="text-xs whitespace-nowrap">
-                  {formatDateTimeIE(r.closed_at)}
-                </TableCell>
+                <TableCell className="text-xs whitespace-nowrap">{when(r.closed_at)}</TableCell>
                 <TableCell className="text-xs whitespace-nowrap">
                   {r.branch_code ? `${r.branch_code} · ` : ""}
                   {r.branch_name}
                 </TableCell>
                 <TableCell className="text-xs whitespace-nowrap">{r.cashier_label}</TableCell>
                 <TableCell className="text-right font-mono text-xs">
-                  {formatEuro(r.expected_cash)}
+                  {money(r.expected_cash)}
                 </TableCell>
                 <TableCell className="text-right font-mono text-xs">
-                  {formatEuro(r.counted_cash)}
+                  {money(r.counted_cash)}
                 </TableCell>
                 <TableCell className={`text-right font-mono text-xs ${tone}`}>
-                  {formatEuro(r.cash_difference)}
+                  {money(r.cash_difference)}
                 </TableCell>
                 <TableCell className="text-right">
                   <Link

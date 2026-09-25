@@ -2,8 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { TenantAdminPanel } from "@/components/platform/tenant-admin-panel";
+import { PlatformTillsPanel } from "@/components/license/platform-tills-panel";
 import { Badge } from "@/components/ui/badge";
 import { getPlatformTenantDetail } from "@/lib/billing/queries";
+import { listPosDevices } from "@/lib/license/issue";
 import { formatEuro } from "@/lib/utils";
 
 export const metadata = { title: "Shop detail" };
@@ -18,6 +20,7 @@ export default async function PlatformTenantDetailPage({
   if (!detail) notFound();
 
   const { tenant, billing, members } = detail;
+  const devices = await listPosDevices(tenant.id);
 
   return (
     <div className="space-y-6">
@@ -49,6 +52,8 @@ export default async function PlatformTenantDetailPage({
       </div>
 
       <TenantAdminPanel tenantId={tenant.id} status={tenant.status} />
+
+      <PlatformTillsPanel tenantId={tenant.id} devices={devices} />
 
       <div className="border-border rounded-xl border p-4">
         <h2 className="mb-3 font-semibold">Team members</h2>
