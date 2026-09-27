@@ -198,3 +198,13 @@ export interface TillSlot {
   open: boolean;
   cashier_label: string | null;
 }
+
+export interface OpenTillSession {
+  id: string;
+  device_id: string | null;
+  opened_at: string;
+  opening_cash: number;
+  shift_code: ShiftCode;
+  business_date: string;
+  till_number: number | null;
+}

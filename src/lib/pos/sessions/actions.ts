@@ -14,10 +14,11 @@ import {
   type SessionSummary,
   type ShiftAccountView,
   type TillSlot,
+  type OpenTillSession,
 } from "@/lib/pos/sessions/schemas";
 import { MAX_TILLS_PER_BRANCH, parseShiftCode, type ShiftCode } from "@/lib/pos/shifts";
 
-const POS_ROLES = ["owner", "manager", "cashier", "warehouse"] as const;
+const POS_ROLES = ["owner", "manager", "cashier", "warehouse", "accountant"] as const;
 
 /* ------------------------------- Mutations ------------------------------- */
 
@@ -154,37 +155,24 @@ export const saveShiftAccountAction = staffActionClient(["owner", "manager", "ac
 
 /* ------------------------------- Queries ------------------------------- */
 
-/** Returns the user's open session for a branch (if any). */
-export async function getOpenSessionForBranch(branchId: string): Promise<{
-  id: string;
-  opened_at: string;
-  opening_cash: number;
-  shift_code: ShiftCode;
-  business_date: string;
-  till_number: number | null;
-} | null> {
+/** Open tills on this branch — the POS banner matches this computer's device_id. */
+export async function listOpenSessionsForBranch(branchId: string): Promise<OpenTillSession[]> {
   const supabase = await createClient();
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return null;
-
   const { data } = await supabase
     .from("pos_sessions")
-    .select("id, opened_at, opening_cash, shift_code, business_date, till_number")
+    .select("id, device_id, opened_at, opening_cash, shift_code, business_date, till_number")
     .eq("branch_id", branchId)
-    .eq("cashier_id", user.user.id)
     .eq("status", "open")
-    .order("opened_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (!data) return null;
-  return {
-    id: data.id,
-    opened_at: data.opened_at,
-    opening_cash: Number(data.opening_cash),
-    shift_code: parseShiftCode(data.shift_code),
-    business_date: data.business_date,
-    till_number: data.till_number != null ? Number(data.till_number) : null,
-  };
+    .order("opened_at", { ascending: false });
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    device_id: row.device_id,
+    opened_at: row.opened_at,
+    opening_cash: Number(row.opening_cash),
+    shift_code: parseShiftCode(row.shift_code),
+    business_date: row.business_date,
+    till_number: row.till_number != null ? Number(row.till_number) : null,
+  }));
 }
 
 export async function listSessions(

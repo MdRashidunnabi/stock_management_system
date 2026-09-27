@@ -1,22 +1,18 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { KeyRound } from "lucide-react";
 import { getCurrentTenant } from "@/lib/auth/tenant";
 import { listBranchesForCurrentTenant } from "@/lib/pos/actions";
-import { getOpenSessionForBranch } from "@/lib/pos/sessions/actions";
+import { listOpenSessionsForBranch } from "@/lib/pos/sessions/actions";
 import { PosTerminal } from "@/components/pos/pos-terminal";
 import { DesktopPosBadge } from "@/components/pos/desktop-pos-badge";
-import { Badge } from "@/components/ui/badge";
-import { formatDateTime, formatMoney } from "@/lib/utils";
+import { ThisTillBanner } from "@/components/pos/this-till-banner";
 import { getRequestLocale } from "@/lib/i18n/get-locale";
-import { getMessages, interpolate } from "@/lib/i18n/messages";
-import { formatShiftLabel, formatTillLabel } from "@/lib/pos/shifts";
+import { getMessages } from "@/lib/i18n/messages";
 
 export const metadata = {
   title: "Till · ShopOS",
 };
 
-const ALLOWED_ROLES = new Set(["owner", "manager", "cashier", "warehouse"]);
+const ALLOWED_ROLES = new Set(["owner", "manager", "cashier", "warehouse", "accountant"]);
 
 export default async function PosPage() {
   const tenant = await getCurrentTenant();
@@ -44,7 +40,7 @@ export default async function PosPage() {
   }
 
   const defaultBranchId = branches[0]?.id ?? null;
-  const openSession = defaultBranchId ? await getOpenSessionForBranch(defaultBranchId) : null;
+  const openSessions = defaultBranchId ? await listOpenSessionsForBranch(defaultBranchId) : [];
   const tenantId = tenant.tenantId;
 
   return (
@@ -56,29 +52,14 @@ export default async function PosPage() {
           </h1>
           <DesktopPosBadge />
         </div>
-        {openSession ? (
-          <Link
-            href={`/sessions/${openSession.id}`}
-            className="border-border bg-card hover:bg-accent flex items-center gap-3 rounded-md border px-3 py-2 text-xs"
-          >
-            <Badge variant="default">{m.pos.tillOpen}</Badge>
-            <span className="text-muted-foreground">
-              {formatTillLabel(openSession.till_number)} ·{" "}
-              {formatShiftLabel(openSession.shift_code)} ·{" "}
-              {interpolate(m.pos.since, {
-                when: formatDateTime(openSession.opened_at, tenant.timezone, tenant.locale),
-                amount: formatMoney(openSession.opening_cash, tenant.currency, tenant.locale),
-              })}
-            </span>
-          </Link>
-        ) : (
-          <Link
-            href={`/sessions/open${defaultBranchId ? `?branch=${defaultBranchId}` : ""}`}
-            className="border-input bg-card hover:bg-accent inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium"
-          >
-            <KeyRound className="size-4" /> {m.pos.openTill}
-          </Link>
-        )}
+        <ThisTillBanner
+          sessions={openSessions}
+          defaultBranchId={defaultBranchId}
+          timezone={tenant.timezone}
+          locale={tenant.locale}
+          currency={tenant.currency}
+          labels={{ tillOpen: m.pos.tillOpen, openTill: m.pos.openTill, since: m.pos.since }}
+        />
       </div>
 
       <PosTerminal

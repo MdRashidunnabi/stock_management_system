@@ -16,7 +16,7 @@ import { productTextSearchOrFilter } from "@/lib/security/postgrest-filter";
 import { assertLineDiscountAllowed } from "@/lib/security/discount-policy";
 import { canAttachSaleToTill } from "@/lib/security/till-session";
 
-const POS_ROLES = ["owner", "manager", "cashier", "warehouse"] as const;
+const POS_ROLES = ["owner", "manager", "cashier", "warehouse", "accountant"] as const;
 
 /* ------------------------------ Branches ------------------------------ */
 
@@ -109,11 +109,38 @@ export const commitPosSaleAction = staffActionClient([...POS_ROLES])
     await assertTillMaySell(ctx.tenant.tenantId, parsedInput.deviceId);
     const supabase = await createClient();
 
-    if (parsedInput.sessionId) {
+    const deviceId = parsedInput.deviceId?.trim();
+    let sessionId = parsedInput.sessionId;
+    if (!deviceId && !sessionId) {
+      throw new ActionError("Open a till on this computer first.");
+    }
+    if (deviceId) {
+      const { data: tillSess, error: tillErr } = await supabase
+        .from("pos_sessions")
+        .select("id, cashier_id, status, branch_id")
+        .eq("device_id", deviceId)
+        .eq("status", "open")
+        .maybeSingle();
+      if (tillErr) throw new ActionError(tillErr.message);
+      if (!tillSess) {
+        throw new ActionError("Open a till on this computer first.");
+      }
+      if (tillSess.branch_id !== parsedInput.branchId) {
+        throw new ActionError("This computer's till is open on another branch.");
+      }
+      sessionId = tillSess.id;
+      const attach = canAttachSaleToTill({
+        role: ctx.tenant.role,
+        userId: ctx.user.id,
+        sessionCashierId: tillSess.cashier_id ?? "",
+        sessionStatus: tillSess.status ?? "",
+      });
+      if (!attach.ok) throw new ActionError(attach.error);
+    } else if (sessionId) {
       const { data: sess } = await supabase
         .from("pos_sessions")
         .select("cashier_id, status")
-        .eq("id", parsedInput.sessionId)
+        .eq("id", sessionId)
         .maybeSingle();
       const attach = canAttachSaleToTill({
         role: ctx.tenant.role,
@@ -161,7 +188,7 @@ export const commitPosSaleAction = staffActionClient([...POS_ROLES])
           card_last4: p.cardLast4 ?? null,
         })),
         p_terminal_id: parsedInput.terminalId,
-        p_session_id: parsedInput.sessionId,
+        p_session_id: sessionId,
         p_customer_id: parsedInput.customerId,
         p_rounding: parsedInput.rounding ?? 0,
         p_notes: parsedInput.notes,

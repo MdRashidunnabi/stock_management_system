@@ -8,8 +8,8 @@ import type {
 
 const OWNER: ShopRole[] = ["owner"];
 const OPS: ShopRole[] = ["owner", "manager"];
-const TILL: ShopRole[] = ["owner", "manager", "cashier"];
-const POS: ShopRole[] = ["owner", "manager", "cashier", "warehouse"];
+const TILL: ShopRole[] = ["owner", "manager", "cashier", "accountant"];
+const POS: ShopRole[] = ["owner", "manager", "cashier", "warehouse", "accountant"];
 const STOCK: ShopRole[] = ["owner", "manager", "warehouse"];
 const SALES: ShopRole[] = ["owner", "manager", "cashier", "accountant"];
 const AUDIT: ShopRole[] = ["owner", "accountant", "support_admin", "super_admin"];
@@ -171,7 +171,7 @@ export const DESTINATIONS: AssistantDestination[] = [
       "POS is where you scan items and take payment. USB or wireless barcode scanners work as a keyboard — pair one scanner to each till computer. Cash and Card are large buttons — no dropdowns. Cash: the drawer opens, tap the note they gave you, and you see the change. Card: take it on your own machine, then Confirm to record a card sale. Customer screen opens a display of items, prices, and the total.",
     guestAnswer:
       "The till is a tablet POS: scan, take cash or card, print a receipt, and stock updates at once.",
-    forbiddenHint: "POS is for owners, managers, cashiers, and warehouse staff.",
+    forbiddenHint: "POS is for owners, managers, cashiers, warehouse, and accountants.",
   },
   {
     id: "sales",
@@ -229,10 +229,10 @@ export const DESTINATIONS: AssistantDestination[] = [
       "cash variance",
     ],
     answer:
-      "Till sessions open and close the cash drawer for Morning, Evening, or Night. Each till (up to 10 per branch) is counted on its own. Final shift accounting rolls all tills together.",
+      "Till sessions open and close the cash drawer for Morning, Evening, or Night. Each computer can have only one till open. Owner, manager, and accountant can open another till on a different computer. Each till (up to 10 per branch) is counted on its own.",
     guestAnswer:
       "Each shift starts by opening a till and ends by counting cash against the Z-report.",
-    forbiddenHint: "Till sessions are for owners, managers, and cashiers.",
+    forbiddenHint: "Till sessions are for owners, managers, cashiers, and accountants.",
   },
   {
     id: "open-till",
@@ -252,9 +252,9 @@ export const DESTINATIONS: AssistantDestination[] = [
       "night",
     ],
     answer:
-      "Open a till with Morning, Evening, or Night, and the opening float, before taking sales.",
+      "Open a till with Morning, Evening, or Night, and the opening float, before taking sales. One till per computer. Owner, manager, and accountant can open a second till on another computer.",
     guestAnswer: "A cashier opens the till with the float, then POS becomes available.",
-    forbiddenHint: "Only owners, managers, and cashiers can open a till.",
+    forbiddenHint: "Only owners, managers, cashiers, and accountants can open a till.",
   },
   {
     id: "products",

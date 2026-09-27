@@ -129,6 +129,10 @@ export function OpenSessionForm({
           value={resolvedTill}
           onChange={setTillNumber}
         />
+        <p className="text-muted-foreground text-xs">
+          This computer can only run one till. Owner, manager, and accountant can open another till
+          on a different computer.
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

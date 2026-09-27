@@ -10,7 +10,7 @@ import { hitRateLimit, resetRateLimitStoreForTests } from "./rate-limit";
 import { hitAuthEmailLimit } from "@/lib/auth/email-rate-limit";
 import { storageObjectSegment, tenantObjectPath } from "./storage-path";
 import { bindActorId, bindTenantId, resolveActiveTenantId } from "./tenant-scope";
-import { canAttachSaleToTill } from "./till-session";
+import { canAttachSaleToTill, canOpenSecondTillOnAnotherComputer } from "./till-session";
 import { publicAuthCallbackError, publicStorefrontOrderError } from "./public-error";
 import { looksLikeBarcode, emptyHidScanState, feedHidScan } from "@/lib/pos/hid-scanner";
 
@@ -175,6 +175,24 @@ describe("SEC-POS-012 till attachment", () => {
         sessionStatus: "open",
       }).ok,
     ).toBe(true);
+    expect(
+      canAttachSaleToTill({
+        role: "accountant",
+        userId: "acc",
+        sessionCashierId: "cashier-a",
+        sessionStatus: "open",
+      }).ok,
+    ).toBe(true);
+  });
+});
+
+describe("supervisor second till", () => {
+  it("lets owner manager and accountant open another computer", () => {
+    expect(canOpenSecondTillOnAnotherComputer("owner")).toBe(true);
+    expect(canOpenSecondTillOnAnotherComputer("manager")).toBe(true);
+    expect(canOpenSecondTillOnAnotherComputer("accountant")).toBe(true);
+    expect(canOpenSecondTillOnAnotherComputer("cashier")).toBe(false);
+    expect(canOpenSecondTillOnAnotherComputer("warehouse")).toBe(false);
   });
 });
 

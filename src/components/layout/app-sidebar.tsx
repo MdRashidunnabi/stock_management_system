@@ -51,7 +51,7 @@ const NAV_ITEMS: NavItem[] = [
     href: "/pos",
     labelKey: "nav.pos",
     icon: <ScanLine className="size-4 shrink-0" />,
-    roles: ["owner", "manager", "cashier", "warehouse"],
+    roles: ["owner", "manager", "cashier", "warehouse", "accountant"],
     group: "sell",
   },
   {
@@ -72,7 +72,7 @@ const NAV_ITEMS: NavItem[] = [
     href: "/sessions",
     labelKey: "nav.sessions",
     icon: <KeyRound className="size-4 shrink-0" />,
-    roles: ["owner", "manager", "cashier"],
+    roles: ["owner", "manager", "cashier", "accountant"],
     group: "sell",
   },
   {
