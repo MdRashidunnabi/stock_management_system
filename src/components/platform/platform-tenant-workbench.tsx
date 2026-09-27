@@ -121,7 +121,11 @@ export function PlatformTenantWorkbench({
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button type="button" size="sm" variant="outline" disabled={pending}>
-                          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Pencil className="size-3.5" />}
+                          {pending ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Pencil className="size-3.5" />
+                          )}
                           Edit
                         </Button>
                       </DropdownMenuTrigger>

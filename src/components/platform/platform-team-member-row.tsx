@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition } from "react";
 import { Loader2, Pencil } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -47,10 +47,6 @@ export function PlatformTeamMemberRow({
   const [role, setRole] = useState(member.role);
   const [password, setPassword] = useState("");
 
-  useEffect(() => {
-    setRole(member.role);
-  }, [member.role]);
-
   const ids = { tenantId, userId: member.user_id };
 
   function run(work: () => Promise<unknown>) {
@@ -74,7 +70,9 @@ export function PlatformTeamMemberRow({
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm">{member.email ?? member.user_id}</p>
-          <p className="text-muted-foreground text-xs capitalize">{member.role.replaceAll("_", " ")}</p>
+          <p className="text-muted-foreground text-xs capitalize">
+            {member.role.replaceAll("_", " ")}
+          </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {member.is_active ? (
@@ -174,15 +172,15 @@ export function PlatformTeamMemberRow({
               size="sm"
               variant="outline"
               disabled={pending || password.length < 8}
-              onClick={() =>
-                run(() => platformSetShopMemberPasswordAction({ ...ids, password }))
-              }
+              onClick={() => run(() => platformSetShopMemberPasswordAction({ ...ids, password }))}
             >
               Set password
             </Button>
           </div>
           {lastOwner ? (
-            <p className="text-muted-foreground text-[11px]">Keep at least one owner on this shop.</p>
+            <p className="text-muted-foreground text-[11px]">
+              Keep at least one owner on this shop.
+            </p>
           ) : (
             <p className="text-muted-foreground text-[11px]">
               Passwords are not emailed. Share a new password yourself.

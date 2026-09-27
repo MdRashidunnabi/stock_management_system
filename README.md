@@ -6,12 +6,12 @@ POS, stock, suppliers, and online sales for shops.
 
 These accounts are for testers. They are not production admin accounts.
 
-| Shop | Role | Email | Password |
-|------|------|--------|----------|
-| Needscarlow | Owner | `owner@needscarlow.shopos.local` | `DemoPass123!` |
+| Shop        | Role    | Email                              | Password       |
+| ----------- | ------- | ---------------------------------- | -------------- |
+| Needscarlow | Owner   | `owner@needscarlow.shopos.local`   | `DemoPass123!` |
 | Needscarlow | Cashier | `cashier@needscarlow.shopos.local` | `DemoPass123!` |
-| Greenway | Owner | `owner@demo.shopos.local` | `DemoPass123!` |
-| Greenway | Cashier | `cashier@demo.shopos.local` | `DemoPass123!` |
+| Greenway    | Owner   | `owner@demo.shopos.local`          | `DemoPass123!` |
+| Greenway    | Cashier | `cashier@demo.shopos.local`        | `DemoPass123!` |
 
 Sign in at https://shopos-red.vercel.app/login (use the demo buttons). Online shop: https://shopos-red.vercel.app/shop/needscarlow
 

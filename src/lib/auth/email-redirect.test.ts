@@ -50,11 +50,7 @@ describe("isAllowedAuthOrigin", () => {
 describe("authEmailRedirectTo", () => {
   it("sends confirm links to the site the user is on", () => {
     expect(
-      authEmailRedirectTo(
-        "https://shopos-red.vercel.app",
-        "http://localhost:3000",
-        "/dashboard",
-      ),
+      authEmailRedirectTo("https://shopos-red.vercel.app", "http://localhost:3000", "/dashboard"),
     ).toBe("https://shopos-red.vercel.app/auth/callback?next=/dashboard");
   });
 

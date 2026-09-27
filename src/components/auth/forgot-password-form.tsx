@@ -38,9 +38,7 @@ export function ForgotPasswordForm({ initialError }: { initialError?: string }) 
       }
       if (res?.data && "ok" in res.data && res.data.ok === false) {
         const wait = "seconds" in res.data ? res.data.seconds : undefined;
-        setServerError(
-          displayMessage(t, res.data.message, wait ? { seconds: wait } : undefined),
-        );
+        setServerError(displayMessage(t, res.data.message, wait ? { seconds: wait } : undefined));
         return;
       }
       if (res?.data?.ok) {

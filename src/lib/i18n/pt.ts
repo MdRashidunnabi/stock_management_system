@@ -65,7 +65,8 @@ export const pt: DeepPartial<typeof en> = {
     resetSub: "Enviamos um link para o seu email.",
     sendLink: "Enviar link",
     remembered: "Já se lembrou?",
-    resetSent: "Veja a caixa de entrada e o spam pelo email mais recente da ShopOS. O link abre este site.",
+    resetSent:
+      "Veja a caixa de entrada e o spam pelo email mais recente da ShopOS. O link abre este site.",
     checkEmail: "Veja o email",
     checkEmailSub: "Enviámos um link para {email}.",
     checkEmailOpenHint: "Use o email mais recente. Links antigos caducam.",

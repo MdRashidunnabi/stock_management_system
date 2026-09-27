@@ -244,7 +244,9 @@ export const platformCreateShopMemberAction = authActionClient
     if (!emailParsed.success) throw new ActionError("Enter a valid email.");
     const passwordParsed = passwordSchema.safeParse(parsedInput.password);
     if (!passwordParsed.success) {
-      throw new ActionError("Password must be at least 8 characters and include a letter and a number.");
+      throw new ActionError(
+        "Password must be at least 8 characters and include a letter and a number.",
+      );
     }
 
     const admin = createAdminClient();
@@ -528,7 +530,9 @@ export const platformSetShopMemberPasswordAction = authActionClient
     await assertPlatform();
     const passwordParsed = passwordSchema.safeParse(parsedInput.password);
     if (!passwordParsed.success) {
-      throw new ActionError("Password must be at least 8 characters and include a letter and a number.");
+      throw new ActionError(
+        "Password must be at least 8 characters and include a letter and a number.",
+      );
     }
     const admin = createAdminClient();
     const { data: row } = await admin
@@ -549,6 +553,8 @@ export const platformSetShopMemberPasswordAction = authActionClient
       entity_type: "user_tenants",
       entity_id: parsedInput.userId,
     });
-    return { ok: true as const, message: "Password updated. Share it with them yourself — it is not emailed." };
+    return {
+      ok: true as const,
+      message: "Password updated. Share it with them yourself — it is not emailed.",
+    };
   });
-

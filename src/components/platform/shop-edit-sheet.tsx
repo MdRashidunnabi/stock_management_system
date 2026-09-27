@@ -28,15 +28,10 @@ export function ShopEditSheet({
   onOpenChange: (open: boolean) => void;
 }) {
   const [payload, setPayload] = useState<ShopEditPayload | null>(null);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!open || !tenantId) {
-      setPayload(null);
-      return;
-    }
+    if (!open || !tenantId) return;
     let cancelled = false;
-    setLoading(true);
     void loadShopEditData(tenantId)
       .then((data) => {
         if (cancelled) return;
@@ -47,8 +42,8 @@ export function ShopEditSheet({
         }
         setPayload(data);
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+      .catch(() => {
+        if (!cancelled) toast.error("Could not load shop controls.");
       });
     return () => {
       cancelled = true;
@@ -65,7 +60,7 @@ export function ShopEditSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="pointer-events-auto sm:max-w-xl overflow-y-auto pb-24">
+      <SheetContent side="right" className="pointer-events-auto overflow-y-auto pb-24 sm:max-w-xl">
         <SheetHeader>
           <SheetTitle>{payload?.displayName ?? shopName ?? "Shop"}</SheetTitle>
           <SheetDescription>
@@ -74,7 +69,7 @@ export function ShopEditSheet({
           </SheetDescription>
         </SheetHeader>
         <div className="space-y-6 px-4 pb-6">
-          {open && (loading || !payload) ? (
+          {open && !payload ? (
             <div className="text-muted-foreground flex items-center gap-2 text-sm">
               <Loader2 className="size-4 animate-spin" />
               Loading…
@@ -110,21 +105,24 @@ export function ShopEditSheet({
                   <ul className="text-sm">
                     {payload.members.map((m) => (
                       <PlatformTeamMemberRow
-                        key={m.user_id}
+                        key={`${m.user_id}-${m.role}-${m.is_active}`}
                         tenantId={payload.tenantId}
                         member={m}
                         lastOwner={
                           m.role === "owner" &&
                           m.is_active &&
-                          payload.members.filter((x) => x.role === "owner" && x.is_active)
-                            .length <= 1
+                          payload.members.filter((x) => x.role === "owner" && x.is_active).length <=
+                            1
                         }
                         onUpdated={() => void reload()}
                       />
                     ))}
                   </ul>
                 )}
-                <PlatformTeamCreateForm tenantId={payload.tenantId} onCreated={() => void reload()} />
+                <PlatformTeamCreateForm
+                  tenantId={payload.tenantId}
+                  onCreated={() => void reload()}
+                />
               </section>
             </>
           ) : null}

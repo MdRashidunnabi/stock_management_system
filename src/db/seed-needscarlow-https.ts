@@ -25,7 +25,11 @@ const PASSWORD = "DemoPass123!";
 const IMAGE_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif"]);
 
 const DEMO_USERS = [
-  { email: "owner@needscarlow.shopos.local", role: "owner", fullName: "Rashid Owner (Needscarlow)" },
+  {
+    email: "owner@needscarlow.shopos.local",
+    role: "owner",
+    fullName: "Rashid Owner (Needscarlow)",
+  },
   { email: "manager@needscarlow.shopos.local", role: "manager", fullName: "Needscarlow Manager" },
   { email: "cashier@needscarlow.shopos.local", role: "cashier", fullName: "Needscarlow Cashier" },
   {
@@ -76,7 +80,8 @@ function throwIf(error: { message: string } | null, label: string) {
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceRole) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !serviceRole)
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
   if (!url.includes("supabase.co")) {
     throw new Error(`Refusing to seed: URL is not cloud Supabase (${url})`);
   }
@@ -86,9 +91,16 @@ async function main() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const categories = fs.readdirSync(IMAGES_SRC, { withFileTypes: true }).filter((d) => d.isDirectory());
-  const products: Array<{ sku: string; name: string; imageUrl: string; barcode: string; catSlug: string }> =
-    [];
+  const categories = fs
+    .readdirSync(IMAGES_SRC, { withFileTypes: true })
+    .filter((d) => d.isDirectory());
+  const products: Array<{
+    sku: string;
+    name: string;
+    imageUrl: string;
+    barcode: string;
+    catSlug: string;
+  }> = [];
   let globalIndex = 0;
   for (const catDir of categories) {
     const folder = catDir.name;
@@ -194,8 +206,14 @@ async function main() {
     "tenant_storefronts",
   );
 
-  throwIf((await admin.from("stock_balances").delete().eq("tenant_id", TENANT_ID)).error, "delete stock");
-  throwIf((await admin.from("products").delete().eq("tenant_id", TENANT_ID)).error, "delete products");
+  throwIf(
+    (await admin.from("stock_balances").delete().eq("tenant_id", TENANT_ID)).error,
+    "delete stock",
+  );
+  throwIf(
+    (await admin.from("products").delete().eq("tenant_id", TENANT_ID)).error,
+    "delete products",
+  );
 
   let pos = 0;
   for (const catDir of categories) {
@@ -244,7 +262,9 @@ async function main() {
       (await admin.from("products").upsert(batch, { onConflict: "tenant_id,sku" })).error,
       `products ${i}`,
     );
-    console.info(`[needscarlow-https] products ${Math.min(i + BATCH, products.length)} / ${products.length}`);
+    console.info(
+      `[needscarlow-https] products ${Math.min(i + BATCH, products.length)} / ${products.length}`,
+    );
   }
 
   throwIf(
@@ -312,7 +332,10 @@ async function main() {
     );
   }
 
-  const { data: list, error: listErr } = await admin.auth.admin.listUsers({ page: 1, perPage: 500 });
+  const { data: list, error: listErr } = await admin.auth.admin.listUsers({
+    page: 1,
+    perPage: 500,
+  });
   throwIf(listErr, "list users");
 
   for (const u of DEMO_USERS) {
@@ -336,6 +359,7 @@ async function main() {
         user_metadata: { full_name: u.fullName },
       });
       throwIf(error, `create ${u.email}`);
+      if (!data.user) throw new Error(`create ${u.email}: no user returned`);
       userId = data.user.id;
     }
     const membership = {

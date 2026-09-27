@@ -8,13 +8,7 @@ import { resendSignupEmailAction } from "@/lib/auth/actions";
 import { useT } from "@/components/i18n/locale-provider";
 import { displayMessage } from "@/lib/i18n/display";
 
-export function ResendSignupEmail({
-  email,
-  className,
-}: {
-  email: string;
-  className?: string;
-}) {
+export function ResendSignupEmail({ email, className }: { email: string; className?: string }) {
   const { t } = useT();
   const [pending, startTransition] = useTransition();
   const [sent, setSent] = useState(false);

@@ -92,7 +92,10 @@ export async function demoPay(tenantId: string) {
   const next = new Date();
   next.setMonth(next.getMonth() + 1);
 
-  const { error: tErr } = await admin.from("tenants").update({ status: "active" }).eq("id", tenantId);
+  const { error: tErr } = await admin
+    .from("tenants")
+    .update({ status: "active" })
+    .eq("id", tenantId);
   if (tErr) throw new Error(tErr.message);
 
   await admin

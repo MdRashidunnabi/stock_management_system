@@ -119,20 +119,19 @@ export function PlatformTenantsList({ tenants }: { tenants: PlatformTenantRow[] 
                   </TableCell>
                   <TableCell>€{t.monthlyEur.toFixed(2)}/mo</TableCell>
                   <TableCell>{t.cardOnFile ? `•••• ${t.cardLast4}` : "None"}</TableCell>
-                  <TableCell>
-                    {t.trialEndsAt ? t.trialEndsAt.slice(0, 10) : "—"}
-                  </TableCell>
+                  <TableCell>{t.trialEndsAt ? t.trialEndsAt.slice(0, 10) : "—"}</TableCell>
                   <TableCell className="max-w-[220px]">
                     <p>{t.memberCount}</p>
-                    <p className="text-muted-foreground truncate text-xs" title={t.teamPreview.join(", ")}>
+                    <p
+                      className="text-muted-foreground truncate text-xs"
+                      title={t.teamPreview.join(", ")}
+                    >
                       {t.teamPreview.join(", ") || "—"}
                     </p>
                   </TableCell>
                   <TableCell>
                     {t.tillActiveCount}
-                    {t.tillTotalCount > t.tillActiveCount
-                      ? ` / ${t.tillTotalCount}`
-                      : ""}
+                    {t.tillTotalCount > t.tillActiveCount ? ` / ${t.tillTotalCount}` : ""}
                   </TableCell>
                   <TableCell className="bg-background sticky right-0 text-right">
                     <Button
@@ -153,6 +152,7 @@ export function PlatformTenantsList({ tenants }: { tenants: PlatformTenantRow[] 
       </div>
 
       <ShopEditSheet
+        key={editId ?? "closed"}
         tenantId={editId}
         shopName={editing?.displayName}
         open={Boolean(editId)}

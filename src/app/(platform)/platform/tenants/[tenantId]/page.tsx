@@ -22,9 +22,7 @@ export default async function PlatformTenantDetailPage({
   const cardLabel = billing?.cardOnFile
     ? `${billing.cardBrand ?? "Card"} •••• ${billing.cardLast4}`
     : "No card";
-  const monthlyLabel = billing
-    ? `${formatEuro(billing.monthlyAmountCents / 100)}/mo`
-    : "€20.00/mo";
+  const monthlyLabel = billing ? `${formatEuro(billing.monthlyAmountCents / 100)}/mo` : "€20.00/mo";
 
   return (
     <div className="space-y-6">
@@ -37,7 +35,9 @@ export default async function PlatformTenantDetailPage({
       </Link>
       <div>
         <h1 className="text-2xl font-bold">{tenant.display_name}</h1>
-        <p className="text-muted-foreground text-sm">Each row is shop, till, or team. Edit is on the right.</p>
+        <p className="text-muted-foreground text-sm">
+          Each row is shop, till, or team. Edit is on the right.
+        </p>
       </div>
       <PlatformTenantWorkbench
         tenantId={tenant.id}

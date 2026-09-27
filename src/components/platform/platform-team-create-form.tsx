@@ -127,7 +127,9 @@ export function PlatformTeamCreateForm({
               Generate
             </Button>
           </div>
-          <p className="text-muted-foreground text-[11px]">At least 8 characters, a letter and a number.</p>
+          <p className="text-muted-foreground text-[11px]">
+            At least 8 characters, a letter and a number.
+          </p>
         </div>
       </div>
       <label className="flex items-start gap-2 text-xs">

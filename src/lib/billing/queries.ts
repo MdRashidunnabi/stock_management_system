@@ -114,7 +114,11 @@ export async function listAllTenantsForPlatform(): Promise<PlatformTenantRow[]> 
 
   const [{ data: billings }, { data: members }, { data: devices }] = await Promise.all([
     admin.from("tenant_billing").select("*").in("tenant_id", ids),
-    admin.from("user_tenants").select("tenant_id, user_id").eq("is_active", true).in("tenant_id", ids),
+    admin
+      .from("user_tenants")
+      .select("tenant_id, user_id")
+      .eq("is_active", true)
+      .in("tenant_id", ids),
     admin.from("pos_devices").select("tenant_id, revoked_at").in("tenant_id", ids),
   ]);
 

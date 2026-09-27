@@ -42,8 +42,7 @@ export function PlatformTillsPanel({
           return;
         }
         const data = getSafeActionData<{ ok: true; message?: string }>(res);
-        const text =
-          data?.message ?? (kind === "revoke" ? "Till revoked." : "Till restored.");
+        const text = data?.message ?? (kind === "revoke" ? "Till revoked." : "Till restored.");
         setNotice({ ok: true, text });
         toast.success(text);
         onUpdated?.();
@@ -57,7 +56,7 @@ export function PlatformTillsPanel({
     devices.length === 0 ? (
       <p className="text-muted-foreground text-sm">No tills have checked in.</p>
     ) : (
-      <div className="relative z-10 space-y-3 pointer-events-auto">
+      <div className="pointer-events-auto relative z-10 space-y-3">
         {notice ? (
           <Alert variant={notice.ok ? "default" : "destructive"}>
             <AlertDescription>{notice.text}</AlertDescription>
@@ -68,10 +67,7 @@ export function PlatformTillsPanel({
             const revoked = Boolean(row.revoked_at);
             const busy = pending && busyId === row.device_id;
             return (
-              <li
-                key={row.id}
-                className="flex flex-wrap items-center justify-between gap-2"
-              >
+              <li key={row.id} className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="text-sm font-medium">
                     {row.label || "Till"}

@@ -104,7 +104,8 @@ export async function updateSession(request: NextRequest) {
     !pathname.startsWith("/auth/")
   ) {
     const url = request.nextUrl.clone();
-    url.pathname = authType === "recovery" || errorCode === "otp_expired" ? "/forgot-password" : "/login";
+    url.pathname =
+      authType === "recovery" || errorCode === "otp_expired" ? "/forgot-password" : "/login";
     url.search = "";
     url.searchParams.set("error", "This sign-in link is invalid or has expired.");
     return NextResponse.redirect(url);
@@ -112,11 +113,7 @@ export async function updateSession(request: NextRequest) {
 
   const hasAuthPayload =
     (looksLikeAuthCode(authCode) && !authError) || looksLikeAuthTokenHash(tokenHash);
-  if (
-    hasAuthPayload &&
-    pathname !== "/auth/callback" &&
-    !pathname.startsWith("/auth/callback/")
-  ) {
+  if (hasAuthPayload && pathname !== "/auth/callback" && !pathname.startsWith("/auth/callback/")) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/callback";
     if (!url.searchParams.get("next")) {

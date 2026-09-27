@@ -164,7 +164,10 @@ export function liveAuthCallbackUrlFromPastedLink(
   if (tokenHash && looksLikeAuthTokenHash(tokenHash)) {
     const dest = new URL("/auth/callback", `${origin}/`);
     dest.searchParams.set("token_hash", tokenHash);
-    dest.searchParams.set("type", type || (fallbackNext === "/reset-password" ? "recovery" : "email"));
+    dest.searchParams.set(
+      "type",
+      type || (fallbackNext === "/reset-password" ? "recovery" : "email"),
+    );
     dest.searchParams.set("next", defaultNextForAuthType(type, next));
     return dest.toString();
   }

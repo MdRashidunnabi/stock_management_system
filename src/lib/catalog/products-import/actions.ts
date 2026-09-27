@@ -153,9 +153,7 @@ export const parseProductsCsvAction = staffActionClient([...writableRoles])
         vatIncluded: parseBoolean(raw.vat_included, true),
         baseUnit: (raw.base_unit ?? "un").trim() || "un",
         isActive: parseBoolean(raw.is_active, true),
-        primaryImageUrl: normalizeImportImageUrl(
-          raw.image_url ?? raw.primary_image_url ?? "",
-        ),
+        primaryImageUrl: normalizeImportImageUrl(raw.image_url ?? raw.primary_image_url ?? ""),
         onlineSellingPrice: undefined,
         onlineDiscountPct: 0,
       };
@@ -381,7 +379,10 @@ async function ensureImportLookups(
       name,
       slug: nextSlug(name, used),
     }));
-    const { data, error } = await supabase.from("brands").insert(insertRows).select("id, name, slug");
+    const { data, error } = await supabase
+      .from("brands")
+      .insert(insertRows)
+      .select("id, name, slug");
     if (error) throw new ActionError(lookupCreateError("brands", error));
     for (const row of data ?? []) rememberLookup(maps.brandByKey, row.id, row.name, row.slug);
   }

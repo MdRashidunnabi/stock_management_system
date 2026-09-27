@@ -54,10 +54,7 @@ export const demoCardSchema = paymentCardSchema;
 export const platformTenantActionSchema = z.object({
   tenantId: z
     .string()
-    .regex(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-      "Invalid shop id.",
-    ),
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, "Invalid shop id."),
 });
 
 export const extendTrialSchema = platformTenantActionSchema.extend({
@@ -69,10 +66,7 @@ export const SHOP_MEMBER_ROLES = ["owner", "manager", "accountant", "cashier"] a
 export const platformCreateShopMemberSchema = z.object({
   tenantId: z
     .string()
-    .regex(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-      "Invalid shop id.",
-    ),
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, "Invalid shop id."),
   fullName: z.string().min(1).max(120),
   email: z.string().min(1).max(254),
   role: z.enum(SHOP_MEMBER_ROLES),

@@ -73,7 +73,11 @@ export async function sendStaffAccessEmail(input: {
     if (recover.ok) return { emailed: true, via: "supabase" };
     const errText = (await recover.text().catch(() => "")).toLowerCase();
     if (recover.status === 429 || errText.includes("rate")) {
-      return { emailed: false, via: "none", error: "Wait a minute, then send the login email again." };
+      return {
+        emailed: false,
+        via: "none",
+        error: "Wait a minute, then send the login email again.",
+      };
     }
   } catch {
     /* fall through */
