@@ -7,7 +7,12 @@ export const metadata: Metadata = {
   title: "Reset password",
 };
 
-export default async function ForgotPasswordPage() {
+export default async function ForgotPasswordPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const sp = await searchParams;
   const locale = await getRequestLocale();
   const m = getMessages(locale);
   return (
@@ -16,7 +21,7 @@ export default async function ForgotPasswordPage() {
         <h1 className="text-2xl font-semibold tracking-tight">{m.auth.resetTitle}</h1>
         <p className="text-muted-foreground text-sm">{m.auth.resetSub}</p>
       </div>
-      <ForgotPasswordForm />
+      <ForgotPasswordForm initialError={sp.error} />
     </div>
   );
 }

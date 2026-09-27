@@ -101,6 +101,11 @@ async function main() {
   if (!url || !serviceRole) {
     throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local");
   }
+  if (/supabase\.co/i.test(url) && process.env.ALLOW_CLOUD_PLATFORM_SEED !== "true") {
+    throw new Error(
+      "Refusing to seed platform passwords against cloud Auth. Use Docker `.env.local`, or set ALLOW_CLOUD_PLATFORM_SEED=true only if you mean it.",
+    );
+  }
 
   const admin = createClient<Database>(url, serviceRole, {
     auth: { autoRefreshToken: false, persistSession: false },

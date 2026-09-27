@@ -1,9 +1,11 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
+import { authEmailRedirectTo, originFromForwardedHeaders } from "@/lib/auth/email-redirect";
 import {
   forgotPasswordSchema,
   resetPasswordSchema,
@@ -16,6 +18,18 @@ import { actionClient, authActionClient } from "@/lib/safe-action";
 import { getUserTenants } from "@/lib/auth/tenant";
 import { getPostAuthRedirectPath } from "@/lib/auth/routing";
 import { hitRateLimit } from "@/lib/security/rate-limit";
+import { hitAuthEmailLimit } from "@/lib/auth/email-rate-limit";
+
+async function authCallbackRedirect(nextPath: string): Promise<string> {
+  const h = await headers();
+  const origin = originFromForwardedHeaders({
+    origin: h.get("origin"),
+    forwardedHost: h.get("x-forwarded-host"),
+    forwardedProto: h.get("x-forwarded-proto"),
+    host: h.get("host"),
+  });
+  return authEmailRedirectTo(origin, env.NEXT_PUBLIC_APP_URL, nextPath);
+}
 
 /**
  * Friendly mapping for the small set of Supabase auth errors that should be
@@ -38,7 +52,9 @@ function mapAuthError(message: string | undefined): string {
     return "errors.emailTaken";
   }
   if (m.includes("password") && m.includes("at least")) return "errors.passwordWeak";
-  if (m.includes("rate limit")) return "errors.rateLimit";
+  if (m.includes("rate limit") || m.includes("only request this after") || m.includes("too many")) {
+    return "errors.rateLimit";
+  }
   return "errors.generic";
 }
 
@@ -96,7 +112,7 @@ export const signUpAction = actionClient
       email: parsedInput.email,
       password: parsedInput.password,
       options: {
-        emailRedirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/dashboard`,
+        emailRedirectTo: await authCallbackRedirect("/dashboard"),
         data: {
           full_name: parsedInput.fullName,
           country: parsedInput.country,
@@ -150,12 +166,54 @@ export const requestPasswordResetAction = actionClient
   .metadata({ actionName: "auth.requestPasswordReset" })
   .inputSchema(forgotPasswordSchema)
   .action(async ({ parsedInput }) => {
-    const gate = hitRateLimit(`pwreset:${parsedInput.email}`, 5, 60 * 60 * 1000);
-    if (gate.ok) {
-      const supabase = await createClient();
-      await supabase.auth.resetPasswordForEmail(parsedInput.email, {
-        redirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/reset-password`,
-      });
+    const gate = hitAuthEmailLimit("reset", parsedInput.email);
+    if (!gate.ok) {
+      return {
+        ok: false as const,
+        message: "errors.resetWait",
+        seconds: String(gate.retryAfterSec),
+      };
+    }
+    const supabase = await createClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(parsedInput.email, {
+      redirectTo: await authCallbackRedirect("/reset-password"),
+    });
+    if (error) {
+      const mapped = mapAuthError(error.message);
+      if (mapped === "errors.rateLimit") {
+        return { ok: false as const, message: "errors.resetRateLimit" };
+      }
+    }
+    return { ok: true as const, email: parsedInput.email };
+  });
+
+/**
+ * Send a new signup confirmation email. Always reports success so this page
+ * cannot be used to probe which addresses are registered.
+ */
+export const resendSignupEmailAction = actionClient
+  .metadata({ actionName: "auth.resendSignupEmail" })
+  .inputSchema(forgotPasswordSchema)
+  .action(async ({ parsedInput }) => {
+    const gate = hitAuthEmailLimit("signup", parsedInput.email);
+    if (!gate.ok) {
+      return {
+        ok: false as const,
+        message: "errors.resetWait",
+        seconds: String(gate.retryAfterSec),
+      };
+    }
+    const supabase = await createClient();
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: parsedInput.email,
+      options: { emailRedirectTo: await authCallbackRedirect("/dashboard") },
+    });
+    if (error) {
+      const mapped = mapAuthError(error.message);
+      if (mapped === "errors.rateLimit") {
+        return { ok: false as const, message: mapped };
+      }
     }
     return { ok: true as const, email: parsedInput.email };
   });

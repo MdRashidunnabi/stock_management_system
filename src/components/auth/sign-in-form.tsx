@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { signInSchema, type SignInInput } from "@/lib/auth/schemas";
 import { signInAction } from "@/lib/auth/actions";
+import { ResendSignupEmail } from "@/components/auth/resend-signup-email";
 import { useT } from "@/components/i18n/locale-provider";
 import { displayMessage } from "@/lib/i18n/display";
 import { PUBLIC_DEMO_ACCOUNTS, PUBLIC_DEMO_PASSWORD } from "@/lib/demo-accounts";
@@ -27,6 +28,11 @@ export function SignInForm({ next, initialError }: Props) {
   const [serverError, setServerError] = useState<string | null>(
     initialError ? displayMessage(t, initialError) : null,
   );
+  const [errorKey, setErrorKey] = useState<string | null>(
+    initialError === "errors.emailUnconfirmed" || initialError === "errors.emailTaken"
+      ? initialError
+      : null,
+  );
 
   const form = useForm<SignInInput>({
     resolver: zodResolver(signInSchema),
@@ -37,8 +43,12 @@ export function SignInForm({ next, initialError }: Props) {
     },
   });
 
+  const typedEmail = form.watch("email");
+  const showResend = errorKey === "errors.emailUnconfirmed";
+
   function onSubmit(values: SignInInput) {
     setServerError(null);
+    setErrorKey(null);
     startTransition(async () => {
       const res = await signInAction(values);
       if (res?.serverError) {
@@ -50,6 +60,7 @@ export function SignInForm({ next, initialError }: Props) {
         return;
       }
       if (res?.data && res.data.ok === false) {
+        setErrorKey(res.data.message);
         setServerError(displayMessage(t, res.data.message));
         return;
       }
@@ -62,7 +73,10 @@ export function SignInForm({ next, initialError }: Props) {
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
       {serverError ? (
         <Alert variant="destructive">
-          <AlertDescription>{serverError}</AlertDescription>
+          <AlertDescription className="space-y-3">
+            <p>{serverError}</p>
+            {showResend && typedEmail ? <ResendSignupEmail email={typedEmail} /> : null}
+          </AlertDescription>
         </Alert>
       ) : null}
 

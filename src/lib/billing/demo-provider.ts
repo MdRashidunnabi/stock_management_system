@@ -71,10 +71,11 @@ export async function demoActivate(tenantId: string) {
   const next = new Date();
   next.setMonth(next.getMonth() + 1);
 
-  await admin
+  const { error: tErr } = await admin
     .from("tenants")
     .update({ status: "active", updated_at: new Date().toISOString() })
     .eq("id", tenantId);
+  if (tErr) throw new Error(tErr.message);
 
   await admin
     .from("tenant_billing")
@@ -91,7 +92,8 @@ export async function demoPay(tenantId: string) {
   const next = new Date();
   next.setMonth(next.getMonth() + 1);
 
-  await admin.from("tenants").update({ status: "active" }).eq("id", tenantId);
+  const { error: tErr } = await admin.from("tenants").update({ status: "active" }).eq("id", tenantId);
+  if (tErr) throw new Error(tErr.message);
 
   await admin
     .from("tenant_billing")
@@ -105,7 +107,8 @@ export async function demoPay(tenantId: string) {
 
 export async function demoPastDue(tenantId: string) {
   const admin = createAdminClient();
-  await admin.from("tenants").update({ status: "past_due" }).eq("id", tenantId);
+  const { error } = await admin.from("tenants").update({ status: "past_due" }).eq("id", tenantId);
+  if (error) throw new Error(error.message);
   await admin
     .from("tenant_billing")
     .update({ last_payment_status: "failed" })
@@ -114,13 +117,15 @@ export async function demoPastDue(tenantId: string) {
 
 export async function demoSuspend(tenantId: string) {
   const admin = createAdminClient();
-  await admin.from("tenants").update({ status: "suspended" }).eq("id", tenantId);
+  const { error } = await admin.from("tenants").update({ status: "suspended" }).eq("id", tenantId);
+  if (error) throw new Error(error.message);
 }
 
 export async function demoCancel(tenantId: string) {
   const admin = createAdminClient();
   const now = new Date().toISOString();
-  await admin.from("tenants").update({ status: "cancelled" }).eq("id", tenantId);
+  const { error } = await admin.from("tenants").update({ status: "cancelled" }).eq("id", tenantId);
+  if (error) throw new Error(error.message);
   await admin.from("tenant_billing").update({ canceled_at: now }).eq("tenant_id", tenantId);
 }
 
@@ -136,10 +141,11 @@ export async function demoExtendTrial(tenantId: string, days: number) {
   if (base.getTime() < Date.now()) base.setTime(Date.now());
   base.setDate(base.getDate() + days);
 
-  await admin
+  const { error } = await admin
     .from("tenants")
     .update({ status: "trial", trial_ends_at: base.toISOString() })
     .eq("id", tenantId);
+  if (error) throw new Error(error.message);
 
   await admin
     .from("tenant_billing")

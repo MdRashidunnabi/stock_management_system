@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
+import { looksLikeAuthCode, looksLikeAuthTokenHash } from "@/lib/auth/email-redirect";
 import type { Database } from "@/lib/supabase/types";
 
 /**
@@ -23,6 +24,7 @@ const PUBLIC_PREFIXES_EXTRA = ["/invite/"];
 
 const PUBLIC_PREFIXES = [
   "/api/health",
+  "/api/cron/",
   "/api/auth/",
   "/api/locale",
   "/auth/",
@@ -88,6 +90,41 @@ function isProtectedPath(pathname: string) {
  * `./server.ts`.
  */
 export async function updateSession(request: NextRequest) {
+  const { pathname, searchParams } = request.nextUrl;
+  const authCode = searchParams.get("code");
+  const tokenHash = searchParams.get("token_hash");
+  const authType = searchParams.get("type");
+  const errorCode = searchParams.get("error_code");
+  const authError = searchParams.get("error");
+
+  if (
+    (errorCode === "otp_expired" || authError === "access_denied") &&
+    pathname !== "/login" &&
+    pathname !== "/forgot-password" &&
+    !pathname.startsWith("/auth/")
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = authType === "recovery" || errorCode === "otp_expired" ? "/forgot-password" : "/login";
+    url.search = "";
+    url.searchParams.set("error", "This sign-in link is invalid or has expired.");
+    return NextResponse.redirect(url);
+  }
+
+  const hasAuthPayload =
+    (looksLikeAuthCode(authCode) && !authError) || looksLikeAuthTokenHash(tokenHash);
+  if (
+    hasAuthPayload &&
+    pathname !== "/auth/callback" &&
+    !pathname.startsWith("/auth/callback/")
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/callback";
+    if (!url.searchParams.get("next")) {
+      url.searchParams.set("next", authType === "recovery" ? "/reset-password" : "/dashboard");
+    }
+    return NextResponse.redirect(url);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(
@@ -115,8 +152,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
 
   // 1. Public path + signed in + on a "signed-out only" route -> /dashboard
   if (user && SIGNED_IN_REDIRECT_AWAY.has(pathname)) {

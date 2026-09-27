@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { ArrowUp, Loader2, Mic, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -91,6 +91,7 @@ type BrowserSpeech = {
 export function ShopAssistant({ session }: { session: AssistantSession }) {
   const { t } = useT();
   const router = useRouter();
+  const pathname = usePathname();
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [open, setOpen] = useState(false);
@@ -188,12 +189,14 @@ export function ShopAssistant({ session }: { session: AssistantSession }) {
     void runTurn(value);
   }
 
+  if (pathname?.startsWith("/platform")) return null;
+
   return (
     <div data-shopos-agent className="print:hidden">
       {open ? (
         <section
           aria-label={t("agent.title")}
-          className="border-border bg-card fixed inset-x-3 bottom-3 z-[80] flex max-h-[min(40rem,calc(100dvh-1.5rem))] flex-col overflow-hidden rounded-2xl border shadow-2xl sm:inset-x-auto sm:right-5 sm:bottom-5 sm:w-[24.5rem]"
+          className="border-border bg-card fixed inset-x-3 bottom-3 z-40 flex max-h-[min(40rem,calc(100dvh-1.5rem))] flex-col overflow-hidden rounded-2xl border shadow-2xl sm:inset-x-auto sm:right-5 sm:bottom-5 sm:w-[24.5rem]"
         >
           <header className="from-primary via-primary to-info flex items-center justify-between bg-gradient-to-r px-4 py-3 text-white">
             <div className="flex items-center gap-2">
@@ -290,7 +293,7 @@ export function ShopAssistant({ session }: { session: AssistantSession }) {
             setOpen(true);
             window.setTimeout(() => inputRef.current?.focus(), 50);
           }}
-          className="from-primary to-info fixed right-4 bottom-4 z-[80] h-14 gap-2 rounded-full bg-gradient-to-r px-4 text-white shadow-xl hover:opacity-95 sm:right-6 sm:bottom-6"
+          className="from-primary to-info fixed right-4 bottom-4 z-40 h-14 gap-2 rounded-full bg-gradient-to-r px-4 text-white shadow-xl hover:opacity-95 sm:right-6 sm:bottom-6"
           aria-label={t("a11y.openHelp")}
         >
           <Sparkles className="size-5" />

@@ -87,8 +87,8 @@ export const productBaseSchema = z.object({
   defaultSupplierId: idOrEmpty,
   purchasePrice: priceSchema,
   sellingPrice: priceSchema,
-  onlineSellingPrice: optionalOnlinePriceSchema,
-  onlineDiscountPct: onlineDiscountSchema,
+  onlineSellingPrice: optionalOnlinePriceSchema.optional(),
+  onlineDiscountPct: onlineDiscountSchema.optional(),
   vatCode: z.enum(VAT_CODES).default("STD"),
   vatIncluded: z.boolean().default(true),
   baseUnit: z

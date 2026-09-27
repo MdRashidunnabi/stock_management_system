@@ -38,8 +38,10 @@ export const platformRevokeTillAction = authActionClient
   .action(async ({ parsedInput }) => {
     if (!(await isPlatformStaff())) throw new ActionError("Platform access required.");
     await revokePosDevice(parsedInput.tenantId, parsedInput.deviceId);
+    revalidatePath("/platform");
+    revalidatePath("/platform/tenants");
     revalidatePath(`/platform/tenants/${parsedInput.tenantId}`);
-    return { ok: true as const };
+    return { ok: true as const, message: "Till revoked. It cannot sell until restored." };
   });
 
 export const platformRestoreTillAction = authActionClient
@@ -53,6 +55,8 @@ export const platformRestoreTillAction = authActionClient
   .action(async ({ parsedInput }) => {
     if (!(await isPlatformStaff())) throw new ActionError("Platform access required.");
     await restorePosDevice(parsedInput.tenantId, parsedInput.deviceId);
+    revalidatePath("/platform");
+    revalidatePath("/platform/tenants");
     revalidatePath(`/platform/tenants/${parsedInput.tenantId}`);
-    return { ok: true as const };
+    return { ok: true as const, message: "Till restored. It can get a sell lease again." };
   });

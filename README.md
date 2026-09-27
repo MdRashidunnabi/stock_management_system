@@ -6,12 +6,14 @@ POS, stock, suppliers, and online sales for shops.
 
 These accounts are for testers. They are not production admin accounts.
 
-| Role    | Email                       | Password       |
-| ------- | --------------------------- | -------------- |
-| Owner   | `owner@demo.shopos.local`   | `DemoPass123!` |
-| Cashier | `cashier@demo.shopos.local` | `DemoPass123!` |
+| Shop | Role | Email | Password |
+|------|------|--------|----------|
+| Needscarlow | Owner | `owner@needscarlow.shopos.local` | `DemoPass123!` |
+| Needscarlow | Cashier | `cashier@needscarlow.shopos.local` | `DemoPass123!` |
+| Greenway | Owner | `owner@demo.shopos.local` | `DemoPass123!` |
+| Greenway | Cashier | `cashier@demo.shopos.local` | `DemoPass123!` |
 
-Sign in at https://shopos-red.vercel.app/login. Use **Owner** or **Cashier** on that page to fill the form.
+Sign in at https://shopos-red.vercel.app/login (use the demo buttons). Online shop: https://shopos-red.vercel.app/shop/needscarlow
 
 The demo only works on a live ShopOS instance (Vercel, or a Hostinger **VPS** with Docker). It will not log in on Hostinger **shared** hosting.
 

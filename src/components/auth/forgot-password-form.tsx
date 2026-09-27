@@ -13,12 +13,15 @@ import { forgotPasswordSchema, type ForgotPasswordInput } from "@/lib/auth/schem
 import { requestPasswordResetAction } from "@/lib/auth/actions";
 import { useT } from "@/components/i18n/locale-provider";
 import { displayMessage } from "@/lib/i18n/display";
+import { AuthEmailLinkPaste } from "@/components/auth/auth-email-link-paste";
 
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({ initialError }: { initialError?: string }) {
   const { t } = useT();
   const [pending, startTransition] = useTransition();
   const [sent, setSent] = useState<string | null>(null);
-  const [serverError, setServerError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(
+    initialError ? displayMessage(t, initialError) : null,
+  );
 
   const form = useForm<ForgotPasswordInput>({
     resolver: zodResolver(forgotPasswordSchema),
@@ -33,6 +36,13 @@ export function ForgotPasswordForm() {
         setServerError(displayMessage(t, res.serverError));
         return;
       }
+      if (res?.data && "ok" in res.data && res.data.ok === false) {
+        const wait = "seconds" in res.data ? res.data.seconds : undefined;
+        setServerError(
+          displayMessage(t, res.data.message, wait ? { seconds: wait } : undefined),
+        );
+        return;
+      }
       if (res?.data?.ok) {
         setSent(res.data.email);
       }
@@ -41,9 +51,15 @@ export function ForgotPasswordForm() {
 
   if (sent) {
     return (
-      <Alert>
-        <AlertDescription>{t("auth.resetSent")}</AlertDescription>
-      </Alert>
+      <div className="space-y-4">
+        <Alert>
+          <AlertDescription className="space-y-2">
+            <p>{t("auth.resetSent")}</p>
+            <p className="text-muted-foreground text-xs">{t("auth.checkEmailOpenHint")}</p>
+          </AlertDescription>
+        </Alert>
+        <AuthEmailLinkPaste next="/reset-password" />
+      </div>
     );
   }
 
@@ -51,7 +67,9 @@ export function ForgotPasswordForm() {
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
       {serverError ? (
         <Alert variant="destructive">
-          <AlertDescription>{serverError}</AlertDescription>
+          <AlertDescription>
+            <p>{serverError}</p>
+          </AlertDescription>
         </Alert>
       ) : null}
 

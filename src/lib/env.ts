@@ -111,4 +111,15 @@ export const env = {
   ...(parsedServer ?? ({} as z.infer<typeof serverSchema>)),
 } as const;
 
+if (
+  isServer &&
+  !process.env.VITEST &&
+  /supabase\.co/i.test(env.NEXT_PUBLIC_SUPABASE_URL) &&
+  /localhost|127\.0\.0\.1/i.test(env.NEXT_PUBLIC_APP_URL)
+) {
+  console.warn(
+    "[shopos] Cloud Supabase is paired with a localhost APP_URL. Auth emails will open localhost. Keep Docker keys in .env.local, and live URL in .env.cloud.local / Vercel.",
+  );
+}
+
 export type Env = typeof env;

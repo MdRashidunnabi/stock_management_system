@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { entityIdSchema } from "@/lib/entity-id";
 import {
   detectCardBrand,
   isExpiryInFuture,
@@ -51,9 +52,42 @@ export const paymentCardSchema = z
 export const demoCardSchema = paymentCardSchema;
 
 export const platformTenantActionSchema = z.object({
-  tenantId: z.string().uuid(),
+  tenantId: z
+    .string()
+    .regex(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      "Invalid shop id.",
+    ),
 });
 
 export const extendTrialSchema = platformTenantActionSchema.extend({
   days: z.coerce.number().int().min(1).max(90),
+});
+
+export const SHOP_MEMBER_ROLES = ["owner", "manager", "accountant", "cashier"] as const;
+
+export const platformCreateShopMemberSchema = z.object({
+  tenantId: z
+    .string()
+    .regex(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      "Invalid shop id.",
+    ),
+  fullName: z.string().min(1).max(120),
+  email: z.string().min(1).max(254),
+  role: z.enum(SHOP_MEMBER_ROLES),
+  password: z.string().min(1).max(72),
+  resetPasswordIfExists: z.boolean().optional(),
+});
+
+export const platformShopMemberIdSchema = platformTenantActionSchema.extend({
+  userId: entityIdSchema,
+});
+
+export const platformUpdateShopMemberRoleSchema = platformShopMemberIdSchema.extend({
+  role: z.enum(SHOP_MEMBER_ROLES),
+});
+
+export const platformSetShopMemberPasswordSchema = platformShopMemberIdSchema.extend({
+  password: z.string().min(1).max(72),
 });

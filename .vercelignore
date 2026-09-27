@@ -12,8 +12,6 @@ needscarlow-env
 .venv
 venv
 
-Shops/Needscarlow/needscarlow_images
-public/shops/needscarlow
 supabase/sql-chunks
 supabase/combined-migrations.sql
 

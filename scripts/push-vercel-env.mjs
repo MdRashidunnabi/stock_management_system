@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 /**
- * Push required env vars from .env.local to the linked Vercel project.
+ * Push required env vars to the linked Vercel project.
+ * Prefers gitignored `.env.cloud.local` so Docker `.env.local` is never uploaded.
  * Run once after: npx vercel login && npx vercel link
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-const ENV_FILE = path.join(process.cwd(), ".env.local");
+const CLOUD_ENV_FILE = path.join(process.cwd(), ".env.cloud.local");
+const LOCAL_ENV_FILE = path.join(process.cwd(), ".env.local");
+const ENV_FILE = fs.existsSync(CLOUD_ENV_FILE) ? CLOUD_ENV_FILE : LOCAL_ENV_FILE;
 const REQUIRED = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
@@ -19,12 +22,15 @@ const REQUIRED = [
 ];
 
 const OPTIONAL = [
+  "NEXT_PUBLIC_APP_URL",
   "NEXT_PUBLIC_DEFAULT_LOCALE",
   "NEXT_PUBLIC_DEFAULT_CURRENCY",
   "NEXT_PUBLIC_DEFAULT_TIMEZONE",
   "NEXT_PUBLIC_DEFAULT_COUNTRY",
   "EMAIL_FROM",
 ];
+
+const LIVE_APP_URL = "https://shopos-red.vercel.app";
 
 function parseEnvFile(file) {
   const out = {};
@@ -66,11 +72,17 @@ function addEnv(name, value, target) {
 }
 
 if (!fs.existsSync(ENV_FILE)) {
-  console.error("Missing .env.local");
+  console.error("Missing .env.cloud.local (or .env.local)");
   process.exit(1);
 }
 
 const env = parseEnvFile(ENV_FILE);
+if (/localhost|127\.0\.0\.1/i.test(env.NEXT_PUBLIC_SUPABASE_URL ?? "")) {
+  console.error(
+    "Refusing to push Docker/localhost Supabase keys to Vercel. Put cloud keys in .env.cloud.local.",
+  );
+  process.exit(1);
+}
 const targets = ["production", "preview", "development"];
 
 console.info("[vercel-env] Pushing variables to all environments…\n");
@@ -84,16 +96,25 @@ for (const key of [...REQUIRED, ...OPTIONAL]) {
     continue;
   }
   for (const target of targets) {
-    addEnv(key, value, target);
+    let nextValue = value;
+    if (
+      key === "NEXT_PUBLIC_APP_URL" &&
+      target === "production" &&
+      /localhost|127\.0\.0\.1/i.test(value)
+    ) {
+      console.warn(
+        `  ! ${key} is localhost in the env file. Using ${LIVE_APP_URL} for production.`,
+      );
+      nextValue = LIVE_APP_URL;
+    }
+    addEnv(key, nextValue, target);
   }
 }
 
 if (env.NEXT_PUBLIC_APP_ENV !== "production") {
   addEnv("NEXT_PUBLIC_APP_ENV", "production", "production");
 }
-const prodUrl = process.env.VERCEL_PROD_URL?.trim();
-if (prodUrl) {
-  addEnv("NEXT_PUBLIC_APP_URL", prodUrl, "production");
-}
+const prodUrl = process.env.VERCEL_PROD_URL?.trim() || LIVE_APP_URL;
+addEnv("NEXT_PUBLIC_APP_URL", prodUrl, "production");
 
 console.info("\n[vercel-env] Done. Run: npm run deploy:vercel\n");

@@ -13,6 +13,7 @@ export async function proxy(request: NextRequest) {
   if (
     path.startsWith("/_next/") ||
     path.startsWith("/api/health") ||
+    path.startsWith("/api/cron/") ||
     // Serwist serves the service worker + helper scripts under /serwist/.
     path.startsWith("/serwist/") ||
     // The PWA manifest must always be reachable, including for unauthenticated users.

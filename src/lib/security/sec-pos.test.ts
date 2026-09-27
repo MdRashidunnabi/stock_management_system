@@ -7,6 +7,7 @@ import {
   productNameSkuOrFilter,
 } from "./postgrest-filter";
 import { hitRateLimit, resetRateLimitStoreForTests } from "./rate-limit";
+import { hitAuthEmailLimit } from "@/lib/auth/email-rate-limit";
 import { storageObjectSegment, tenantObjectPath } from "./storage-path";
 import { bindActorId, bindTenantId, resolveActiveTenantId } from "./tenant-scope";
 import { canAttachSaleToTill } from "./till-session";
@@ -217,6 +218,16 @@ describe("Rate limit", () => {
     expect(hitRateLimit("login:a@b.c", 2, 60_000, now).ok).toBe(true);
     expect(hitRateLimit("login:a@b.c", 2, 60_000, now + 10).ok).toBe(true);
     expect(hitRateLimit("login:a@b.c", 2, 60_000, now + 20).ok).toBe(false);
+  });
+
+  it("allows 5 reset emails per 15 minutes with a 60s gap", () => {
+    const now = 2_000_000;
+    expect(hitAuthEmailLimit("reset", "shop@example.com", now).ok).toBe(true);
+    expect(hitAuthEmailLimit("reset", "shop@example.com", now + 10).ok).toBe(false);
+    for (let i = 1; i < 5; i += 1) {
+      expect(hitAuthEmailLimit("reset", "shop@example.com", now + i * 60_000).ok).toBe(true);
+    }
+    expect(hitAuthEmailLimit("reset", "shop@example.com", now + 5 * 60_000).ok).toBe(false);
   });
 });
 

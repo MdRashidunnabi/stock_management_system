@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Mail } from "lucide-react";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { ResendSignupEmail } from "@/components/auth/resend-signup-email";
+import { AuthEmailLinkPaste } from "@/components/auth/auth-email-link-paste";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { env } from "@/lib/env";
 import { getRequestLocale } from "@/lib/i18n/get-locale";
@@ -33,6 +35,7 @@ export default async function VerifyEmailPage({
           <p className="text-muted-foreground mt-2 text-sm">
             {m.auth.checkEmailSub.replace("{email}", email ?? "")}
           </p>
+          <p className="text-muted-foreground mt-2 text-xs">{m.auth.checkEmailOpenHint}</p>
         </div>
 
         {showMailpit ? (
@@ -50,6 +53,9 @@ export default async function VerifyEmailPage({
             </AlertDescription>
           </Alert>
         ) : null}
+
+        {email ? <ResendSignupEmail email={email} /> : null}
+        <AuthEmailLinkPaste next="/dashboard" />
 
         <p className="text-muted-foreground text-center text-xs">
           {m.auth.alreadyConfirmed}{" "}

@@ -1,11 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { Building2, Search } from "lucide-react";
+import { Pencil, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ShopEditSheet } from "@/components/platform/shop-edit-sheet";
 
 export type PlatformTenantRow = {
   id: string;
@@ -17,20 +25,30 @@ export type PlatformTenantRow = {
   cardLast4: string | null;
   memberCount: number;
   monthlyEur: number;
+  tillActiveCount: number;
+  tillTotalCount: number;
+  teamPreview: string[];
 };
 
 export function PlatformTenantsList({ tenants }: { tenants: PlatformTenantRow[] }) {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
+  const [editId, setEditId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return tenants.filter((t) => {
       if (status !== "all" && t.status !== status) return false;
       if (!needle) return true;
-      return t.displayName.toLowerCase().includes(needle) || t.slug.toLowerCase().includes(needle);
+      return (
+        t.displayName.toLowerCase().includes(needle) ||
+        t.slug.toLowerCase().includes(needle) ||
+        t.teamPreview.some((email) => email.toLowerCase().includes(needle))
+      );
     });
   }, [tenants, q, status]);
+
+  const editing = tenants.find((t) => t.id === editId);
 
   return (
     <div className="space-y-4">
@@ -39,7 +57,7 @@ export function PlatformTenantsList({ tenants }: { tenants: PlatformTenantRow[] 
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
             className="pl-9"
-            placeholder="Search by shop name or web address…"
+            placeholder="Search shop, address, or team email…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -63,41 +81,85 @@ export function PlatformTenantsList({ tenants }: { tenants: PlatformTenantRow[] 
       </div>
 
       <p className="text-muted-foreground text-sm">
-        Showing {filtered.length} of {tenants.length} shops
+        {filtered.length} of {tenants.length} shops
       </p>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((t) => (
-          <Link key={t.id} href={`/platform/tenants/${t.id}`}>
-            <Card className="hover:border-primary/40 h-full transition-colors">
-              <CardContent className="space-y-3 p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="text-primary size-5 shrink-0" />
-                    <div>
-                      <p className="leading-tight font-semibold">{t.displayName}</p>
-                      <p className="text-muted-foreground text-xs">{t.slug}</p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="shrink-0 capitalize">
-                    {t.status.replace("_", " ")}
-                  </Badge>
-                </div>
-                <div className="text-muted-foreground grid grid-cols-2 gap-2 text-xs">
-                  <span>Team: {t.memberCount}</span>
-                  <span>€{t.monthlyEur.toFixed(2)}/mo</span>
-                  <span>Card: {t.cardOnFile ? `•••• ${t.cardLast4}` : "None"}</span>
-                  <span>
-                    Trial:{" "}
-                    {t.trialEndsAt ? new Date(t.trialEndsAt).toLocaleDateString("en-IE") : "—"}
-                  </span>
-                </div>
-                <p className="text-info text-xs font-medium">Open shop controls →</p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+      <div className="border-border overflow-x-auto rounded-xl border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Shop</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Plan</TableHead>
+              <TableHead>Card</TableHead>
+              <TableHead>Trial</TableHead>
+              <TableHead>Team</TableHead>
+              <TableHead>Tills</TableHead>
+              <TableHead className="bg-background sticky right-0 text-right">Edit</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-muted-foreground py-8 text-center">
+                  No shops match.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((t) => (
+                <TableRow key={t.id}>
+                  <TableCell>
+                    <p className="font-medium">{t.displayName}</p>
+                    <p className="text-muted-foreground text-xs">{t.slug}</p>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="capitalize">
+                      {t.status.replace("_", " ")}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>€{t.monthlyEur.toFixed(2)}/mo</TableCell>
+                  <TableCell>{t.cardOnFile ? `•••• ${t.cardLast4}` : "None"}</TableCell>
+                  <TableCell>
+                    {t.trialEndsAt ? t.trialEndsAt.slice(0, 10) : "—"}
+                  </TableCell>
+                  <TableCell className="max-w-[220px]">
+                    <p>{t.memberCount}</p>
+                    <p className="text-muted-foreground truncate text-xs" title={t.teamPreview.join(", ")}>
+                      {t.teamPreview.join(", ") || "—"}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    {t.tillActiveCount}
+                    {t.tillTotalCount > t.tillActiveCount
+                      ? ` / ${t.tillTotalCount}`
+                      : ""}
+                  </TableCell>
+                  <TableCell className="bg-background sticky right-0 text-right">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setEditId(t.id)}
+                    >
+                      <Pencil className="size-3.5" />
+                      Edit
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
+
+      <ShopEditSheet
+        tenantId={editId}
+        shopName={editing?.displayName}
+        open={Boolean(editId)}
+        onOpenChange={(open) => {
+          if (!open) setEditId(null);
+        }}
+      />
     </div>
   );
 }

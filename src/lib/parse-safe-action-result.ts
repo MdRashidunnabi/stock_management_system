@@ -40,12 +40,52 @@ function hasSuccessData(res: unknown): boolean {
   );
 }
 
+function firstValidationMessage(validationErrors: unknown): string | null {
+  if (validationErrors == null || typeof validationErrors !== "object") return null;
+  const v = validationErrors as Record<string, unknown>;
+
+  const take = (errs: unknown): string | null => {
+    if (Array.isArray(errs) && typeof errs[0] === "string" && errs[0].length > 0) return errs[0];
+    return null;
+  };
+
+  if ("formErrors" in v || "fieldErrors" in v) {
+    const formMsg = take(v.formErrors);
+    if (formMsg) return formMsg;
+    const fieldErrors = v.fieldErrors;
+    if (fieldErrors && typeof fieldErrors === "object") {
+      for (const errs of Object.values(fieldErrors as Record<string, unknown>)) {
+        const msg = take(errs);
+        if (msg) return msg;
+      }
+    }
+    return null;
+  }
+
+  for (const [key, fieldErr] of Object.entries(v)) {
+    if (key === "_errors") {
+      const msg = take(fieldErr);
+      if (msg) return msg;
+      continue;
+    }
+    const direct = take(fieldErr);
+    if (direct) return direct;
+    if (fieldErr && typeof fieldErr === "object" && "_errors" in fieldErr) {
+      const msg = take((fieldErr as { _errors?: unknown })._errors);
+      if (msg) return msg;
+    }
+  }
+  return null;
+}
+
 export function getSafeActionError(res: unknown): string | null {
   if (!res || typeof res !== "object") return "No response from server. Please try again.";
   const r = res as { serverError?: string; validationErrors?: unknown };
   if (hasSuccessData(res)) return null;
   if (typeof r.serverError === "string" && r.serverError.length > 0) return r.serverError;
-  if (hasValidationErrors(r.validationErrors)) return "Please check the form fields.";
+  if (hasValidationErrors(r.validationErrors)) {
+    return firstValidationMessage(r.validationErrors) ?? "Please check the form fields.";
+  }
   return null;
 }
 

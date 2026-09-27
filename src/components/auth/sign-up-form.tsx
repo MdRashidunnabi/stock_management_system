@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { signUpSchema, type SignUpInput } from "@/lib/auth/schemas";
 import { signUpAction } from "@/lib/auth/actions";
+import { ResendSignupEmail } from "@/components/auth/resend-signup-email";
 import { useT } from "@/components/i18n/locale-provider";
 import { displayMessage } from "@/lib/i18n/display";
 import { CountrySelect } from "@/components/geo/country-select";
@@ -28,6 +29,7 @@ export function SignUpForm({ next }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
 
   const form = useForm<SignUpInput>({
     resolver: zodResolver(signUpSchema),
@@ -40,8 +42,13 @@ export function SignUpForm({ next }: Props) {
     },
   });
 
+  const typedEmail = form.watch("email");
+  const showExistingAccountHelp = errorKey === "errors.emailTaken";
+  const showResend = errorKey === "errors.emailUnconfirmed";
+
   function onSubmit(values: SignUpInput) {
     setServerError(null);
+    setErrorKey(null);
     startTransition(async () => {
       const res = await signUpAction(values);
       if (res?.serverError) {
@@ -54,6 +61,7 @@ export function SignUpForm({ next }: Props) {
       }
       const data = res?.data;
       if (data && data.ok === false) {
+        setErrorKey(data.message);
         setServerError(displayMessage(t, data.message));
         return;
       }
@@ -76,7 +84,24 @@ export function SignUpForm({ next }: Props) {
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
       {serverError ? (
         <Alert variant="destructive">
-          <AlertDescription>{serverError}</AlertDescription>
+          <AlertDescription className="space-y-3">
+            <p>{serverError}</p>
+            {showResend && typedEmail ? <ResendSignupEmail email={typedEmail} /> : null}
+            {showExistingAccountHelp || showResend ? (
+              <p className="text-xs">
+                <Link href="/login" className="font-medium underline-offset-2 hover:underline">
+                  {t("common.signIn")}
+                </Link>
+                {" · "}
+                <Link
+                  href="/forgot-password"
+                  className="font-medium underline-offset-2 hover:underline"
+                >
+                  {t("auth.forgot")}
+                </Link>
+              </p>
+            ) : null}
+          </AlertDescription>
         </Alert>
       ) : null}
 

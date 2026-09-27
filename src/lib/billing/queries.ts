@@ -95,6 +95,9 @@ export interface PlatformTenantRow {
   createdAt: string;
   billing: TenantBillingRow | null;
   memberCount: number;
+  tillActiveCount: number;
+  tillTotalCount: number;
+  teamPreview: string[];
 }
 
 export async function listAllTenantsForPlatform(): Promise<PlatformTenantRow[]> {
@@ -109,30 +112,56 @@ export async function listAllTenantsForPlatform(): Promise<PlatformTenantRow[]> 
 
   const ids = tenants.map((t) => t.id);
 
-  const [{ data: billings }, { data: members }] = await Promise.all([
+  const [{ data: billings }, { data: members }, { data: devices }] = await Promise.all([
     admin.from("tenant_billing").select("*").in("tenant_id", ids),
-    admin.from("user_tenants").select("tenant_id").eq("is_active", true).in("tenant_id", ids),
+    admin.from("user_tenants").select("tenant_id, user_id").eq("is_active", true).in("tenant_id", ids),
+    admin.from("pos_devices").select("tenant_id, revoked_at").in("tenant_id", ids),
   ]);
 
   const billingByTenant = new Map(
     (billings ?? []).map((b) => [b.tenant_id, mapBilling(b as Parameters<typeof mapBilling>[0])]),
   );
-  const countByTenant = new Map<string, number>();
+  const membersByTenant = new Map<string, string[]>();
   for (const m of members ?? []) {
-    countByTenant.set(m.tenant_id, (countByTenant.get(m.tenant_id) ?? 0) + 1);
+    const list = membersByTenant.get(m.tenant_id) ?? [];
+    list.push(m.user_id);
+    membersByTenant.set(m.tenant_id, list);
+  }
+  const userIds = [...new Set((members ?? []).map((m) => m.user_id))];
+  const { data: profiles } = userIds.length
+    ? await admin.from("profiles").select("id, email").in("id", userIds)
+    : { data: [] };
+  const emailById = new Map((profiles ?? []).map((p) => [p.id, p.email ?? ""]));
+
+  const tillActiveByTenant = new Map<string, number>();
+  const tillTotalByTenant = new Map<string, number>();
+  for (const d of devices ?? []) {
+    tillTotalByTenant.set(d.tenant_id, (tillTotalByTenant.get(d.tenant_id) ?? 0) + 1);
+    if (!d.revoked_at) {
+      tillActiveByTenant.set(d.tenant_id, (tillActiveByTenant.get(d.tenant_id) ?? 0) + 1);
+    }
   }
 
-  return tenants.map((t) => ({
-    id: t.id,
-    slug: t.slug,
-    displayName: t.display_name,
-    legalName: t.legal_name,
-    status: t.status,
-    trialEndsAt: t.trial_ends_at,
-    createdAt: t.created_at,
-    billing: billingByTenant.get(t.id) ?? null,
-    memberCount: countByTenant.get(t.id) ?? 0,
-  }));
+  return tenants.map((t) => {
+    const memberIds = membersByTenant.get(t.id) ?? [];
+    return {
+      id: t.id,
+      slug: t.slug,
+      displayName: t.display_name,
+      legalName: t.legal_name,
+      status: t.status,
+      trialEndsAt: t.trial_ends_at,
+      createdAt: t.created_at,
+      billing: billingByTenant.get(t.id) ?? null,
+      memberCount: memberIds.length,
+      tillActiveCount: tillActiveByTenant.get(t.id) ?? 0,
+      tillTotalCount: tillTotalByTenant.get(t.id) ?? 0,
+      teamPreview: memberIds
+        .map((id) => emailById.get(id))
+        .filter((email): email is string => Boolean(email))
+        .slice(0, 3),
+    };
+  });
 }
 
 export async function getPlatformTenantDetail(tenantId: string) {

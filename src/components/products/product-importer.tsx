@@ -22,6 +22,7 @@ import {
   parseProductsCsvAction,
 } from "@/lib/catalog/products-import/actions";
 import type { ParsedProductRow } from "@/lib/catalog/products-import/schemas";
+import { getSafeActionData, getSafeActionError } from "@/lib/parse-safe-action-result";
 
 const TEMPLATE_CSV = `name,sku,barcode,category,brand,supplier,purchase_price,selling_price,vat_code,vat_included,base_unit,is_active,image_url
 Tayto Cheese & Onion 45g,TAY-CO-45,5012345678901,Beverages,Tayto,DEMO-WHOLESALE,0.45,1.20,STD,true,un,true,/shops/demo/tayto.jpg
@@ -60,18 +61,20 @@ export function ProductImporter({ canWrite }: Props) {
     setParseResult(null);
     startParse(async () => {
       const res = await parseProductsCsvAction({ csvText });
-      if (res?.serverError) {
-        setServerError(res.serverError);
+      const err = getSafeActionError(res);
+      if (err) {
+        setServerError(err);
         return;
       }
-      if (res?.validationErrors) {
-        setServerError("Please paste or upload a non-empty CSV.");
-        return;
-      }
-      if (res?.data?.ok) {
-        setParseResult({ rows: res.data.rows, summary: res.data.summary });
+      const data = getSafeActionData<{
+        ok: true;
+        rows: ParsedProductRow[];
+        summary: { total: number; valid: number; errors: number };
+      }>(res);
+      if (data) {
+        setParseResult({ rows: data.rows, summary: data.summary });
         toast.success(
-          `Validated ${res.data.summary.total} rows (${res.data.summary.valid} valid, ${res.data.summary.errors} with errors)`,
+          `Validated ${data.summary.total} rows (${data.summary.valid} valid, ${data.summary.errors} with errors)`,
         );
       }
     });
@@ -108,12 +111,14 @@ export function ProductImporter({ canWrite }: Props) {
     setServerError(null);
     startCommit(async () => {
       const res = await commitProductsImportAction({ rows: validRows });
-      if (res?.serverError) {
-        setServerError(res.serverError);
+      const err = getSafeActionError(res);
+      if (err) {
+        setServerError(err);
         return;
       }
-      if (res?.data?.ok) {
-        toast.success(`Imported ${res.data.inserted} products`);
+      const data = getSafeActionData<{ ok: true; inserted: number }>(res);
+      if (data) {
+        toast.success(`Imported ${data.inserted} products`);
         setCsvText("");
         setParseResult(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -159,8 +164,12 @@ export function ProductImporter({ canWrite }: Props) {
               <code>barcode</code>, <code>category</code>, <code>brand</code>, <code>supplier</code>
               , <code>purchase_price</code>, <code>selling_price</code>, <code>vat_code</code>{" "}
               (STD|RED|SEC|LIV|ZER|EXE), <code>vat_included</code>, <code>base_unit</code>,{" "}
-              <code>is_active</code>, <code>image_url</code> (HTTPS or path like{" "}
-              <code>/shops/your-shop/photo.jpg</code>)
+              <code>is_active</code>, <code>image_url</code> (public <code>https://...</code> only)
+            </p>
+            <p>
+              Missing categories, brands, and suppliers are created when you validate. Local photo
+              paths such as <code>product_images/SKU000001.jpg</code> are skipped — products still
+              import, photos are added later.
             </p>
           </div>
           <Button type="button" variant="outline" onClick={handleDownloadTemplate}>

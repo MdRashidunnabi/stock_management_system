@@ -324,7 +324,8 @@ export const DESTINATIONS: AssistantDestination[] = [
     demoHref: "/demo#stock",
     roles: STOCK,
     keywords: ["import", "csv", "bulk import", "upload products"],
-    answer: "Bulk import loads many products from a CSV in one go.",
+    answer:
+      "Bulk import loads many products from a CSV in one go. Missing categories, brands, and suppliers are created during Validate. Use public https image URLs — local folders like product_images/SKU.jpg are skipped. Stock quantity is not in the CSV; use Scan in after import.",
     guestAnswer: "A CSV import is the fastest way to load a full catalogue.",
     forbiddenHint: "Imports are for owners, managers, and warehouse staff.",
   },

@@ -10,6 +10,7 @@ import {
   parseCsvSchema,
   type ParsedProductRow,
 } from "@/lib/catalog/products-import/schemas";
+import { slugify } from "@/lib/utils";
 
 const writableRoles = ["owner", "manager", "warehouse"] as const;
 
@@ -30,16 +31,17 @@ const writableRoles = ["owner", "manager", "warehouse"] as const;
  *   name             - required
  *   sku              - optional, unique per tenant
  *   barcode          - optional, unique per tenant
- *   category         - optional, matched by category slug or name (active only)
- *   brand            - optional, matched by brand slug or name (active only)
- *   supplier         - optional, matched by supplier code or name (active only)
+ *   category         - optional; matched by name/slug, created if missing
+ *   brand            - optional; matched by name/slug, created if missing
+ *   supplier         - optional; matched by name/code, created if missing
  *   purchase_price   - optional, defaults 0
  *   selling_price    - optional, defaults 0
  *   vat_code         - optional, one of STD|RED|SEC|LIV|ZER|EXE, default STD
  *   vat_included     - optional, true|false|1|0|yes|no, default true
  *   base_unit        - optional, default "un"
  *   is_active        - optional, true|false|1|0|yes|no, default true
- *   image_url        - optional, HTTPS URL or site path (alias: primary_image_url)
+ *   image_url        - optional HTTPS URL or site path. Local folders
+ *                      (e.g. product_images/SKU.jpg) are skipped.
  */
 export const parseProductsCsvAction = staffActionClient([...writableRoles])
   .metadata({ actionName: "products.import.parse" })
@@ -95,6 +97,12 @@ export const parseProductsCsvAction = staffActionClient([...writableRoles])
       if (s.name) supplierByKey.set(s.name.toLowerCase(), { id: s.id, name: s.name });
     }
 
+    await ensureImportLookups(supabase, ctx.tenant.tenantId, records, {
+      categoryByKey,
+      brandByKey,
+      supplierByKey,
+    });
+
     /* ---------- Pre-fetch existing SKUs / barcodes for dedup ---------- */
 
     const allSkus = records
@@ -145,19 +153,23 @@ export const parseProductsCsvAction = staffActionClient([...writableRoles])
         vatIncluded: parseBoolean(raw.vat_included, true),
         baseUnit: (raw.base_unit ?? "un").trim() || "un",
         isActive: parseBoolean(raw.is_active, true),
-        primaryImageUrl: (raw.image_url ?? raw.primary_image_url ?? "").trim(),
+        primaryImageUrl: normalizeImportImageUrl(
+          raw.image_url ?? raw.primary_image_url ?? "",
+        ),
+        onlineSellingPrice: undefined,
+        onlineDiscountPct: 0,
       };
 
       const errors: string[] = [];
 
-      if (raw.category && !candidate.categoryId) {
-        errors.push(`Category "${raw.category}" not found`);
+      if (raw.category?.trim() && !candidate.categoryId) {
+        errors.push(`Could not create category "${raw.category.trim()}"`);
       }
-      if (raw.brand && !candidate.brandId) {
-        errors.push(`Brand "${raw.brand}" not found`);
+      if (raw.brand?.trim() && !candidate.brandId) {
+        errors.push(`Could not create brand "${raw.brand.trim()}"`);
       }
-      if (raw.supplier && !candidate.defaultSupplierId) {
-        errors.push(`Supplier "${raw.supplier}" not found`);
+      if (raw.supplier?.trim() && !candidate.defaultSupplierId) {
+        errors.push(`Could not create supplier "${raw.supplier.trim()}"`);
       }
 
       const parsed = productBaseSchema.safeParse(candidate);
@@ -190,11 +202,13 @@ export const parseProductsCsvAction = staffActionClient([...writableRoles])
         payload: {
           ...parsed.data,
           _category: candidate.categoryId
-            ? (categoryByKey.get(raw.category!.toLowerCase()) ?? null)
+            ? (categoryByKey.get((raw.category ?? "").trim().toLowerCase()) ?? null)
             : null,
-          _brand: candidate.brandId ? (brandByKey.get(raw.brand!.toLowerCase()) ?? null) : null,
+          _brand: candidate.brandId
+            ? (brandByKey.get((raw.brand ?? "").trim().toLowerCase()) ?? null)
+            : null,
           _supplier: candidate.defaultSupplierId
-            ? (supplierByKey.get(raw.supplier!.toLowerCase()) ?? null)
+            ? (supplierByKey.get((raw.supplier ?? "").trim().toLowerCase()) ?? null)
             : null,
         },
       });
@@ -225,7 +239,7 @@ export const commitProductsImportAction = staffActionClient([...writableRoles])
       category_id: r.category_id || null,
       brand_id: r.brand_id || null,
       default_supplier_id: r.default_supplier_id || null,
-      primary_image_url: r.primary_image_url?.trim() || null,
+      primary_image_url: normalizeImportImageUrl(r.primary_image_url ?? "") ?? null,
     }));
 
     const { data, error } = await supabase.from("products").insert(rows).select("id");
@@ -235,6 +249,9 @@ export const commitProductsImportAction = staffActionClient([...writableRoles])
     }
 
     revalidatePath("/products");
+    revalidatePath("/categories");
+    revalidatePath("/brands");
+    revalidatePath("/suppliers");
     return { ok: true as const, inserted: data?.length ?? 0 };
   });
 
@@ -279,4 +296,109 @@ function parseVatCode(raw: string | undefined): "STD" | "RED" | "SEC" | "LIV" | 
     return v as "STD" | "RED" | "SEC" | "LIV" | "ZER" | "EXE";
   }
   return "STD";
+}
+
+type LookupMap = Map<string, { id: string; name: string }>;
+type DbClient = Awaited<ReturnType<typeof createClient>>;
+
+function normalizeImportImageUrl(raw: string): string | undefined {
+  const t = raw.trim();
+  if (!t) return undefined;
+  if (/^https?:\/\//i.test(t) || t.startsWith("/")) return t;
+  return undefined;
+}
+
+function uniqueFieldValues(records: Record<string, string>[], field: string): string[] {
+  const seen = new Set<string>();
+  for (const row of records) {
+    const value = (row[field] ?? "").trim();
+    if (value) seen.add(value);
+  }
+  return [...seen];
+}
+
+function rememberLookup(map: LookupMap, id: string, name: string, extra?: string | null) {
+  map.set(name.toLowerCase(), { id, name });
+  if (extra?.trim()) map.set(extra.trim().toLowerCase(), { id, name });
+}
+
+function nextSlug(name: string, used: Set<string>): string {
+  let stem = slugify(name) || "item";
+  if (stem.length < 2) stem = `${stem}1`;
+  let candidate = stem;
+  let n = 2;
+  while (used.has(candidate)) {
+    candidate = `${stem}-${n}`;
+    n += 1;
+  }
+  used.add(candidate);
+  return candidate;
+}
+
+function lookupCreateError(kind: string, error: { message: string; code?: string }): string {
+  if (error.code === "42501" || /row-level security/i.test(error.message)) {
+    return "Sign in as owner or manager so missing categories and brands can be created during import.";
+  }
+  return `Could not create ${kind}: ${error.message}`;
+}
+
+async function ensureImportLookups(
+  supabase: DbClient,
+  tenantId: string,
+  records: Record<string, string>[],
+  maps: { categoryByKey: LookupMap; brandByKey: LookupMap; supplierByKey: LookupMap },
+) {
+  const missingCategories = uniqueFieldValues(records, "category").filter(
+    (name) => !lookupId(maps.categoryByKey, name),
+  );
+  if (missingCategories.length > 0) {
+    const { data: slugRows, error: slugErr } = await supabase.from("categories").select("slug");
+    if (slugErr) throw new ActionError(slugErr.message);
+    const used = new Set((slugRows ?? []).map((r) => r.slug.toLowerCase()));
+    const insertRows = missingCategories.map((name, index) => ({
+      tenant_id: tenantId,
+      name,
+      slug: nextSlug(name, used),
+      position: index,
+    }));
+    const { data, error } = await supabase
+      .from("categories")
+      .insert(insertRows)
+      .select("id, name, slug");
+    if (error) throw new ActionError(lookupCreateError("categories", error));
+    for (const row of data ?? []) rememberLookup(maps.categoryByKey, row.id, row.name, row.slug);
+  }
+
+  const missingBrands = uniqueFieldValues(records, "brand").filter(
+    (name) => !lookupId(maps.brandByKey, name),
+  );
+  if (missingBrands.length > 0) {
+    const { data: slugRows, error: slugErr } = await supabase.from("brands").select("slug");
+    if (slugErr) throw new ActionError(slugErr.message);
+    const used = new Set((slugRows ?? []).map((r) => r.slug.toLowerCase()));
+    const insertRows = missingBrands.map((name) => ({
+      tenant_id: tenantId,
+      name,
+      slug: nextSlug(name, used),
+    }));
+    const { data, error } = await supabase.from("brands").insert(insertRows).select("id, name, slug");
+    if (error) throw new ActionError(lookupCreateError("brands", error));
+    for (const row of data ?? []) rememberLookup(maps.brandByKey, row.id, row.name, row.slug);
+  }
+
+  const missingSuppliers = uniqueFieldValues(records, "supplier").filter(
+    (name) => !lookupId(maps.supplierByKey, name),
+  );
+  if (missingSuppliers.length > 0) {
+    const insertRows = missingSuppliers.map((name) => ({
+      tenant_id: tenantId,
+      name,
+    }));
+    const { data, error } = await supabase
+      .from("suppliers")
+      .insert(insertRows)
+      .select("id, name, code");
+    if (error) throw new ActionError(lookupCreateError("suppliers", error));
+    for (const row of data ?? []) rememberLookup(maps.supplierByKey, row.id, row.name, row.code);
+  }
 }

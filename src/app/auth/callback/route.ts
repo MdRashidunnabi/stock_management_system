@@ -2,54 +2,76 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getPostAuthRedirectPath } from "@/lib/auth/routing";
 import { createClient } from "@/lib/supabase/server";
 import { publicAuthCallbackError } from "@/lib/security/public-error";
+import {
+  asEmailOtpType,
+  defaultNextForAuthType,
+  looksLikeAuthCode,
+  looksLikeAuthTokenHash,
+} from "@/lib/auth/email-redirect";
 
 /**
- * Supabase auth callback (PKCE).
+ * Supabase auth callback.
  *
- * Used for:
- *   - email-confirm links sent after sign-up
- *   - password-reset links sent by `auth.resetPasswordForEmail`
- *   - magic links and OAuth (future)
- *
- * Supabase redirects the browser to this URL with a `code` query param.
- * We exchange it for a session cookie, then forward the user to `next`.
+ * Emails may arrive as:
+ *   - PKCE `?code=` (exchangeCodeForSession)
+ *   - OTP `?token_hash=&type=` (verifyOtp) — used by reset / confirm templates
+ *   - Hash fragments (`#access_token=` / `#error=`) which the browser keeps;
+ *     those are finished by AuthUrlHandler on the next page
  */
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const errorDescription = url.searchParams.get("error_description");
+  const tokenHash = url.searchParams.get("token_hash");
+  const otpType = asEmailOtpType(url.searchParams.get("type"));
+  const errorDescription =
+    url.searchParams.get("error_description") ?? url.searchParams.get("error");
   const requestedNext = url.searchParams.get("next");
 
   if (errorDescription) {
-    const u = new URL("/login", url.origin);
+    const dest = otpType === "recovery" ? "/forgot-password" : "/login";
+    const u = new URL(dest, url.origin);
     u.searchParams.set("error", publicAuthCallbackError(errorDescription));
     return NextResponse.redirect(u);
   }
 
-  if (!code) {
-    const u = new URL("/login", url.origin);
-    u.searchParams.set("error", "Missing authentication code.");
-    return NextResponse.redirect(u);
-  }
-
   const supabase = await createClient();
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
 
-  if (error) {
-    const u = new URL("/login", url.origin);
-    u.searchParams.set("error", publicAuthCallbackError(error.message));
-    return NextResponse.redirect(u);
+  if (tokenHash && looksLikeAuthTokenHash(tokenHash) && otpType) {
+    const { error } = await supabase.auth.verifyOtp({
+      type: otpType,
+      token_hash: tokenHash,
+    });
+    if (error) {
+      const dest = otpType === "recovery" ? "/forgot-password" : "/login";
+      const u = new URL(dest, url.origin);
+      u.searchParams.set("error", publicAuthCallbackError(error.message));
+      return NextResponse.redirect(u);
+    }
+    const next = defaultNextForAuthType(otpType, requestedNext);
+    return NextResponse.redirect(new URL(next, url.origin));
   }
 
-  let next = await getPostAuthRedirectPath();
-  if (
-    requestedNext &&
-    requestedNext.startsWith("/") &&
-    !requestedNext.startsWith("//") &&
-    requestedNext !== "/dashboard"
-  ) {
-    next = requestedNext;
+  if (code && looksLikeAuthCode(code)) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      const dest = otpType === "recovery" ? "/forgot-password" : "/login";
+      const u = new URL(dest, url.origin);
+      u.searchParams.set("error", publicAuthCallbackError(error.message));
+      return NextResponse.redirect(u);
+    }
+
+    const forced = defaultNextForAuthType(otpType, requestedNext);
+    if (otpType === "recovery" || (requestedNext && requestedNext !== "/dashboard")) {
+      return NextResponse.redirect(new URL(forced, url.origin));
+    }
+
+    const next = await getPostAuthRedirectPath();
+    return NextResponse.redirect(new URL(next, url.origin));
   }
 
-  return NextResponse.redirect(new URL(next, url.origin));
+  // Implicit hash tokens are not visible to this GET. Send the browser to `/`
+  // so AuthUrlHandler can finish the session from `window.location.hash`.
+  const fallback = new URL("/", url.origin);
+  if (requestedNext) fallback.searchParams.set("next", requestedNext);
+  return NextResponse.redirect(fallback);
 }

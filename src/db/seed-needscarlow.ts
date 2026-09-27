@@ -155,6 +155,18 @@ async function main() {
     `;
 
     await sql`
+      update public.tenant_billing
+      set card_on_file = true, card_last4 = '1881', card_brand = 'visa'
+      where tenant_id = ${TENANT_ID}
+    `;
+    await sql`
+      update public.billing_accounts ba
+      set card_on_file = true, card_last4 = '1881', card_brand = 'visa'
+      from public.tenants t
+      where t.id = ${TENANT_ID} and t.billing_account_id = ba.id
+    `;
+
+    await sql`
       insert into public.tenant_storefronts (
         tenant_id, branch_id, enabled, hero_title, hero_subtitle, order_notice, public_site_name
       )
