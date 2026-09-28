@@ -216,9 +216,12 @@ export const commitPosSaleAction = staffActionClient([...POS_ROLES])
 
 /* ----------------------------- Sale queries ----------------------------- */
 
-export async function listRecentSales(limit = 50): Promise<SaleListRow[]> {
+export async function listRecentSales(
+  limit = 50,
+  channel?: "pos" | "online" | "all",
+): Promise<SaleListRow[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let q = supabase
     .from("sales")
     .select(
       `id, receipt_number, total, status, channel, created_at,
@@ -227,6 +230,8 @@ export async function listRecentSales(limit = 50): Promise<SaleListRow[]> {
     )
     .order("created_at", { ascending: false })
     .limit(limit);
+  if (channel === "pos" || channel === "online") q = q.eq("channel", channel);
+  const { data, error } = await q;
   if (error) throw new Error(`Failed to load sales: ${error.message}`);
   return (data ?? []).map((row) => ({
     id: row.id,

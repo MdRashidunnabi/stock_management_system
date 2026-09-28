@@ -138,6 +138,28 @@ export const DESTINATIONS: AssistantDestination[] = [
       "The owner dashboard is the shop's daily scoreboard — sales, stock alerts, and tills in one place.",
   },
   {
+    id: "reports",
+    title: "Reports",
+    href: "/reports",
+    demoHref: "/demo#dashboard",
+    roles: ["owner", "manager", "accountant", "warehouse"],
+    lookupTopic: "sales",
+    keywords: [
+      "which product sold",
+      "sku report",
+      "barcode report",
+      "category report",
+      "supplier report",
+      "online sales report",
+      "till vs online",
+      "product sales",
+    ],
+    answer:
+      "Reports shows what sold by SKU, barcode, category, brand, and supplier — today, this week, or this month. You can split till and online, download CSV, and see low stock next to profit.",
+    guestAnswer: "Owners can see what sold, by product and supplier, for till and online.",
+    forbiddenHint: "Reports are for owners, managers, accountants, and warehouse.",
+  },
+  {
     id: "pos",
     title: "Point of sale",
     href: "/pos",
@@ -198,7 +220,7 @@ export const DESTINATIONS: AssistantDestination[] = [
     title: "Online orders",
     href: "/online-orders",
     demoHref: "/demo#online",
-    roles: ["owner", "manager", "delivery"],
+    roles: ["owner", "manager", "warehouse", "delivery"],
     lookupTopic: "online",
     keywords: [
       "online orders",
@@ -207,9 +229,10 @@ export const DESTINATIONS: AssistantDestination[] = [
       "delivery orders",
       "customer order",
     ],
-    answer: "Online orders from your public shop share the same stock as the till.",
+    answer:
+      "Online orders from your public shop share the same stock as the till. Open an order for the invoice (SKU, barcode, qty, amount), tracking, similar-product substitutes, and refunds.",
     guestAnswer: "Online orders land here when a customer checks out on your public shop.",
-    forbiddenHint: "Online orders are for owners, managers, and delivery.",
+    forbiddenHint: "Online orders are for owners, managers, warehouse, and delivery.",
   },
   {
     id: "sessions",

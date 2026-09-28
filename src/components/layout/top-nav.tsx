@@ -52,13 +52,19 @@ const NAV_ITEMS: NavItem[] = [
     href: "/online-orders",
     label: "Online",
     icon: <Globe className="size-4" />,
-    roles: ["owner", "manager"],
+    roles: ["owner", "manager", "warehouse", "delivery"],
   },
   {
     href: "/sessions",
     label: "Till",
     icon: <KeyRound className="size-4" />,
     roles: ["owner", "manager", "cashier", "accountant"],
+  },
+  {
+    href: "/reports",
+    label: "Reports",
+    icon: <BarChart3 className="size-4" />,
+    roles: ["owner", "manager", "accountant", "warehouse"],
   },
   {
     href: "/products",

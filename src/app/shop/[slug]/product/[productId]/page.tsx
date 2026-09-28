@@ -4,7 +4,12 @@ import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { ProductPurchasePanel } from "@/components/storefront/add-to-cart";
 import { OnlinePrice } from "@/components/storefront/online-price";
-import { getStorefrontProduct, getStorefrontShop } from "@/lib/storefront/queries";
+import { ProductGrid } from "@/components/storefront/product-grid";
+import {
+  getStorefrontProduct,
+  getStorefrontShop,
+  listSimilarStorefrontProducts,
+} from "@/lib/storefront/queries";
 
 export async function generateMetadata({
   params,
@@ -28,6 +33,7 @@ export default async function ShopProductPage({
 
   const product = await getStorefrontProduct(shop, productId);
   if (!product) notFound();
+  const similar = await listSimilarStorefrontProducts(shop, product);
 
   return (
     <div className="space-y-6">
@@ -82,6 +88,19 @@ export default async function ShopProductPage({
           <ProductPurchasePanel shopSlug={shop.slug} product={product} />
         </div>
       </div>
+
+      {similar.length > 0 ? (
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-lg font-bold">Similar products</h2>
+            <p className="text-muted-foreground text-sm">
+              If this item is unavailable later, you can ask us to send something similar at
+              checkout.
+            </p>
+          </div>
+          <ProductGrid shopSlug={shop.slug} products={similar} />
+        </section>
+      ) : null}
     </div>
   );
 }

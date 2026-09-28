@@ -6,9 +6,10 @@ import { QuantityStepper } from "@/components/storefront/quantity-stepper";
 import { useCart } from "@/components/storefront/cart-context";
 import { Button } from "@/components/ui/button";
 import { useShopMoney } from "@/components/storefront/shop-money";
+import { cn } from "@/lib/utils";
 
 export function CartShell({ shopSlug }: { shopSlug: string }) {
-  const { lines, subtotal, setQty, removeLine } = useCart();
+  const { lines, subtotal, setQty, removeLine, setLinePolicy, wantedForDate } = useCart();
   const money = useShopMoney();
 
   if (lines.length === 0) {
@@ -24,6 +25,15 @@ export function CartShell({ shopSlug }: { shopSlug: string }) {
 
   return (
     <div className="space-y-6">
+      {wantedForDate ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+          Advance order for <strong>{wantedForDate}</strong>.{" "}
+          <Link href={`/shop/${shopSlug}/advance`} className="underline">
+            Change date
+          </Link>
+        </p>
+      ) : null}
+
       <ul className="divide-y overflow-hidden rounded-2xl border bg-white shadow-sm dark:bg-stone-900">
         {lines.map((line) => (
           <li key={line.productId} className="flex gap-4 p-4">
@@ -56,8 +66,35 @@ export function CartShell({ shopSlug }: { shopSlug: string }) {
                   <Trash2 className="size-4" />
                 </Button>
               </div>
+              <fieldset className="space-y-1">
+                <legend className="text-muted-foreground text-xs">
+                  If this item is unavailable
+                </legend>
+                <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                  <label className="flex cursor-pointer items-start gap-2 text-xs">
+                    <input
+                      type="radio"
+                      className="mt-0.5"
+                      name={`unavail-${line.productId}`}
+                      checked={line.ifUnavailable === "omit"}
+                      onChange={() => setLinePolicy(line.productId, "omit")}
+                    />
+                    <span>Skip it and refund me</span>
+                  </label>
+                  <label className="flex cursor-pointer items-start gap-2 text-xs">
+                    <input
+                      type="radio"
+                      className="mt-0.5"
+                      name={`unavail-${line.productId}`}
+                      checked={line.ifUnavailable === "substitute"}
+                      onChange={() => setLinePolicy(line.productId, "substitute")}
+                    />
+                    <span>Send a similar product instead</span>
+                  </label>
+                </div>
+              </fieldset>
             </div>
-            <p className="shrink-0 font-bold">{money(line.unitPrice * line.qty)}</p>
+            <p className={cn("shrink-0 font-bold")}>{money(line.unitPrice * line.qty)}</p>
           </li>
         ))}
       </ul>

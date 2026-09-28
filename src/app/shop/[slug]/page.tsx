@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import { ShopHero } from "@/components/storefront/shop-hero";
+import { ShopHomeShortcuts } from "@/components/storefront/shop-home-shortcuts";
 import { getStorefrontShop, listStorefrontProducts } from "@/lib/storefront/queries";
 
 export async function generateMetadata({
@@ -21,11 +22,27 @@ export default async function ShopHomePage({ params }: { params: Promise<{ slug:
   const shop = await getStorefrontShop(slug);
   if (!shop) return null;
 
-  const products = await listStorefrontProducts(shop, { limit: 48 });
+  const [products, offers] = await Promise.all([
+    listStorefrontProducts(shop, { limit: 48 }),
+    listStorefrontProducts(shop, { discountedOnly: true, limit: 8 }),
+  ]);
 
   return (
     <div className="space-y-10">
       <ShopHero shop={shop} />
+      <ShopHomeShortcuts shopSlug={shop.slug} />
+
+      {offers.length > 0 ? (
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-lg font-bold">On offer</h2>
+            <p className="text-muted-foreground text-sm">
+              Discounted products only — tap through for the full list.
+            </p>
+          </div>
+          <ProductGrid shopSlug={shop.slug} products={offers} />
+        </section>
+      ) : null}
 
       <section className="space-y-4">
         <div>

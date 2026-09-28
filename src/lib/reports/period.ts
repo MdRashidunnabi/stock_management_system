@@ -7,6 +7,9 @@
  */
 
 export type ReportPeriod = "today" | "week" | "month";
+export type ReportChannel = "all" | "pos" | "online";
+
+export const MIN_ADVANCE_DAYS = 3;
 
 export interface PeriodRange {
   /** ISO timestamp at the start of the period (Europe/Dublin), inclusive. */
@@ -112,4 +115,36 @@ export function getPriorPeriodRange(period: PeriodRange): PeriodRange {
     label: `Prior ${period.days} day${period.days === 1 ? "" : "s"}`,
     days: period.days,
   };
+}
+
+/** Inclusive calendar dates in the shop timezone (YYYY-MM-DD). */
+export function getCustomDateRange(
+  fromYmd: string,
+  toYmd: string,
+  now: Date = new Date(),
+  timeZone = TIMEZONE,
+): PeriodRange | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromYmd) || !/^\d{4}-\d{2}-\d{2}$/.test(toYmd)) return null;
+  const from = dublinStartOfDay(new Date(`${fromYmd}T12:00:00Z`), timeZone);
+  const toStart = dublinStartOfDay(new Date(`${toYmd}T12:00:00Z`), timeZone);
+  const toExclusive = new Date(toStart.getTime() + 86_400_000);
+  if (toExclusive.getTime() <= from.getTime()) return null;
+  const days = Math.max(1, Math.round((toExclusive.getTime() - from.getTime()) / 86_400_000));
+  const end = toExclusive.getTime() > now.getTime() ? now : toExclusive;
+  return {
+    fromIso: from.toISOString(),
+    toIso: end.toISOString(),
+    label: fromYmd === toYmd ? fromYmd : `${fromYmd} – ${toYmd}`,
+    days,
+  };
+}
+
+export function addCalendarDaysYmd(ymd: string, days: number): string {
+  const d = new Date(`${ymd}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+export function minAdvanceDateYmd(now: Date = new Date(), timeZone = TIMEZONE): string {
+  return addCalendarDaysYmd(toDublinIsoDate(now, timeZone), MIN_ADVANCE_DAYS);
 }

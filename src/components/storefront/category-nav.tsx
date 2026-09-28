@@ -7,9 +7,16 @@ interface Props {
   categories: StorefrontCategory[];
   activeSlug?: string | null;
   variant?: "list" | "chips";
+  extraActive?: "offers" | "advance" | null;
 }
 
-export function CategoryNav({ shopSlug, categories, activeSlug, variant = "list" }: Props) {
+export function CategoryNav({
+  shopSlug,
+  categories,
+  activeSlug,
+  variant = "list",
+  extraActive = null,
+}: Props) {
   const base = `/shop/${shopSlug}`;
   const chips = variant === "chips";
 
@@ -38,8 +45,14 @@ export function CategoryNav({ shopSlug, categories, activeSlug, variant = "list"
       <p className="text-muted-foreground mb-1.5 px-1 text-[10px] font-semibold tracking-wide uppercase sm:mb-2 sm:px-3 sm:text-xs">
         Categories
       </p>
-      <Link href={base} className={linkClass(!activeSlug)}>
+      <Link href={base} className={linkClass(!activeSlug && !extraActive)}>
         <span className="truncate">All products</span>
+      </Link>
+      <Link href={`${base}/offers`} className={linkClass(extraActive === "offers")}>
+        <span className="truncate">Offers</span>
+      </Link>
+      <Link href={`${base}/advance`} className={linkClass(extraActive === "advance")}>
+        <span className="truncate">Order ahead</span>
       </Link>
       {categories.map((c) => (
         <Link

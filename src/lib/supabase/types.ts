@@ -2753,6 +2753,9 @@ export type Database = {
           subtotal: number;
           vat_total: number;
           total: number;
+          fulfillment_stage: Database["public"]["Enums"]["online_fulfillment_stage"];
+          wanted_for_date: string | null;
+          is_advance: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -2771,6 +2774,9 @@ export type Database = {
           subtotal?: number;
           vat_total?: number;
           total?: number;
+          fulfillment_stage?: Database["public"]["Enums"]["online_fulfillment_stage"];
+          wanted_for_date?: string | null;
+          is_advance?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -2789,6 +2795,9 @@ export type Database = {
           subtotal?: number;
           vat_total?: number;
           total?: number;
+          fulfillment_stage?: Database["public"]["Enums"]["online_fulfillment_stage"];
+          wanted_for_date?: string | null;
+          is_advance?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -2828,6 +2837,10 @@ export type Database = {
           quantity: number;
           unit_price: number;
           line_total_gross: number;
+          unavailable_policy: Database["public"]["Enums"]["online_unavailable_policy"];
+          line_status: Database["public"]["Enums"]["online_line_status"];
+          original_product_id: string | null;
+          refunded_amount: number;
           created_at: string;
         };
         Insert: {
@@ -2841,6 +2854,10 @@ export type Database = {
           quantity: number;
           unit_price: number;
           line_total_gross: number;
+          unavailable_policy?: Database["public"]["Enums"]["online_unavailable_policy"];
+          line_status?: Database["public"]["Enums"]["online_line_status"];
+          original_product_id?: string | null;
+          refunded_amount?: number;
           created_at?: string;
         };
         Update: {
@@ -2854,6 +2871,10 @@ export type Database = {
           quantity?: number;
           unit_price?: number;
           line_total_gross?: number;
+          unavailable_policy?: Database["public"]["Enums"]["online_unavailable_policy"];
+          line_status?: Database["public"]["Enums"]["online_line_status"];
+          original_product_id?: string | null;
+          refunded_amount?: number;
           created_at?: string;
         };
         Relationships: [
@@ -2886,6 +2907,21 @@ export type Database = {
           delivery_fee: number;
           products_total: number;
         }[];
+      };
+      set_online_fulfillment_stage: {
+        Args: {
+          p_order_id: string;
+          p_stage: Database["public"]["Enums"]["online_fulfillment_stage"];
+        };
+        Returns: string;
+      };
+      resolve_online_order_line: {
+        Args: {
+          p_item_id: string;
+          p_action: string;
+          p_substitute_product_id?: string | null;
+        };
+        Returns: string;
       };
       close_pos_session: {
         Args: {
@@ -3069,6 +3105,15 @@ export type Database = {
       online_order_status: "pending" | "confirmed" | "cancelled" | "fulfilled";
       online_fulfillment_type: "delivery" | "takeaway";
       online_checkout_payment: "cod" | "online_card";
+      online_fulfillment_stage:
+        | "preparing"
+        | "prepared_for_delivery"
+        | "on_the_way"
+        | "delivered"
+        | "ready_for_collection"
+        | "collected";
+      online_unavailable_policy: "substitute" | "omit";
+      online_line_status: "ok" | "substituted" | "omitted" | "refunded";
       payment_method:
         | "cash"
         | "card"
@@ -3273,6 +3318,16 @@ export const Constants = {
       online_order_status: ["pending", "confirmed", "cancelled", "fulfilled"],
       online_fulfillment_type: ["delivery", "takeaway"],
       online_checkout_payment: ["cod", "online_card"],
+      online_fulfillment_stage: [
+        "preparing",
+        "prepared_for_delivery",
+        "on_the_way",
+        "delivered",
+        "ready_for_collection",
+        "collected",
+      ],
+      online_unavailable_policy: ["substitute", "omit"],
+      online_line_status: ["ok", "substituted", "omitted", "refunded"],
       payment_method: [
         "cash",
         "card",

@@ -12,32 +12,72 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDateTimeIE, formatEuro } from "@/lib/utils";
+import { formatDateTimeIE, formatEuro, cn } from "@/lib/utils";
 
 export const metadata = {
   title: "Sales · ShopOS",
 };
 
-export default async function SalesIndexPage() {
+const CHANNELS = [
+  { id: "all", label: "Till + online" },
+  { id: "pos", label: "Till" },
+  { id: "online", label: "Online" },
+] as const;
+
+export default async function SalesIndexPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ channel?: string }>;
+}) {
   const tenant = await getCurrentTenant();
   if (!tenant) redirect("/onboarding");
 
-  const sales = await listRecentSales(100);
+  const sp = await searchParams;
+  const channel = sp.channel === "pos" || sp.channel === "online" ? sp.channel : "all";
+  const sales = await listRecentSales(100, channel);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight" data-guide="sales">
             Recent sales
           </h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Same list as reports — filter till or online here, or open Reports for SKU totals.
+          </p>
         </div>
-        <Link
-          href="/pos"
-          className="border-input bg-card hover:bg-accent inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium"
-        >
-          <Receipt className="size-4" /> Open POS
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/reports?tab=channels"
+            className="border-input bg-card hover:bg-accent inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium"
+          >
+            Sales reports
+          </Link>
+          <Link
+            href="/pos"
+            className="border-input bg-card hover:bg-accent inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium"
+          >
+            <Receipt className="size-4" /> Open POS
+          </Link>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {CHANNELS.map((c) => (
+          <Link
+            key={c.id}
+            href={c.id === "all" ? "/sales" : `/sales?channel=${c.id}`}
+            className={cn(
+              "rounded-full px-3 py-1.5 text-xs font-medium",
+              channel === c.id
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {c.label}
+          </Link>
+        ))}
       </div>
 
       <div className="border-border bg-card overflow-x-auto rounded-lg border">

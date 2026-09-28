@@ -102,6 +102,7 @@ export const bn: DeepPartial<typeof en> = {
     tills: "কাউন্টার",
     storefront: "অনলাইন দোকান",
     import: "ইমপোর্ট",
+    reports: "রিপোর্ট",
     receiveStock: "স্ক্যান ইন",
     platform: "প্ল্যাটফর্ম",
   },

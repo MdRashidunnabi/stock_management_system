@@ -105,6 +105,7 @@ export const en = {
     tills: "Tills",
     storefront: "Online shop",
     import: "Import",
+    reports: "Reports",
     receiveStock: "Scan in",
     platform: "Platform",
   },

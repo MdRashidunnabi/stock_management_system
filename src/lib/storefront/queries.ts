@@ -283,10 +283,11 @@ async function attachStock(
 
 export async function listStorefrontProducts(
   shop: StorefrontShop,
-  opts?: { categorySlug?: string; search?: string; limit?: number },
+  opts?: { categorySlug?: string; search?: string; limit?: number; discountedOnly?: boolean },
 ): Promise<StorefrontProduct[]> {
   const admin = createAdminClient();
   const limit = opts?.limit ?? 48;
+  const fetchLimit = opts?.discountedOnly ? Math.max(limit, 200) : limit;
 
   let query = admin
     .from("products")
@@ -295,7 +296,11 @@ export async function listStorefrontProducts(
     .eq("is_active", true)
     .is("archived_at", null)
     .order("name", { ascending: true })
-    .limit(limit);
+    .limit(fetchLimit);
+
+  if (opts?.discountedOnly) {
+    query = query.gt("online_discount_pct", 0);
+  }
 
   if (opts?.categorySlug) {
     const { data: cat } = await admin
@@ -329,8 +334,24 @@ export async function listStorefrontProducts(
   const hasSettings = (branchSettings?.length ?? 0) > 0;
 
   const filtered = hasSettings ? data.filter((p) => !inactive.has(p.id)) : data;
+  const withStock = await attachStock(shop, filtered);
+  const priced = opts?.discountedOnly
+    ? withStock.filter((p) => p.discountPct != null && p.discountPct > 0)
+    : withStock;
+  return priced.slice(0, limit);
+}
 
-  return attachStock(shop, filtered);
+export async function listSimilarStorefrontProducts(
+  shop: StorefrontShop,
+  product: StorefrontProduct,
+  limit = 8,
+): Promise<StorefrontProduct[]> {
+  if (!product.categorySlug) return [];
+  const rows = await listStorefrontProducts(shop, {
+    categorySlug: product.categorySlug,
+    limit: 24,
+  });
+  return rows.filter((p) => p.id !== product.id && p.stock.canAddToCart).slice(0, limit);
 }
 
 export async function getStorefrontProduct(

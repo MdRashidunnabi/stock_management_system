@@ -109,6 +109,7 @@ export const pt: DeepPartial<typeof en> = {
     tills: "Caixas",
     storefront: "Loja online",
     import: "Importar",
+    reports: "Relatórios",
     receiveStock: "Entrada por scan",
     platform: "Plataforma",
   },

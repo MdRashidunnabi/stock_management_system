@@ -15,6 +15,7 @@ export default async function OrderSuccessPage({
     fulfillment?: string;
     payment?: string;
     delivery?: string;
+    wanted?: string;
   }>;
 }) {
   const { slug } = await params;
@@ -37,6 +38,7 @@ export default async function OrderSuccessPage({
         Your order{orderNo ? ` ${orderNo}` : ""} has been received
         {shop ? ` by ${shop.publicSiteName}` : ""}.
         {total != null && Number.isFinite(total) ? ` Total: ${formatEuro(total)}.` : ""}
+        {sp.wanted ? ` Wanted for ${sp.wanted}.` : ""}
       </p>
       <ul className="text-muted-foreground mt-4 space-y-1 text-xs">
         <li>
@@ -58,9 +60,18 @@ export default async function OrderSuccessPage({
       <p className="text-muted-foreground mt-4 text-xs">
         Stock has been reserved from our shop. We will call you to confirm your order.
       </p>
-      <Button asChild className="bg-primary hover:bg-primary/90 mt-8">
-        <Link href={`/shop/${slug}`}>Continue shopping</Link>
-      </Button>
+      <div className="mt-8 flex flex-col gap-2">
+        <Button asChild className="bg-primary hover:bg-primary/90">
+          <Link href={`/shop/${slug}`}>Continue shopping</Link>
+        </Button>
+        {orderNo ? (
+          <Button asChild variant="outline">
+            <Link href={`/shop/${slug}/order/track?order=${encodeURIComponent(orderNo)}`}>
+              Track this order
+            </Link>
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }

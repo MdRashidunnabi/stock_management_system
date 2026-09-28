@@ -42,6 +42,7 @@ const PROTECTED_PREFIXES = [
   "/pos",
   "/sales",
   "/online-orders",
+  "/reports",
   "/sessions",
   "/products",
   "/categories",

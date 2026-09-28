@@ -344,6 +344,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                 <Receipt className="size-4" /> {m.dash.sales}
               </Link>
             </Button>
+            {(tenant.role === "owner" ||
+              tenant.role === "manager" ||
+              tenant.role === "accountant" ||
+              tenant.role === "warehouse") && (
+              <Button asChild variant="ghost">
+                <Link href="/reports">
+                  <BarChart3 className="size-4" /> {m.nav.reports}
+                </Link>
+              </Button>
+            )}
             {(tenant.role === "owner" || tenant.role === "accountant") && (
               <Button asChild variant="ghost">
                 <Link href="/audit">

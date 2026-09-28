@@ -14,6 +14,7 @@ import {
   Monitor,
   Package,
   PackagePlus,
+  PieChart,
   Receipt,
   ScanBarcode,
   ScanLine,
@@ -65,7 +66,7 @@ const NAV_ITEMS: NavItem[] = [
     href: "/online-orders",
     labelKey: "nav.onlineOrders",
     icon: <Globe className="size-4 shrink-0" />,
-    roles: ["owner", "manager", "delivery"],
+    roles: ["owner", "manager", "warehouse", "delivery"],
     group: "sell",
   },
   {
@@ -80,6 +81,13 @@ const NAV_ITEMS: NavItem[] = [
     labelKey: "nav.shiftAccount",
     icon: <ClipboardList className="size-4 shrink-0" />,
     roles: ["owner", "manager", "cashier", "accountant"],
+    group: "sell",
+  },
+  {
+    href: "/reports",
+    labelKey: "nav.reports",
+    icon: <PieChart className="size-4 shrink-0" />,
+    roles: ["owner", "manager", "accountant", "warehouse"],
     group: "sell",
   },
   {

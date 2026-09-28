@@ -36,6 +36,22 @@ export function ShopHeader({ shop, categories, cartCount = 0 }: Props) {
           </Link>
 
           <div className="flex shrink-0 items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden rounded-full sm:inline-flex"
+              asChild
+            >
+              <Link href={`${base}/offers`}>Offers</Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden rounded-full sm:inline-flex"
+              asChild
+            >
+              <Link href={`${base}/advance`}>Order ahead</Link>
+            </Button>
             {shop.phone ? (
               <Button variant="ghost" size="icon" className="rounded-full lg:hidden" asChild>
                 <a href={`tel:${shop.phone.replace(/\s/g, "")}`} aria-label="Call shop">

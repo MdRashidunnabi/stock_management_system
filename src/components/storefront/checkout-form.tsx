@@ -16,6 +16,7 @@ import {
   type DeliverySettings,
   type FulfillmentType,
 } from "@/lib/storefront/delivery";
+import { MIN_ADVANCE_DAYS, minAdvanceDateYmd } from "@/lib/reports/period";
 import { cn } from "@/lib/utils";
 import { useShopMoney } from "@/components/storefront/shop-money";
 
@@ -37,12 +38,13 @@ function minPickupLocal(): string {
 
 export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlinePayment }: Props) {
   const router = useRouter();
-  const { lines, subtotal, clear } = useCart();
+  const { lines, subtotal, clear, wantedForDate, isAdvance, setWantedForDate } = useCart();
   const money = useShopMoney();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [fulfillment, setFulfillment] = useState<FulfillmentType>("delivery");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
+  const minAdvance = minAdvanceDateYmd();
 
   const quote = useMemo(
     () => calculateDeliveryQuote(subtotal, fulfillment, delivery),
@@ -77,7 +79,11 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
     startTransition(async () => {
       const res = await placeOnlineOrderAction({
         shopSlug,
-        items: lines.map((l) => ({ productId: l.productId, qty: l.qty })),
+        items: lines.map((l) => ({
+          productId: l.productId,
+          qty: l.qty,
+          ifUnavailable: l.ifUnavailable,
+        })),
         customerName: String(fd.get("name") ?? ""),
         customerPhone: String(fd.get("phone") ?? ""),
         customerEmail: String(fd.get("email") ?? ""),
@@ -87,6 +93,8 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
         pickupAt: f === "takeaway" ? pickupAt : undefined,
         notes: String(fd.get("notes") ?? ""),
         clientUuid,
+        wantedForDate: wantedForDate || undefined,
+        isAdvance: Boolean(wantedForDate),
       });
 
       if (!res.ok) {
@@ -104,6 +112,7 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
         payment: pay,
       });
       if (res.deliveryFee > 0) params.set("delivery", String(res.deliveryFee));
+      if (wantedForDate) params.set("wanted", wantedForDate);
       router.push(`/shop/${shopSlug}/order/success?${params.toString()}`);
       router.refresh();
     });
@@ -136,6 +145,39 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
           </p>
         ) : null}
       </div>
+
+      <fieldset className="space-y-3">
+        <legend className="text-sm font-medium">When do you want this order?</legend>
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={isAdvance}
+            onChange={(e) => {
+              if (e.target.checked) setWantedForDate(minAdvance);
+              else setWantedForDate(null);
+            }}
+          />
+          <span>
+            <span className="font-medium">Order ahead</span>
+            <span className="text-muted-foreground mt-0.5 block text-xs">
+              At least {MIN_ADVANCE_DAYS} days in advance. We prepare for your chosen date.
+            </span>
+          </span>
+        </label>
+        {isAdvance ? (
+          <div className="space-y-2">
+            <Label htmlFor="wanted_for">Wanted for</Label>
+            <Input
+              id="wanted_for"
+              type="date"
+              min={minAdvance}
+              value={wantedForDate ?? minAdvance}
+              onChange={(e) => setWantedForDate(e.target.value || null)}
+            />
+          </div>
+        ) : null}
+      </fieldset>
 
       <fieldset className="space-y-3">
         <legend className="text-sm font-medium">How would you like your order?</legend>
@@ -270,10 +312,12 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
               name="pickup_at"
               type="datetime-local"
               required
-              min={minPickupLocal()}
+              min={wantedForDate ? `${wantedForDate}T08:00` : minPickupLocal()}
             />
             <p className="text-muted-foreground text-xs">
-              Choose the date and time you plan to arrive at the shop.
+              {wantedForDate
+                ? `Choose a collection time on ${wantedForDate}.`
+                : "Choose the date and time you plan to arrive at the shop."}
             </p>
           </div>
         )}

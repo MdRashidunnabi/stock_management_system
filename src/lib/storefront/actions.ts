@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { placeOnlineOrderSchema } from "@/lib/storefront/schemas";
 import { hitRateLimit } from "@/lib/security/rate-limit";
 import { publicStorefrontOrderError } from "@/lib/security/public-error";
+import { MIN_ADVANCE_DAYS, minAdvanceDateYmd } from "@/lib/reports/period";
 
 export type PlaceOrderResult =
   | {
@@ -39,7 +40,21 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
     pickupAt,
     notes,
     clientUuid,
+    wantedForDate,
+    isAdvance,
   } = parsed.data;
+
+  const wanted = wantedForDate?.trim() || "";
+  const advance = Boolean(isAdvance && wanted);
+  if (advance) {
+    const min = minAdvanceDateYmd();
+    if (wanted < min) {
+      return {
+        ok: false,
+        error: `Advance orders need at least ${MIN_ADVANCE_DAYS} days' notice. Earliest date is ${min}.`,
+      };
+    }
+  }
 
   const shopKey = shopSlug.trim().toLowerCase();
   const orderGate = hitRateLimit(`checkout:${shopKey}`, 30, 10 * 60 * 1000);
@@ -51,7 +66,11 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
 
   const { data, error } = await admin.rpc("commit_online_order", {
     p_tenant_slug: shopKey,
-    p_items: items.map((i) => ({ product_id: i.productId, qty: i.qty })),
+    p_items: items.map((i) => ({
+      product_id: i.productId,
+      qty: i.qty,
+      unavailable_policy: i.ifUnavailable ?? "omit",
+    })),
     p_customer: {
       name: customerName.trim(),
       phone: customerPhone.trim(),
@@ -61,6 +80,8 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
       address: fulfillment === "delivery" ? deliveryAddress?.trim() : undefined,
       pickup_at: fulfillment === "takeaway" ? pickupAt?.trim() : undefined,
       notes: notes?.trim() || undefined,
+      wanted_for_date: advance ? wanted : undefined,
+      is_advance: advance,
     },
     p_client_uuid: clientUuid ?? undefined,
   });
@@ -87,10 +108,36 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
     return { ok: false, error: "Order could not be placed. Please try again." };
   }
 
+  if (advance || items.some((i) => i.ifUnavailable)) {
+    await admin
+      .from("online_orders")
+      .update({
+        wanted_for_date: advance ? wanted : null,
+        is_advance: advance,
+      })
+      .eq("id", row.online_order_id);
+
+    const { data: lines } = await admin
+      .from("online_order_items")
+      .select("id, product_id")
+      .eq("online_order_id", row.online_order_id);
+    const used = new Set<string>();
+    for (const item of items) {
+      const line = (lines ?? []).find((l) => l.product_id === item.productId && !used.has(l.id));
+      if (!line) continue;
+      used.add(line.id);
+      await admin
+        .from("online_order_items")
+        .update({ unavailable_policy: item.ifUnavailable ?? "omit" })
+        .eq("id", line.id);
+    }
+  }
+
   revalidatePath(`/shop/${shopKey}`);
   revalidatePath("/online-orders");
   revalidatePath("/sales");
   revalidatePath("/products");
+  revalidatePath("/reports");
 
   return {
     ok: true,

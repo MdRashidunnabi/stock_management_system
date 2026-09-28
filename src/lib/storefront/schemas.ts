@@ -3,6 +3,7 @@ import { z } from "zod";
 export const storefrontCartItemSchema = z.object({
   productId: z.string().uuid(),
   qty: z.coerce.number().positive().max(999),
+  ifUnavailable: z.enum(["substitute", "omit"]).default("omit"),
 });
 
 export const placeOnlineOrderSchema = z
@@ -18,6 +19,12 @@ export const placeOnlineOrderSchema = z
     pickupAt: z.string().max(64).optional(),
     notes: z.string().max(1000).optional(),
     clientUuid: z.string().uuid().optional(),
+    wantedForDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional()
+      .or(z.literal("")),
+    isAdvance: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.fulfillment === "delivery") {

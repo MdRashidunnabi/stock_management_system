@@ -48,6 +48,13 @@ export function ShopCatalogShell({ shopSlug, categories, children, nav = "side" 
             shopSlug={shopSlug}
             categories={categories}
             activeSlug={activeSlug}
+            extraActive={
+              pathname.includes("/offers")
+                ? "offers"
+                : pathname.includes("/advance")
+                  ? "advance"
+                  : null
+            }
             variant={top ? "chips" : "list"}
           />
         </div>

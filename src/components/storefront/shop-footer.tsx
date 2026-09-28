@@ -50,6 +50,21 @@ export function ShopFooter({ shop, categories }: Props) {
               </Link>
             </li>
             <li>
+              <Link href={`${base}/offers`} className="text-info font-medium hover:underline">
+                Offers
+              </Link>
+            </li>
+            <li>
+              <Link href={`${base}/advance`} className="text-info font-medium hover:underline">
+                Order ahead
+              </Link>
+            </li>
+            <li>
+              <Link href={`${base}/order/track`} className="text-info font-medium hover:underline">
+                Track order
+              </Link>
+            </li>
+            <li>
               <Link href={`${base}#about`} className="text-info font-medium hover:underline">
                 About us
               </Link>

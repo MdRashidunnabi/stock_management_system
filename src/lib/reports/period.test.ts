@@ -4,6 +4,7 @@ import {
   getDublinOffsetMinutes,
   getPeriodRange,
   getPriorPeriodRange,
+  minAdvanceDateYmd,
   toDublinIsoDate,
 } from "@/lib/reports/period";
 
@@ -107,5 +108,12 @@ describe("getPriorPeriodRange", () => {
     const period = getPeriodRange("today", now);
     const prior = getPriorPeriodRange(period);
     expect(prior.label).toBe("Prior 1 day");
+  });
+});
+
+describe("minAdvanceDateYmd", () => {
+  it("is three calendar days after the Dublin date", () => {
+    expect(minAdvanceDateYmd(new Date("2026-01-15T14:30:00.000Z"))).toBe("2026-01-18");
+    expect(minAdvanceDateYmd(new Date("2026-07-15T23:30:00.000Z"))).toBe("2026-07-19");
   });
 });
