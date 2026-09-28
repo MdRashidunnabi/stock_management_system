@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { MessageCircle, Phone, ShoppingCart } from "lucide-react";
+import { ShopBrandLogo } from "@/components/storefront/shop-brand-logo";
 import { ShopSearchBar } from "@/components/storefront/shop-search-bar";
 import { Button } from "@/components/ui/button";
 import type { StorefrontCategory, StorefrontShop } from "@/lib/storefront/queries";
@@ -22,17 +23,7 @@ export function ShopHeader({ shop, categories, cartCount = 0 }: Props) {
       <div className="shop-shell mx-auto max-w-6xl space-y-3 px-4 py-3 sm:px-6">
         <div className="shop-header-row flex items-center justify-between gap-3">
           <Link href={base} className="shop-brand flex min-w-0 shrink-0 items-center">
-            {shop.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={shop.logoUrl}
-                alt={shop.publicSiteName}
-                className="h-12 max-h-14 w-auto max-w-[min(100%,220px)] object-contain object-left sm:h-14 sm:max-w-[260px]"
-                fetchPriority="high"
-              />
-            ) : (
-              <span className="text-foreground text-lg font-bold">{shop.publicSiteName}</span>
-            )}
+            <ShopBrandLogo src={shop.logoUrl} name={shop.publicSiteName} />
           </Link>
 
           <div className="flex shrink-0 items-center gap-1">

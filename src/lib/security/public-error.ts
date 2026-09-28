@@ -20,7 +20,13 @@ export function publicStorefrontOrderError(raw: string): string {
   if (msg.includes("insufficient stock")) {
     return "Some items are no longer in stock. Please update your cart.";
   }
-  if (msg.includes("shop not found") || msg.includes("not enabled")) {
+  if (msg.includes("card payment")) {
+    return "Card payment is not available for this shop. Please choose cash on delivery.";
+  }
+  if (msg.includes("takeaway is not enabled")) {
+    return "Collection is not available. Please choose home delivery.";
+  }
+  if (msg.includes("shop not found") || msg.includes("online store is not enabled")) {
     return "This online shop is not available.";
   }
   if (msg.includes("pickup")) {

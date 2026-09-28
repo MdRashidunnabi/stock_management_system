@@ -54,6 +54,7 @@ const nextConfig: NextConfig = {
     const connect = ["'self'", "https://*.supabase.co", "wss://*.supabase.co", supabaseOrigin]
       .filter(Boolean)
       .join(" ");
+    const imgSrc = ["'self'", "data:", "blob:", "https:", supabaseOrigin].filter(Boolean).join(" ");
     const securityHeaders = [
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "X-Frame-Options", value: "DENY" },
@@ -68,7 +69,7 @@ const nextConfig: NextConfig = {
           "default-src 'self'",
           "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
           "style-src 'self' 'unsafe-inline'",
-          "img-src 'self' data: blob: https:",
+          `img-src ${imgSrc}`,
           "font-src 'self' data:",
           `connect-src ${connect}`,
           "worker-src 'self' blob:",

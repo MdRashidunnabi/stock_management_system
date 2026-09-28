@@ -25,10 +25,10 @@ export default async function OrderSuccessPage({
   const total = sp.total ? Number(sp.total) : null;
   const deliveryFee = sp.delivery ? Number(sp.delivery) : 0;
   const fulfillment = sp.fulfillment === "takeaway" ? "collection" : "delivery";
-  const payment =
-    sp.payment === "online_card"
-      ? "online card payment (we will send a payment link)"
-      : "cash on delivery";
+  const cardPay = sp.payment === "online_card";
+  const payment = cardPay
+    ? "online card — we will send a secure payment link after we confirm stock"
+    : "cash on delivery";
 
   return (
     <div className="mx-auto max-w-md py-16 text-center">
@@ -59,6 +59,9 @@ export default async function OrderSuccessPage({
       </ul>
       <p className="text-muted-foreground mt-4 text-xs">
         Stock has been reserved from our shop. We will call you to confirm your order.
+        {cardPay
+          ? " After confirmation we send a payment link — you do not enter card details on this site."
+          : ""}
       </p>
       <div className="mt-8 flex flex-col gap-2">
         <Button asChild className="bg-primary hover:bg-primary/90">

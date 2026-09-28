@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { entityIdSchema } from "@/lib/entity-id";
 
 /* ============================== Purchase orders ============================== */
 
@@ -19,7 +20,7 @@ export const GOODS_RECEIPT_STATUSES = ["draft", "finalised", "cancelled"] as con
 export type GoodsReceiptStatus = (typeof GOODS_RECEIPT_STATUSES)[number];
 
 export const purchaseOrderItemInput = z.object({
-  productId: z.string().uuid(),
+  productId: entityIdSchema,
   quantity: z.coerce.number().positive("Quantity must be greater than zero."),
   unitCost: z.coerce.number().min(0, "Unit cost cannot be negative."),
   vatCode: z.enum(VAT_CODES).optional(),
@@ -28,8 +29,8 @@ export const purchaseOrderItemInput = z.object({
 export type PurchaseOrderItemInput = z.infer<typeof purchaseOrderItemInput>;
 
 export const createPurchaseOrderSchema = z.object({
-  branchId: z.string().uuid("Choose a branch."),
-  supplierId: z.string().uuid("Choose a supplier."),
+  branchId: entityIdSchema,
+  supplierId: entityIdSchema,
   expectedAt: z.string().date().nullish(),
   notes: z.string().max(2000).nullish(),
   items: z.array(purchaseOrderItemInput).min(1, "Add at least one line."),
@@ -37,7 +38,7 @@ export const createPurchaseOrderSchema = z.object({
 export type CreatePurchaseOrderInput = z.infer<typeof createPurchaseOrderSchema>;
 
 export const updatePurchaseOrderStatusSchema = z.object({
-  poId: z.string().uuid(),
+  poId: entityIdSchema,
   newStatus: z.enum(["submitted", "cancelled"]),
 });
 export type UpdatePurchaseOrderStatusInput = z.infer<typeof updatePurchaseOrderStatusSchema>;
@@ -45,7 +46,7 @@ export type UpdatePurchaseOrderStatusInput = z.infer<typeof updatePurchaseOrderS
 /* ============================== Goods receipts ============================== */
 
 export const goodsReceiptItemInput = z.object({
-  productId: z.string().uuid(),
+  productId: entityIdSchema,
   quantity: z.coerce.number().positive("Quantity must be greater than zero."),
   unitCost: z.coerce.number().min(0, "Unit cost cannot be negative."),
   vatCode: z.enum(VAT_CODES).optional(),
@@ -56,9 +57,9 @@ export const goodsReceiptItemInput = z.object({
 export type GoodsReceiptItemInput = z.infer<typeof goodsReceiptItemInput>;
 
 export const createGoodsReceiptSchema = z.object({
-  branchId: z.string().uuid("Choose a branch."),
-  supplierId: z.string().uuid("Choose a supplier."),
-  purchaseOrderId: z.string().uuid().nullish(),
+  branchId: entityIdSchema,
+  supplierId: entityIdSchema,
+  purchaseOrderId: entityIdSchema.nullish(),
   invoiceNumber: z.string().max(120).nullish(),
   invoiceTotal: z.coerce.number().min(0).nullish(),
   receivedAt: z.string().nullish(),
@@ -68,7 +69,7 @@ export const createGoodsReceiptSchema = z.object({
 export type CreateGoodsReceiptInput = z.infer<typeof createGoodsReceiptSchema>;
 
 export const finaliseGoodsReceiptSchema = z.object({
-  grId: z.string().uuid(),
+  grId: entityIdSchema,
 });
 export type FinaliseGoodsReceiptInput = z.infer<typeof finaliseGoodsReceiptSchema>;
 

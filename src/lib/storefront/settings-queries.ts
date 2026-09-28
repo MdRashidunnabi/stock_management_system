@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import type { DeliverySettings } from "@/lib/storefront/delivery";
+import { resolveStorefrontLogoUrl } from "@/lib/storefront/logo-url";
 import { parseShopTemplateId, type ShopTemplateId } from "@/lib/storefront/templates";
 
 export interface StorefrontSettingsRow {
@@ -67,7 +68,7 @@ export async function getStorefrontSettingsForTenant(
     enableTakeaway: sf.enable_takeaway ?? true,
     enableOnlinePayment: sf.enable_online_payment ?? true,
     orderNotice: sf.order_notice,
-    logoUrl: sf.logo_url,
+    logoUrl: resolveStorefrontLogoUrl(sf.logo_url),
     footerAbout: sf.footer_about,
     phone: sf.phone,
     whatsapp: sf.whatsapp,

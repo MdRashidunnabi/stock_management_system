@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { resolveStorefrontLogoUrl } from "@/lib/storefront/logo-url";
 import { uploadStorefrontLogo } from "@/lib/storefront/upload-logo";
 
 interface Props {
@@ -34,7 +35,7 @@ export function StorefrontLogoField({ value, onChange }: Props) {
     });
   }
 
-  const preview = value.trim();
+  const preview = resolveStorefrontLogoUrl(value) ?? "";
 
   return (
     <div className="border-primary/20 bg-primary/5 space-y-3 rounded-xl border p-4">
@@ -53,6 +54,9 @@ export function StorefrontLogoField({ value, onChange }: Props) {
               src={preview}
               alt="Shop logo preview"
               className="max-h-14 max-w-[200px] object-contain object-left"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
             />
           ) : (
             <ImageIcon className="text-muted-foreground size-8" />

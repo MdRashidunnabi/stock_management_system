@@ -257,5 +257,11 @@ describe("Public error sanitization", () => {
     expect(publicStorefrontOrderError("insert into sales failed at relation pg_catalog")).toBe(
       "Order could not be placed. Please try again.",
     );
+    expect(
+      publicStorefrontOrderError("commit_online_order: online card payment is not enabled"),
+    ).toBe("Card payment is not available for this shop. Please choose cash on delivery.");
+    expect(
+      publicStorefrontOrderError("commit_online_order: online store is not enabled for this shop"),
+    ).toBe("This online shop is not available.");
   });
 });

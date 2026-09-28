@@ -42,7 +42,7 @@ export const updateStorefrontSettingsAction = staffActionClient([...SETTINGS_ROL
 
     revalidatePath("/settings/storefront");
     revalidatePath("/online-orders");
-    revalidatePath(`/shop/${ctx.tenant.tenantSlug}`);
+    revalidatePath(`/shop/${ctx.tenant.tenantSlug}`, "layout");
 
     return { ok: true as const };
   });

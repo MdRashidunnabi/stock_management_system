@@ -20,7 +20,7 @@ type Props = {
 
 export function ShopLayoutClient(props: Props) {
   return (
-    <Suspense fallback={<ShopLayoutInner {...props} />}>
+    <Suspense fallback={<ShopLayoutInner {...props} previewId={null} suppressMain />}>
       <ShopLayoutWithPreview {...props} />
     </Suspense>
   );
@@ -36,7 +36,8 @@ function ShopLayoutInner({
   categories,
   children,
   previewId,
-}: Props & { previewId?: string | null }) {
+  suppressMain = false,
+}: Props & { previewId?: string | null; suppressMain?: boolean }) {
   const { itemCount, ready: cartReady } = useCart();
   const theme = getShopTemplate(previewId ?? shop.themeId);
 
@@ -58,11 +59,15 @@ function ShopLayoutInner({
             currentBranchId={shop.branchId}
           />
         </div>
-        <div className="shop-shell mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-6 sm:px-6 sm:py-8">
-          <ShopCatalogShell shopSlug={shop.slug} categories={categories} nav={theme.nav}>
-            {children}
-          </ShopCatalogShell>
-        </div>
+        {suppressMain ? (
+          <div className="shop-shell mx-auto min-h-[40vh] w-full max-w-6xl flex-1" />
+        ) : (
+          <div className="shop-shell mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-6 sm:px-6 sm:py-8">
+            <ShopCatalogShell shopSlug={shop.slug} categories={categories} nav={theme.nav}>
+              {children}
+            </ShopCatalogShell>
+          </div>
+        )}
         <ShopFooter shop={shop} categories={categories} />
       </div>
     </ShopMoneyProvider>

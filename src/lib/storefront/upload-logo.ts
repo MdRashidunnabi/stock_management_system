@@ -67,7 +67,7 @@ export async function uploadStorefrontLogo(
     return { ok: false, error: "Logo uploaded, but the shop record could not be updated." };
 
   revalidatePath("/settings/storefront");
-  revalidatePath(`/shop/${tenant.tenantSlug}`);
+  revalidatePath(`/shop/${tenant.tenantSlug}`, "layout");
 
   return { ok: true, url };
 }

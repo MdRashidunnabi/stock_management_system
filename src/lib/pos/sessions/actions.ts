@@ -270,12 +270,13 @@ export async function getSessionWithSummary(sessionId: string): Promise<SessionS
             vat_rate: number;
             line_total_net: number;
             line_vat: number;
+            quantity: number;
           }[],
           error: null,
         })
       : supabase
           .from("sale_items")
-          .select("vat_code, vat_rate, line_total_net, line_vat")
+          .select("vat_code, vat_rate, line_total_net, line_vat, quantity")
           .in("sale_id", saleIds),
     supabase
       .from("cash_drawer_movements")
@@ -314,7 +315,9 @@ export async function getSessionWithSummary(sessionId: string): Promise<SessionS
   const vat = Array.from(vatMap.values())
     .map((v) => ({ ...v, net: round2(v.net), vat: round2(v.vat) }))
     .sort((a, b) => a.vat_code.localeCompare(b.vat_code));
-  totals.items_count = itemsRes.data?.length ?? 0;
+  totals.items_count = round2(
+    (itemsRes.data ?? []).reduce((sum, it) => sum + Number(it.quantity ?? 0), 0),
+  );
 
   const drawerUserIds = Array.from(
     new Set(
