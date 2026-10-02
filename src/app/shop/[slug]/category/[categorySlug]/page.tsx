@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import {
   getStorefrontShop,
+  listStorefrontBrands,
   listStorefrontCategories,
   listStorefrontProducts,
 } from "@/lib/storefront/queries";
@@ -27,6 +28,11 @@ export default async function ShopCategoryPage({
   const { slug, categorySlug } = await params;
   const shop = await getStorefrontShop(slug);
   if (!shop) notFound();
+
+  const brands = await listStorefrontBrands(shop);
+  if (brands.some((b) => b.slug === categorySlug)) {
+    redirect(`/shop/${slug}/brand/${categorySlug}`);
+  }
 
   const categories = await listStorefrontCategories(shop);
   const active = categories.find((c) => c.slug === categorySlug);

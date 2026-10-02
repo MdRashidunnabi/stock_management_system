@@ -18,25 +18,39 @@ interface Props {
   categories: StorefrontCategory[];
   phone?: string | null;
   callUsLabel?: string | null;
+  filterParam?: "brand" | "category";
+  filterLabel?: string;
 }
 
-export function ShopSearchBar({ shopSlug, categories, phone, callUsLabel }: Props) {
+export function ShopSearchBar({
+  shopSlug,
+  categories,
+  phone,
+  callUsLabel,
+  filterParam = "brand",
+  filterLabel = "Brands",
+}: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
   const [q, setQ] = useState(searchParams.get("q") ?? "");
-  const category = searchParams.get("category") ?? "all";
+  const selected =
+    searchParams.get(filterParam) ??
+    searchParams.get(filterParam === "brand" ? "category" : "brand") ??
+    "all";
+
+  function pushSearch(nextQ: string, nextFilter: string) {
+    const params = new URLSearchParams();
+    const trimmed = nextQ.trim();
+    if (trimmed) params.set("q", trimmed);
+    if (nextFilter && nextFilter !== "all") params.set(filterParam, nextFilter);
+    const qs = params.toString();
+    router.push(`/shop/${shopSlug}/search${qs ? `?${qs}` : ""}`);
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    startTransition(() => {
-      const params = new URLSearchParams();
-      const trimmed = q.trim();
-      if (trimmed) params.set("q", trimmed);
-      if (category && category !== "all") params.set("category", category);
-      const qs = params.toString();
-      router.push(`/shop/${shopSlug}/search${qs ? `?${qs}` : ""}`);
-    });
+    startTransition(() => pushSearch(q, selected));
   }
 
   const phoneDisplay = phone?.trim();
@@ -58,22 +72,16 @@ export function ShopSearchBar({ shopSlug, categories, phone, callUsLabel }: Prop
         />
         <div className="bg-border/60 hidden w-px sm:block" />
         <Select
-          value={category}
+          value={selected}
           onValueChange={(val) => {
-            startTransition(() => {
-              const params = new URLSearchParams();
-              if (q.trim()) params.set("q", q.trim());
-              if (val !== "all") params.set("category", val);
-              const qs = params.toString();
-              router.push(`/shop/${shopSlug}/search${qs ? `?${qs}` : ""}`);
-            });
+            startTransition(() => pushSearch(q, val));
           }}
         >
           <SelectTrigger className="h-11 w-[9.5rem] shrink-0 rounded-none border-0 bg-transparent shadow-none sm:w-[11rem]">
-            <SelectValue placeholder="All Categories" />
+            <SelectValue placeholder={`All ${filterLabel.toLowerCase()}`} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="all">All {filterLabel.toLowerCase()}</SelectItem>
             {categories.map((c) => (
               <SelectItem key={c.id} value={c.slug}>
                 {c.name}

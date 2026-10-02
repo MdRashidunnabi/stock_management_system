@@ -19,7 +19,9 @@ export const MISC_PRODUCT = {
  * Catch-all POS product for items not in the catalogue.
  * Cashiers use One-off sale on POS to enter any VAT-inclusive amount.
  */
-export async function ensureNeedscarlowMiscProduct(sql: postgres.Sql): Promise<void> {
+export async function ensureNeedscarlowMiscProduct(
+  sql: postgres.Sql | postgres.TransactionSql,
+): Promise<void> {
   await sql`
     insert into public.categories (tenant_id, name, slug, position)
     values (${NEEDSCARLOW_TENANT_ID}, 'Miscellaneous', 'miscellaneous', 9999)

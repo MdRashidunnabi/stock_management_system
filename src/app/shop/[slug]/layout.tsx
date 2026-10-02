@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { CartProvider } from "@/components/storefront/cart-context";
 import { ShopLayoutClient } from "@/components/storefront/shop-layout-client";
-import { getStorefrontShop, listStorefrontCategories } from "@/lib/storefront/queries";
+import { getStorefrontShop, listStorefrontBrowseNav } from "@/lib/storefront/queries";
 
 export default async function ShopLayout({
   children,
@@ -17,11 +17,16 @@ export default async function ShopLayout({
   const shop = await getStorefrontShop(slug, branchCookie);
   if (!shop) notFound();
 
-  const categories = await listStorefrontCategories(shop);
+  const browse = await listStorefrontBrowseNav(shop);
 
   return (
     <CartProvider shopSlug={shop.slug}>
-      <ShopLayoutClient shop={shop} categories={categories}>
+      <ShopLayoutClient
+        shop={shop}
+        categories={browse.items}
+        navHref={browse.hrefSegment}
+        navLabel={browse.label}
+      >
         {children}
       </ShopLayoutClient>
     </CartProvider>

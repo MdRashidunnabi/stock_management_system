@@ -14,11 +14,21 @@ interface Props {
   categories: StorefrontCategory[];
   children: React.ReactNode;
   nav?: "side" | "top";
+  navHref?: "brand" | "category";
+  navLabel?: string;
 }
 
-export function ShopCatalogShell({ shopSlug, categories, children, nav = "side" }: Props) {
+export function ShopCatalogShell({
+  shopSlug,
+  categories,
+  children,
+  nav = "side",
+  navHref = "brand",
+  navLabel = "Brands",
+}: Props) {
   const pathname = usePathname() ?? "";
-  const activeSlug = pathname.match(/\/category\/([^/]+)/)?.[1] ?? null;
+  const activeSlug =
+    pathname.match(/\/brand\/([^/]+)/)?.[1] ?? pathname.match(/\/category\/([^/]+)/)?.[1] ?? null;
   const showSidebar = !isCheckoutPath(pathname);
 
   if (!showSidebar) {
@@ -48,6 +58,8 @@ export function ShopCatalogShell({ shopSlug, categories, children, nav = "side" 
             shopSlug={shopSlug}
             categories={categories}
             activeSlug={activeSlug}
+            hrefSegment={navHref}
+            label={navLabel}
             extraActive={
               pathname.includes("/offers")
                 ? "offers"

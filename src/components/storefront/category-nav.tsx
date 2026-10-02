@@ -8,6 +8,8 @@ interface Props {
   activeSlug?: string | null;
   variant?: "list" | "chips";
   extraActive?: "offers" | "advance" | null;
+  label?: string;
+  hrefSegment?: "brand" | "category";
 }
 
 export function CategoryNav({
@@ -16,6 +18,8 @@ export function CategoryNav({
   activeSlug,
   variant = "list",
   extraActive = null,
+  label = "Brands",
+  hrefSegment = "brand",
 }: Props) {
   const base = `/shop/${shopSlug}`;
   const chips = variant === "chips";
@@ -41,9 +45,9 @@ export function CategoryNav({
     );
 
   return (
-    <nav className="shop-category-nav flex flex-col gap-0.5" aria-label="Categories">
+    <nav className="shop-category-nav flex flex-col gap-0.5" aria-label={label}>
       <p className="text-muted-foreground mb-1.5 px-1 text-[10px] font-semibold tracking-wide uppercase sm:mb-2 sm:px-3 sm:text-xs">
-        Categories
+        {label}
       </p>
       <Link href={base} className={linkClass(!activeSlug && !extraActive)}>
         <span className="truncate">All products</span>
@@ -57,7 +61,7 @@ export function CategoryNav({
       {categories.map((c) => (
         <Link
           key={c.id}
-          href={`${base}/category/${c.slug}`}
+          href={`${base}/${hrefSegment}/${c.slug}`}
           className={linkClass(activeSlug === c.slug)}
         >
           <span className="truncate">{c.name}</span>

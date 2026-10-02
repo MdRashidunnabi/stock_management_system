@@ -11,7 +11,7 @@ export function ProductGrid({
   if (products.length === 0) {
     return (
       <p className="text-muted-foreground rounded-2xl border border-dashed py-16 text-center text-sm">
-        No products in this category yet. Check back soon.
+        No products in this brand yet. Check back soon.
       </p>
     );
   }

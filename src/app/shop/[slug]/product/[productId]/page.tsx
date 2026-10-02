@@ -64,7 +64,11 @@ export default async function ShopProductPage({
         </div>
 
         <div className="space-y-5">
-          {product.categoryName ? (
+          {product.brandName ? (
+            <p className="text-primary text-xs font-semibold tracking-wide uppercase">
+              {product.brandName}
+            </p>
+          ) : product.categoryName ? (
             <p className="text-primary text-xs font-semibold tracking-wide uppercase">
               {product.categoryName}
             </p>

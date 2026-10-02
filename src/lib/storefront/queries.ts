@@ -50,6 +50,9 @@ export interface StorefrontCategory {
   productCount: number;
 }
 
+/** Same shape as category chips; shop browse is by brand (Food, Drink, …). */
+export type StorefrontBrand = StorefrontCategory;
+
 export interface StorefrontProduct {
   id: string;
   name: string;
@@ -64,13 +67,18 @@ export interface StorefrontProduct {
   categoryId: string | null;
   categoryName: string | null;
   categorySlug: string | null;
+  brandId: string | null;
+  brandName: string | null;
+  brandSlug: string | null;
   available: number;
   stock: StockDisplay;
 }
 
 const PRODUCT_SELECT = `
-  id, name, sku, selling_price, online_selling_price, online_discount_pct, primary_image_url, category_id,
-  categories ( id, name, slug )
+  id, name, sku, selling_price, online_selling_price, online_discount_pct, primary_image_url,
+  category_id, brand_id,
+  categories ( id, name, slug ),
+  brands ( id, name, slug )
 `;
 
 export interface StorefrontBranchOption {
@@ -178,6 +186,31 @@ export const getStorefrontShop = cache(
   },
 );
 
+async function countProductsByColumn(
+  tenantId: string,
+  column: "category_id" | "brand_id",
+): Promise<Map<string, number>> {
+  const admin = createAdminClient();
+  const counts = new Map<string, number>();
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await admin
+      .from("products")
+      .select(column)
+      .eq("tenant_id", tenantId)
+      .eq("is_active", true)
+      .is("archived_at", null)
+      .range(from, from + pageSize - 1);
+    if (error || !data?.length) break;
+    for (const row of data) {
+      const id = (row as Record<"category_id" | "brand_id", string | null>)[column];
+      if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    if (data.length < pageSize) break;
+  }
+  return counts;
+}
+
 export async function listStorefrontCategories(
   shop: StorefrontShop,
 ): Promise<StorefrontCategory[]> {
@@ -192,17 +225,7 @@ export async function listStorefrontCategories(
 
   if (error || !cats?.length) return [];
 
-  const { data: products } = await admin
-    .from("products")
-    .select("category_id")
-    .eq("tenant_id", shop.tenantId)
-    .eq("is_active", true)
-    .is("archived_at", null);
-
-  const counts = new Map<string, number>();
-  for (const p of products ?? []) {
-    if (p.category_id) counts.set(p.category_id, (counts.get(p.category_id) ?? 0) + 1);
-  }
+  const counts = await countProductsByColumn(shop.tenantId, "category_id");
 
   return cats
     .map((c) => ({
@@ -213,6 +236,50 @@ export async function listStorefrontCategories(
       productCount: counts.get(c.id) ?? 0,
     }))
     .filter((c) => c.productCount > 0);
+}
+
+export async function listStorefrontBrands(shop: StorefrontShop): Promise<StorefrontBrand[]> {
+  const admin = createAdminClient();
+
+  const { data: brands, error } = await admin
+    .from("brands")
+    .select("id, name, slug")
+    .eq("tenant_id", shop.tenantId)
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
+  if (error || !brands?.length) return [];
+
+  const counts = await countProductsByColumn(shop.tenantId, "brand_id");
+
+  return brands
+    .map((b, index) => ({
+      id: b.id,
+      name: b.name,
+      slug: b.slug,
+      position: index,
+      productCount: counts.get(b.id) ?? 0,
+    }))
+    .filter((b) => b.productCount > 0);
+}
+
+export type StorefrontBrowseNav = {
+  items: StorefrontCategory[];
+  hrefSegment: "brand" | "category";
+  label: string;
+};
+
+/** Prefer Food/Drink brands when the shop has them; otherwise use categories. */
+export async function listStorefrontBrowseNav(shop: StorefrontShop): Promise<StorefrontBrowseNav> {
+  const brands = await listStorefrontBrands(shop);
+  if (brands.length > 0) {
+    return { items: brands, hrefSegment: "brand", label: "Brands" };
+  }
+  return {
+    items: await listStorefrontCategories(shop),
+    hrefSegment: "category",
+    label: "Categories",
+  };
 }
 
 async function attachStock(
@@ -226,7 +293,12 @@ async function attachStock(
     online_discount_pct: number | string | null;
     primary_image_url: string | null;
     category_id: string | null;
+    brand_id: string | null;
     categories:
+      | { id: string; name: string; slug: string }
+      | { id: string; name: string; slug: string }[]
+      | null;
+    brands:
       | { id: string; name: string; slug: string }
       | { id: string; name: string; slug: string }[]
       | null;
@@ -252,6 +324,7 @@ async function attachStock(
 
   return rows.map((r) => {
     const cat = Array.isArray(r.categories) ? r.categories[0] : r.categories;
+    const brand = Array.isArray(r.brands) ? r.brands[0] : r.brands;
     const available = byProduct.get(r.id) ?? 0;
     const sellingPrice = Number(r.selling_price ?? 0);
     const online = computeOnlinePriceDisplay({
@@ -275,6 +348,9 @@ async function attachStock(
       categoryId: r.category_id,
       categoryName: cat?.name ?? null,
       categorySlug: cat?.slug ?? null,
+      brandId: r.brand_id,
+      brandName: brand?.name ?? null,
+      brandSlug: brand?.slug ?? null,
       available,
       stock: getStockDisplay(available, shop.lowStockThreshold),
     };
@@ -283,7 +359,13 @@ async function attachStock(
 
 export async function listStorefrontProducts(
   shop: StorefrontShop,
-  opts?: { categorySlug?: string; search?: string; limit?: number; discountedOnly?: boolean },
+  opts?: {
+    categorySlug?: string;
+    brandSlug?: string;
+    search?: string;
+    limit?: number;
+    discountedOnly?: boolean;
+  },
 ): Promise<StorefrontProduct[]> {
   const admin = createAdminClient();
   const limit = opts?.limit ?? 48;
@@ -300,6 +382,17 @@ export async function listStorefrontProducts(
 
   if (opts?.discountedOnly) {
     query = query.gt("online_discount_pct", 0);
+  }
+
+  if (opts?.brandSlug) {
+    const { data: brand } = await admin
+      .from("brands")
+      .select("id")
+      .eq("tenant_id", shop.tenantId)
+      .eq("slug", opts.brandSlug)
+      .maybeSingle();
+    if (!brand) return [];
+    query = query.eq("brand_id", brand.id);
   }
 
   if (opts?.categorySlug) {
@@ -346,9 +439,10 @@ export async function listSimilarStorefrontProducts(
   product: StorefrontProduct,
   limit = 8,
 ): Promise<StorefrontProduct[]> {
-  if (!product.categorySlug) return [];
+  if (!product.brandSlug && !product.categorySlug) return [];
   const rows = await listStorefrontProducts(shop, {
-    categorySlug: product.categorySlug,
+    brandSlug: product.brandSlug ?? undefined,
+    categorySlug: product.brandSlug ? undefined : (product.categorySlug ?? undefined),
     limit: 24,
   });
   return rows.filter((p) => p.id !== product.id && p.stock.canAddToCart).slice(0, limit);

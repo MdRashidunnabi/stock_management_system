@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import { ShopHero } from "@/components/storefront/shop-hero";
 import { ShopHomeShortcuts } from "@/components/storefront/shop-home-shortcuts";
-import { getStorefrontShop, listStorefrontProducts } from "@/lib/storefront/queries";
+import {
+  getStorefrontShop,
+  listStorefrontBrowseNav,
+  listStorefrontProducts,
+} from "@/lib/storefront/queries";
 
 export async function generateMetadata({
   params,
@@ -22,10 +26,12 @@ export default async function ShopHomePage({ params }: { params: Promise<{ slug:
   const shop = await getStorefrontShop(slug);
   if (!shop) return null;
 
-  const [products, offers] = await Promise.all([
+  const [products, offers, browse] = await Promise.all([
     listStorefrontProducts(shop, { limit: 48 }),
     listStorefrontProducts(shop, { discountedOnly: true, limit: 8 }),
+    listStorefrontBrowseNav(shop),
   ]);
+  const groupWord = browse.label.toLowerCase().replace(/s$/, "");
 
   return (
     <div className="space-y-10">
@@ -48,13 +54,13 @@ export default async function ShopHomePage({ params }: { params: Promise<{ slug:
         <div>
           <h2 className="text-lg font-bold">Popular products</h2>
           <p className="text-muted-foreground text-sm">
-            Choose a category, then use + / − on each product.
+            Choose a {groupWord}, then use + / − on each product.
           </p>
         </div>
         <ProductGrid shopSlug={shop.slug} products={products} />
         {products.length >= 48 ? (
           <p className="text-muted-foreground text-center text-xs">
-            Showing first 48 products. Pick a category to see more.
+            Showing first 48 products. Pick a {groupWord} to see more.
           </p>
         ) : null}
       </section>

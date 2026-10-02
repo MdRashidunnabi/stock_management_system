@@ -10,9 +10,17 @@ interface Props {
   shop: StorefrontShop;
   categories: StorefrontCategory[];
   cartCount?: number;
+  navHref?: "brand" | "category";
+  navLabel?: string;
 }
 
-export function ShopHeader({ shop, categories, cartCount = 0 }: Props) {
+export function ShopHeader({
+  shop,
+  categories,
+  cartCount = 0,
+  navHref = "brand",
+  navLabel = "Brands",
+}: Props) {
   const base = `/shop/${shop.slug}`;
 
   return (
@@ -87,6 +95,8 @@ export function ShopHeader({ shop, categories, cartCount = 0 }: Props) {
             categories={categories}
             phone={shop.phone}
             callUsLabel={shop.callUsLabel}
+            filterParam={navHref}
+            filterLabel={navLabel}
           />
         </Suspense>
       </div>

@@ -15,6 +15,8 @@ import { ShopMoneyProvider } from "@/components/storefront/shop-money";
 type Props = {
   shop: StorefrontShop;
   categories: StorefrontCategory[];
+  navHref?: "brand" | "category";
+  navLabel?: string;
   children: React.ReactNode;
 };
 
@@ -34,6 +36,8 @@ function ShopLayoutWithPreview(props: Props) {
 function ShopLayoutInner({
   shop,
   categories,
+  navHref = "brand",
+  navLabel = "Brands",
   children,
   previewId,
   suppressMain = false,
@@ -51,7 +55,13 @@ function ShopLayoutInner({
         data-shop-header={theme.header}
         data-shop-density={theme.density}
       >
-        <ShopHeader shop={shop} categories={categories} cartCount={cartReady ? itemCount : 0} />
+        <ShopHeader
+          shop={shop}
+          categories={categories}
+          navHref={navHref}
+          navLabel={navLabel}
+          cartCount={cartReady ? itemCount : 0}
+        />
         <div className="shop-shell mx-auto w-full max-w-6xl px-4 sm:px-6">
           <StorefrontBranchPicker
             slug={shop.slug}
@@ -63,7 +73,13 @@ function ShopLayoutInner({
           <div className="shop-shell mx-auto min-h-[40vh] w-full max-w-6xl flex-1" />
         ) : (
           <div className="shop-shell mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-6 sm:px-6 sm:py-8">
-            <ShopCatalogShell shopSlug={shop.slug} categories={categories} nav={theme.nav}>
+            <ShopCatalogShell
+              shopSlug={shop.slug}
+              categories={categories}
+              navHref={navHref}
+              navLabel={navLabel}
+              nav={theme.nav}
+            >
               {children}
             </ShopCatalogShell>
           </div>
