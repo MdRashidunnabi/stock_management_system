@@ -434,7 +434,10 @@ export function PosTerminal({
   }
 
   function sellScannedCode(code: string) {
-    const trimmed = code.trim();
+    const trimmed = code
+      .trim()
+      .replace(/^\*+|\*+$/g, "")
+      .trim();
     if (!trimmed || !isValidBranchId(activeBranchId)) return;
     if (/^NC[A-Z0-9]{8}$/i.test(trimmed)) {
       startSearch(async () => {
@@ -526,22 +529,26 @@ export function PosTerminal({
   }
 
   function linesForCommit() {
-    if (!scannedVoucher || voucherTake <= 0) return cart;
-    const grosses = cart.map((line) => {
-      const rate = rateMap[line.vatCode] ?? 0;
-      const gross = line.vatIncluded
-        ? line.unitPrice * line.qty
-        : line.unitPrice * line.qty * (1 + rate);
-      return Math.max(0, round2(gross - line.discount));
-    });
+    if (!scannedVoucher || voucherTake <= 0 || payable < 0.01) return cart;
+    const grosses = cart.map((line) => lineGross(line, rateMap));
     const sum = grosses.reduce((n, g) => n + g, 0);
     if (sum <= 0) return cart;
     let left = voucherTake;
-    return cart.map((line, i) => {
+    const next = cart.map((line, i) => {
       const share = i === cart.length - 1 ? left : round2(voucherTake * (grosses[i]! / sum));
       left = round2(left - share);
-      return { ...line, discount: round2(line.discount + share) };
+      const rate = rateMap[line.vatCode] ?? 0;
+      const extra = line.vatIncluded || rate <= 0 ? share : round2(share / (1 + rate));
+      return { ...line, discount: round2(line.discount + Math.max(0, extra)) };
     });
+    const drift = round2(computeCartTotals(next, rateMap).total - payable);
+    const last = next[next.length - 1];
+    if (last && Math.abs(drift) >= 0.01) {
+      const rate = rateMap[last.vatCode] ?? 0;
+      const fix = last.vatIncluded || rate <= 0 ? drift : round2(drift / (1 + rate));
+      next[next.length - 1] = { ...last, discount: round2(Math.max(0, last.discount + fix)) };
+    }
+    return next;
   }
 
   function clearCart() {
@@ -572,6 +579,13 @@ export function PosTerminal({
     setServerError(null);
 
     // Offline path: queue the sale and let the auto-sync handle it later.
+    if (scannedVoucher && !online) {
+      setServerError(
+        "Connect to the internet before using a voucher. The code has to be checked now.",
+      );
+      return;
+    }
+
     if (!online) {
       const cashOnly = payments.every((p) => p.method === "cash");
       if (!cashOnly) {
@@ -599,7 +613,7 @@ export function PosTerminal({
         items: linesForCommit().map((l) => cartLineToCommitItem(l)),
         voucherCode: scannedVoucher?.code,
         payments: payments.map((p) => ({
-          method: p.method as "cash" | "card" | "contactless",
+          method: p.method as "cash" | "card" | "contactless" | "voucher",
           amount: p.amount,
         })),
       });
@@ -871,7 +885,21 @@ export function PosTerminal({
             <Row label="Subtotal (net)" value={money(totals.subtotal)} />
             <Row label="Discount" value={money(totals.discount)} />
             {voucherTake > 0 && scannedVoucher ? (
-              <Row label={`Voucher ${scannedVoucher.code}`} value={`− ${money(voucherTake)}`} />
+              <div className="flex items-center justify-between gap-2">
+                <span>Voucher {scannedVoucher.code}</span>
+                <span className="flex items-center gap-2">
+                  <span className="whitespace-nowrap">− {money(voucherTake)}</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2"
+                    onClick={() => setScannedVoucher(null)}
+                  >
+                    Remove
+                  </Button>
+                </span>
+              </div>
             ) : null}
             <Row label="VAT" value={money(totals.vat)} />
             <div className="border-border mt-2 flex items-center justify-between border-t pt-2 text-base font-semibold">
@@ -902,7 +930,19 @@ export function PosTerminal({
           size="lg"
           className="h-14 w-full text-base"
           disabled={cartEmpty || committing || !canSell}
-          onClick={() => setShowPayment(true)}
+          onClick={() => {
+            if (scannedVoucher && !online) {
+              setServerError(
+                "Connect to the internet before using a voucher. The code has to be checked now.",
+              );
+              return;
+            }
+            if (scannedVoucher && payable < 0.01) {
+              commit([{ method: "voucher", amount: round2(totals.total) }]);
+              return;
+            }
+            setShowPayment(true);
+          }}
         >
           {committing ? (
             <Loader2 className="size-5 animate-spin" />
@@ -953,6 +993,14 @@ export function PosTerminal({
 }
 
 /* ----------------------------- Helpers ----------------------------- */
+
+function lineGross(line: CartLine, rates: Record<string, number>): number {
+  const rate = rates[line.vatCode] ?? 0;
+  const base = line.unitPrice * line.qty;
+  if (line.vatIncluded) return Math.max(0, round2(base - line.discount));
+  const net = Math.max(0, base - line.discount);
+  return round2(net + net * rate);
+}
 
 function isWeightUnit(unit: string): boolean {
   const u = unit.trim().toLowerCase();

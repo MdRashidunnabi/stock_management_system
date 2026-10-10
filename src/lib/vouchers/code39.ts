@@ -46,7 +46,7 @@ export function code39Svg(value: string, height = 70): string {
   const text = `*${value.toUpperCase().replace(/[^0-9A-Z\-. ]/g, "")}*`;
   const narrow = 2;
   const wide = 6;
-  let x = 0;
+  let x = 20;
   const rects: string[] = [];
   for (const ch of text) {
     const pattern = CODE39[ch];
@@ -59,5 +59,6 @@ export function code39Svg(value: string, height = 70): string {
     }
     x += narrow;
   }
+  x += 20;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${x} ${height}" width="${x}" height="${height}" role="img" aria-label="${value}">${rects.join("")}</svg>`;
 }
