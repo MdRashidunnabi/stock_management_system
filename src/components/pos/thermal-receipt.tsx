@@ -1,5 +1,6 @@
 import type { SaleFullRow } from "@/lib/pos/schemas";
 import { parseVoucherNote } from "@/lib/vouchers/note";
+import { code39Svg } from "@/lib/vouchers/code39";
 import { formatEuro } from "@/lib/utils";
 import { formatVatPercent } from "@/lib/pos/vat-display";
 import { formatTillLabel } from "@/lib/pos/shifts";
@@ -154,6 +155,10 @@ export function ThermalReceipt({ shopName, sale }: { shopName: string; sale: Sal
         >
           <p className="text-center text-sm font-bold uppercase">{shopName}</p>
           <p className="text-center text-sm font-bold">VOUCHER {formatEuro(voucher.amount)}</p>
+          <div
+            className="mx-auto max-w-full [&_svg]:h-16 [&_svg]:w-full"
+            dangerouslySetInnerHTML={{ __html: code39Svg(voucher.code, 70) }}
+          />
           <p className="text-center text-base font-bold tracking-[0.2em]">{voucher.code}</p>
           <p className="text-center">Valid until {voucher.expires}</p>
           <p className="text-center">

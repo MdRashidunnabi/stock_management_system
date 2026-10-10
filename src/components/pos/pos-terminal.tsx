@@ -26,6 +26,7 @@ import {
   commitPosSaleAction,
   listPosCategories,
   listPosCategoryProducts,
+  lookupPosVoucher,
   searchProductsForPos,
 } from "@/lib/pos/actions";
 import { lookupProductByBarcodeAction } from "@/lib/catalog/barcode-lookup";
@@ -111,6 +112,9 @@ export function PosTerminal({
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [categoryProducts, setCategoryProducts] = useState<ProductSearchResult[]>([]);
+  const [scannedVoucher, setScannedVoucher] = useState<{ code: string; amount: number } | null>(
+    null,
+  );
   const [searchHint, setSearchHint] = useState<string | null>(null);
   const [searchPending, startSearch] = useTransition();
   const [showPayment, setShowPayment] = useState(false);
@@ -153,6 +157,8 @@ export function PosTerminal({
   /* ---------------------------- Totals math ---------------------------- */
 
   const totals = useMemo(() => computeCartTotals(cart, rateMap), [cart, rateMap]);
+  const voucherTake = scannedVoucher ? Math.min(scannedVoucher.amount, totals.total) : 0;
+  const payable = round2(Math.max(0, totals.total - voucherTake));
 
   const displayLines = useMemo(
     () =>
@@ -189,14 +195,25 @@ export function PosTerminal({
       lines: thanks?.lines ?? displayLines,
       subtotal: thanks?.subtotal ?? totals.subtotal,
       vat: thanks?.vat ?? totals.vat,
-      total: thanks?.total ?? totals.total,
+      total: thanks?.total ?? payable,
       phase,
       given: thanks?.given ?? payUi.given,
       change: thanks?.change ?? payUi.change,
       voucher: thanks?.voucher ?? null,
       updatedAt: Date.now(),
     });
-  }, [tenantId, shopName, currency, locale, displayLines, totals, showPayment, payUi, cart.length]);
+  }, [
+    tenantId,
+    shopName,
+    currency,
+    locale,
+    displayLines,
+    totals,
+    payable,
+    showPayment,
+    payUi,
+    cart.length,
+  ]);
 
   /* Restore cart when returning from Products / other pages (same tab). */
   useEffect(() => {
@@ -419,6 +436,23 @@ export function PosTerminal({
   function sellScannedCode(code: string) {
     const trimmed = code.trim();
     if (!trimmed || !isValidBranchId(activeBranchId)) return;
+    if (/^NC[A-Z0-9]{8}$/i.test(trimmed)) {
+      startSearch(async () => {
+        const res = await lookupPosVoucher({ code: trimmed });
+        const err = getSafeActionError(res);
+        const data = getSafeActionData<{ ok: true; code: string; amount: number }>(res);
+        if (!data) {
+          playScanTone(false);
+          toast.error(err || "That voucher is not valid.");
+          return;
+        }
+        playScanTone(true);
+        setScannedVoucher({ code: data.code, amount: data.amount });
+        setQuery("");
+        toast.success(`Voucher ${money(data.amount)} applied`);
+      });
+      return;
+    }
     startSearch(async () => {
       const res = await lookupProductByBarcodeAction({ branchId: activeBranchId, code: trimmed });
       const err = getSafeActionError(res);
@@ -491,8 +525,28 @@ export function PosTerminal({
     setCart((prev) => prev.filter((line) => line.productId !== productId));
   }
 
+  function linesForCommit() {
+    if (!scannedVoucher || voucherTake <= 0) return cart;
+    const grosses = cart.map((line) => {
+      const rate = rateMap[line.vatCode] ?? 0;
+      const gross = line.vatIncluded
+        ? line.unitPrice * line.qty
+        : line.unitPrice * line.qty * (1 + rate);
+      return Math.max(0, round2(gross - line.discount));
+    });
+    const sum = grosses.reduce((n, g) => n + g, 0);
+    if (sum <= 0) return cart;
+    let left = voucherTake;
+    return cart.map((line, i) => {
+      const share = i === cart.length - 1 ? left : round2(voucherTake * (grosses[i]! / sum));
+      left = round2(left - share);
+      return { ...line, discount: round2(line.discount + share) };
+    });
+  }
+
   function clearCart() {
     setCart([]);
+    setScannedVoucher(null);
     setServerError(null);
     if (isValidBranchId(activeBranchId)) {
       clearPersistedPosCart(tenantId, activeBranchId);
@@ -526,7 +580,7 @@ export function PosTerminal({
       }
       startCommit(async () => {
         try {
-          await enqueueSale(cart, totals.total);
+          await enqueueSale(linesForCommit(), payable);
           toast.success(
             "Sale queued offline. It will sync automatically when the connection is back.",
           );
@@ -542,7 +596,8 @@ export function PosTerminal({
       const res = await commitPosSaleAction({
         branchId: bid,
         deviceId: deviceId || undefined,
-        items: cart.map((l) => cartLineToCommitItem(l)),
+        items: linesForCommit().map((l) => cartLineToCommitItem(l)),
+        voucherCode: scannedVoucher?.code,
         payments: payments.map((p) => ({
           method: p.method as "cash" | "card" | "contactless",
           amount: p.amount,
@@ -577,7 +632,7 @@ export function PosTerminal({
       lines: displayLines,
       subtotal: totals.subtotal,
       vat: totals.vat,
-      total: totals.total,
+      total: payable,
       given,
       change,
       voucher: voucher ?? null,
@@ -594,6 +649,7 @@ export function PosTerminal({
       setChangeHold({ given, change });
     }
     clearCart();
+    setScannedVoucher(null);
     setShowPayment(false);
     searchRef.current?.focus();
   }
@@ -814,10 +870,13 @@ export function PosTerminal({
           <CardContent className="space-y-2 text-sm">
             <Row label="Subtotal (net)" value={money(totals.subtotal)} />
             <Row label="Discount" value={money(totals.discount)} />
+            {voucherTake > 0 && scannedVoucher ? (
+              <Row label={`Voucher ${scannedVoucher.code}`} value={`− ${money(voucherTake)}`} />
+            ) : null}
             <Row label="VAT" value={money(totals.vat)} />
             <div className="border-border mt-2 flex items-center justify-between border-t pt-2 text-base font-semibold">
               <span>Total</span>
-              <span>{money(totals.total)}</span>
+              <span>{money(payable)}</span>
             </div>
           </CardContent>
         </Card>
@@ -868,7 +927,7 @@ export function PosTerminal({
 
       <PosPaymentDialog
         open={showPayment}
-        total={totals.total}
+        total={payable}
         pending={committing}
         cashOnly={!online}
         currency={currency}

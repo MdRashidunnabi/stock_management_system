@@ -16,7 +16,12 @@ import {
 import { productTextSearchOrFilter } from "@/lib/security/postgrest-filter";
 import { assertLineDiscountAllowed } from "@/lib/security/discount-policy";
 import { canAttachSaleToTill } from "@/lib/security/till-session";
-import { makeVoucherCode, voucherNoteLine } from "@/lib/vouchers/note";
+import {
+  makeVoucherCode,
+  parseVoucherNote,
+  voucherNoteLine,
+  withVoucherNote,
+} from "@/lib/vouchers/note";
 import { earnedVoucherAmount, eligibleSpend, readPosVoucherSettings } from "@/lib/vouchers/rules";
 
 const POS_ROLES = ["owner", "manager", "cashier", "warehouse", "accountant"] as const;
@@ -227,14 +232,21 @@ export const commitPosSaleAction = staffActionClient([...POS_ROLES])
       const priceById = new Map((prods ?? []).map((p) => [p.id, Number(p.selling_price ?? 0)]));
       for (const item of parsedInput.items) {
         const unit = item.unitPrice ?? priceById.get(item.productId) ?? 0;
-        const allowed = assertLineDiscountAllowed({
-          role: ctx.tenant.role,
-          qty: item.qty,
-          unitPrice: unit,
-          discount: item.discount ?? 0,
-        });
+        const allowed = parsedInput.voucherCode
+          ? { ok: true as const }
+          : assertLineDiscountAllowed({
+              role: ctx.tenant.role,
+              qty: item.qty,
+              unitPrice: unit,
+              discount: item.discount ?? 0,
+            });
         if (!allowed.ok) throw new ActionError(allowed.error);
       }
+    }
+
+    if (parsedInput.voucherCode) {
+      const valid = await findActivePosVoucher(ctx.tenant.tenantId, parsedInput.voucherCode);
+      if (!valid) throw new ActionError("That voucher is not valid.");
     }
 
     const { data, error } = await supabase
@@ -266,6 +278,10 @@ export const commitPosSaleAction = staffActionClient([...POS_ROLES])
       throw new ActionError(friendlyRpcError(error));
     }
 
+    if (parsedInput.voucherCode) {
+      await redeemPosVoucher(ctx.tenant.tenantId, parsedInput.voucherCode);
+    }
+
     const voucher = await issueTillVoucher({
       supabase: createAdminClient(),
       tenantId: ctx.tenant.tenantId,
@@ -290,6 +306,74 @@ export const commitPosSaleAction = staffActionClient([...POS_ROLES])
       voucher,
     };
   });
+
+export const lookupPosVoucher = staffActionClient([...POS_ROLES])
+  .metadata({ actionName: "pos.lookupVoucher" })
+  .inputSchema(z.object({ code: z.string().trim().min(4).max(20) }))
+  .action(async ({ parsedInput, ctx }) => {
+    const found = await findActivePosVoucher(ctx.tenant.tenantId, parsedInput.code);
+    if (!found) throw new ActionError("That voucher is not valid or has expired.");
+    return { ok: true as const, code: found.code, amount: found.amount };
+  });
+
+async function findActivePosVoucher(tenantId: string, code: string) {
+  const admin = createAdminClient();
+  const clean = code.trim().toUpperCase();
+  const today = new Date().toISOString().slice(0, 10);
+  const [{ data: sales }, { data: orders }] = await Promise.all([
+    admin
+      .from("sales")
+      .select("id, notes")
+      .eq("tenant_id", tenantId)
+      .ilike("notes", `%code=${clean}%`)
+      .limit(10),
+    admin
+      .from("online_orders")
+      .select("id, notes")
+      .eq("tenant_id", tenantId)
+      .ilike("notes", `%code=${clean}%`)
+      .limit(10),
+  ]);
+  const rows = [
+    ...(sales ?? []).map((row) => ({ ...row, table: "sales" as const })),
+    ...(orders ?? []).map((row) => ({ ...row, table: "online_orders" as const })),
+  ];
+  for (const row of rows) {
+    const voucher = parseVoucherNote(row.notes);
+    if (
+      voucher?.code === clean &&
+      voucher.status === "active" &&
+      (!voucher.expires || voucher.expires >= today)
+    ) {
+      return { ...voucher, id: row.id, table: row.table };
+    }
+  }
+  return null;
+}
+
+async function redeemPosVoucher(tenantId: string, code: string) {
+  const found = await findActivePosVoucher(tenantId, code);
+  if (!found) return false;
+  const admin = createAdminClient();
+  const { data: row } = await admin
+    .from(found.table)
+    .select("notes")
+    .eq("id", found.id)
+    .maybeSingle();
+  await admin
+    .from(found.table)
+    .update({
+      notes: withVoucherNote(row?.notes, {
+        status: "redeemed",
+        amount: found.amount,
+        eligible: found.eligible,
+        code: found.code,
+        expires: found.expires,
+      }),
+    })
+    .eq("id", found.id);
+  return true;
+}
 
 async function issueTillVoucher(input: {
   supabase: Awaited<ReturnType<typeof createClient>>;

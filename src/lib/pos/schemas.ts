@@ -73,6 +73,7 @@ export const commitSaleSchema = z.object({
   clientUuid: entityIdSchema.optional(),
   /** Bound till id from the signed ShopOS lease. Used to refuse revoked devices. */
   deviceId: z.string().trim().min(8).max(80).optional(),
+  voucherCode: z.string().trim().max(20).optional(),
 });
 
 export type CommitSaleInput = z.input<typeof commitSaleSchema>;
