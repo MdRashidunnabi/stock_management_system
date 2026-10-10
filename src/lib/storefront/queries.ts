@@ -269,16 +269,16 @@ export type StorefrontBrowseNav = {
   label: string;
 };
 
-/** Prefer Food/Drink brands when the shop has them; otherwise use categories. */
+/** The shop menu follows product aisles. Brands are used when a shop has no categories. */
 export async function listStorefrontBrowseNav(shop: StorefrontShop): Promise<StorefrontBrowseNav> {
-  const brands = await listStorefrontBrands(shop);
-  if (brands.length > 0) {
-    return { items: brands, hrefSegment: "brand", label: "Brands" };
+  const categories = await listStorefrontCategories(shop);
+  if (categories.length > 0) {
+    return { items: categories, hrefSegment: "category", label: "Categories" };
   }
   return {
-    items: await listStorefrontCategories(shop),
-    hrefSegment: "category",
-    label: "Categories",
+    items: await listStorefrontBrands(shop),
+    hrefSegment: "brand",
+    label: "Brands",
   };
 }
 
