@@ -45,13 +45,13 @@ export function ProductCard({ shopSlug, product }: Props) {
   return (
     <article className="shop-product-card bg-card border-border/80 flex h-full flex-col overflow-hidden border shadow-sm transition-shadow hover:shadow-md">
       <Link href={href} className="block">
-        <div className="bg-background relative aspect-[4/3]">
+        <div className="relative h-40 w-full bg-white">
           {product.primaryImageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={product.primaryImageUrl}
               alt={product.name}
-              className="size-full object-contain p-3"
+              className="size-full object-cover object-center"
             />
           ) : (
             <div className="text-muted-foreground flex size-full items-center justify-center text-sm">

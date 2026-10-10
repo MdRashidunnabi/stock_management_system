@@ -1,19 +1,15 @@
 import type { StorefrontShop } from "@/lib/storefront/queries";
 
 export function ShopHero({ shop }: { shop: StorefrontShop }) {
+  const title = shop.heroTitle ?? shop.publicSiteName;
+  const subtitle = shop.heroSubtitle ?? shop.tagline ?? "Order for delivery or collection";
   return (
-    <section className="shop-hero relative overflow-hidden px-6 py-10 shadow-lg sm:px-10 sm:py-12">
-      <div className="pointer-events-none absolute -top-16 -right-16 size-48 rounded-full bg-white/10 blur-2xl" />
-      <div className="pointer-events-none absolute -bottom-20 -left-10 size-56 rounded-full bg-black/10 blur-3xl" />
-      <div className="relative max-w-xl space-y-3">
-        <p className="text-xs font-medium tracking-widest uppercase opacity-90">Online shop</p>
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          {shop.heroTitle ?? `Welcome to ${shop.publicSiteName}`}
-        </h1>
-        <p className="text-sm leading-relaxed opacity-95 sm:text-base">
-          {shop.heroSubtitle ??
-            "Everyday essentials with live stock from our shop — order for delivery or collection."}
-        </p>
+    <section className="relative overflow-hidden rounded-xl">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand/needs-hero.jpg" alt="" className="h-40 w-full object-cover md:h-52" />
+      <div className="absolute inset-x-3 bottom-3 rounded-lg bg-black/45 px-4 py-2 text-white md:inset-x-6">
+        <p className="text-sm font-bold md:text-lg">{title}</p>
+        <p className="text-xs text-white/85 md:text-sm">{subtitle}</p>
       </div>
     </section>
   );

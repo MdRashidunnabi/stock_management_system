@@ -1,146 +1,93 @@
 import Link from "next/link";
-import { Suspense } from "react";
-import { ShopSearchBar } from "@/components/storefront/shop-search-bar";
+import { ShopBrandLogo } from "@/components/storefront/shop-brand-logo";
 import type { StorefrontCategory, StorefrontShop } from "@/lib/storefront/queries";
 
-interface Props {
+export function ShopFooter({
+  shop,
+  categories,
+  hrefSegment = "brand",
+}: {
   shop: StorefrontShop;
   categories: StorefrontCategory[];
-}
-
-const SOCIAL_STYLES = {
-  Facebook: { short: "f", className: "bg-[#1877F2]" },
-  Twitter: { short: "𝕏", className: "bg-[#1DA1F2]" },
-  YouTube: { short: "▶", className: "bg-[#FF0000]" },
-  Instagram: { short: "◎", className: "bg-gradient-to-br from-[#f58529] to-[#dd2a7b]" },
-} as const;
-
-export function ShopFooter({ shop, categories }: Props) {
+  hrefSegment?: "brand" | "category";
+}) {
   const base = `/shop/${shop.slug}`;
-
-  const socials = [
-    { url: shop.facebookUrl, label: "Facebook" as const },
-    { url: shop.twitterUrl, label: "Twitter" as const },
-    { url: shop.youtubeUrl, label: "YouTube" as const },
-    { url: shop.instagramUrl, label: "Instagram" as const },
-  ].filter((s) => s.url?.trim());
+  const whatsapp = shop.whatsapp?.replace(/\D/g, "");
+  const year = new Date().getFullYear();
 
   return (
-    <footer className="border-border/80 bg-card mt-12 border-t">
-      <div className="shop-shell mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:gap-10">
-        <div className="space-y-3">
-          <h2 className="text-base font-bold">About {shop.publicSiteName}</h2>
-          <p className="text-muted-foreground text-sm leading-relaxed">
+    <footer className="mt-8 bg-[#12301d] text-white">
+      <div className="mx-auto grid max-w-[1400px] gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <div className="inline-block rounded bg-white p-1">
+            <ShopBrandLogo src={shop.logoUrl} name={shop.publicSiteName} />
+          </div>
+          {shop.tagline ? (
+            <p className="mt-3 text-sm font-semibold text-[#d6f5a2]">{shop.tagline}</p>
+          ) : null}
+          <p className="mt-2 text-sm text-white/75">
             {shop.footerAbout ??
-              `${shop.publicSiteName} — quality groceries and international foods, with live stock from our shop.`}
+              `${shop.publicSiteName} — fresh food, groceries, and weekly offers.`}
           </p>
         </div>
-
-        <div className="space-y-3">
-          <h2 className="text-base font-bold">Useful links</h2>
-          <ul className="space-y-2 text-sm">
-            <li>
-              <Link href={base} className="text-info font-medium hover:underline">
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link href={`${base}/search`} className="text-info font-medium hover:underline">
-                Shop
-              </Link>
-            </li>
-            <li>
-              <Link href={`${base}/offers`} className="text-info font-medium hover:underline">
-                Offers
-              </Link>
-            </li>
-            <li>
-              <Link href={`${base}/advance`} className="text-info font-medium hover:underline">
-                Advance Order
-              </Link>
-            </li>
-            <li>
-              <Link href={`${base}/order/track`} className="text-info font-medium hover:underline">
-                Track order
-              </Link>
-            </li>
-            <li>
-              <Link href={`${base}#about`} className="text-info font-medium hover:underline">
-                About us
-              </Link>
-            </li>
-            <li>
-              <a
-                href={shop.phone ? `tel:${shop.phone.replace(/\s/g, "")}` : "#contact"}
-                className="text-info font-medium hover:underline"
-              >
-                Contact
-              </a>
-            </li>
+        <div>
+          <p className="font-bold">Shop</p>
+          <ul className="mt-3 space-y-1 text-sm text-white/80">
+            {categories.slice(0, 12).map((c) => (
+              <li key={c.id}>
+                <Link href={`${base}/${hrefSegment}/${c.slug}`}>{c.name}</Link>
+              </li>
+            ))}
           </ul>
         </div>
-
-        <div className="space-y-3">
-          <h2 className="text-base font-bold">Search</h2>
-          <Suspense fallback={<div className="bg-muted/40 h-11 animate-pulse rounded-full" />}>
-            <ShopSearchBar
-              shopSlug={shop.slug}
-              categories={categories}
-              phone={null}
-              callUsLabel={null}
-            />
-          </Suspense>
+        <div>
+          <p className="font-bold">Help</p>
+          <ul className="mt-3 space-y-1 text-sm text-white/80">
+            <li>
+              <Link href={`${base}/advance`}>Advance Order</Link>
+            </li>
+            <li>
+              <Link href={`${base}/order/track`}>Track order</Link>
+            </li>
+            <li>
+              <Link href={`${base}/offers`}>Offers</Link>
+            </li>
+            {shop.facebookUrl ? (
+              <li>
+                <a href={shop.facebookUrl} target="_blank" rel="noreferrer">
+                  Facebook
+                </a>
+              </li>
+            ) : null}
+          </ul>
         </div>
-
-        <div className="space-y-3" id="contact">
-          <h2 className="text-base font-bold">Social profiles</h2>
-          {socials.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {socials.map((s) => {
-                const style = SOCIAL_STYLES[s.label];
-                return (
-                  <a
-                    key={s.label}
-                    href={s.url!}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`${style.className} flex size-10 items-center justify-center rounded-md text-sm font-bold text-white shadow-sm transition-opacity hover:opacity-90`}
-                    aria-label={s.label}
-                  >
-                    {style.short}
-                  </a>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-sm">Add social links in Shop settings.</p>
-          )}
+        <div>
+          <p className="font-bold">Visit us</p>
+          {shop.heroSubtitle ? (
+            <p className="mt-3 text-sm text-white/80">{shop.heroSubtitle}</p>
+          ) : null}
           {shop.phone ? (
-            <p className="text-sm">
-              <span className="text-muted-foreground">Phone: </span>
-              <a href={`tel:${shop.phone.replace(/\s/g, "")}`} className="text-info font-medium">
-                {shop.phone}
-              </a>
-            </p>
+            <a
+              href={`tel:${shop.phone.replace(/\s/g, "")}`}
+              className="mt-3 block font-bold text-[#d6f5a2]"
+            >
+              {shop.phone}
+            </a>
           ) : null}
-          {shop.whatsapp ? (
-            <p className="text-sm">
-              <span className="text-muted-foreground">WhatsApp: </span>
-              <a
-                href={`https://wa.me/${shop.whatsapp.replace(/\D/g, "")}`}
-                className="text-info font-medium"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {shop.whatsapp}
-              </a>
-            </p>
+          {whatsapp ? (
+            <a
+              href={`https://wa.me/${whatsapp}`}
+              className="mt-3 inline-block rounded-lg bg-[#25D366] px-4 py-2 text-sm font-bold text-white"
+            >
+              WhatsApp
+            </a>
           ) : null}
         </div>
       </div>
-      <div className="text-muted-foreground border-border/60 border-t py-4 text-center text-xs">
-        {shop.publicSiteName} · Live stock · Powered by ShopOS
-      </div>
+      <p className="border-t border-white/10 py-4 text-center text-xs text-white/50">
+        © {year} {shop.publicSiteName}
+        {shop.tagline ? ` · ${shop.tagline}` : ""}
+      </p>
     </footer>
   );
 }

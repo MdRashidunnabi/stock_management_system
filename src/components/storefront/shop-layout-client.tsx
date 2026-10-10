@@ -84,7 +84,7 @@ function ShopLayoutInner({
             </ShopCatalogShell>
           </div>
         )}
-        <ShopFooter shop={shop} categories={categories} />
+        <ShopFooter shop={shop} categories={categories} hrefSegment={navHref} />
       </div>
     </ShopMoneyProvider>
   );

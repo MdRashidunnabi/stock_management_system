@@ -52,7 +52,13 @@ export function CategoryNav({
       <Link href={base} className={linkClass(!activeSlug && !extraActive)}>
         <span className="truncate">All products</span>
       </Link>
-      <Link href={`${base}/offers`} className={linkClass(extraActive === "offers")}>
+      <Link
+        href={`${base}/offers`}
+        className={cn(
+          linkClass(extraActive === "offers"),
+          extraActive === "offers" ? "bg-[#e23d3d] text-white" : "bg-[#e23d3d]/10 text-[#e23d3d]",
+        )}
+      >
         <span className="truncate">Offers</span>
       </Link>
       <Link href={`${base}/advance`} className={linkClass(extraActive === "advance")}>
