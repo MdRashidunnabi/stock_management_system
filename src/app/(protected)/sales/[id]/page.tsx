@@ -5,13 +5,21 @@ import { getCurrentTenant } from "@/lib/auth/tenant";
 import { getSale } from "@/lib/pos/actions";
 import { Badge } from "@/components/ui/badge";
 import { ThermalReceipt } from "@/components/pos/thermal-receipt";
+import { AutoPrint } from "@/components/pos/auto-print";
 
 export const metadata = {
   title: "Receipt · ShopOS",
 };
 
-export default async function SaleDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SaleDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ print?: string }>;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
   const tenant = await getCurrentTenant();
   if (!tenant) redirect("/onboarding");
 
@@ -33,6 +41,7 @@ export default async function SaleDetailPage({ params }: { params: Promise<{ id:
           </Badge>
         ) : null}
       </div>
+      <AutoPrint enabled={sp.print === "1"} />
       <ThermalReceipt shopName={tenant.tenantName} sale={sale} />
     </div>
   );

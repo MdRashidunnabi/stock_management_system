@@ -26,23 +26,64 @@ export function earnedVoucherAmount(eligible: number, rate = VOUCHER_EARN_RATE):
   return raw + 1e-9 >= VOUCHER_MIN_EARN ? raw : 0;
 }
 
+export type PosVoucherSettings = {
+  enabled: boolean;
+  pct: number;
+  days: number;
+};
+
+function token(notes: string | null | undefined, name: string): string | null {
+  const match = String(notes || "").match(new RegExp(`\\[${name}=([^\\]]+)\\]`));
+  return match?.[1] ?? null;
+}
+
 export function voucherRateFromNotes(notes: string | null | undefined): number {
-  const match = String(notes || "").match(/\[voucher_pct=(\d+(?:\.\d+)?)\]/);
-  const pct = match ? Number(match[1]) : 5;
+  const pct = Number(token(notes, "voucher_pct") ?? 5);
   if (!Number.isFinite(pct) || pct < 0 || pct > 50) return VOUCHER_EARN_RATE;
   return pct / 100;
+}
+
+export function readPosVoucherSettings(notes: string | null | undefined): PosVoucherSettings {
+  const enabledRaw = token(notes, "pos_voucher");
+  const pct = Number(token(notes, "pos_voucher_pct") ?? 5);
+  const days = Number(token(notes, "pos_voucher_days") ?? 30);
+  return {
+    enabled: enabledRaw == null ? true : enabledRaw !== "off",
+    pct: Number.isFinite(pct) ? Math.max(0, Math.min(50, pct)) : 5,
+    days: Number.isFinite(days) ? Math.max(1, Math.min(365, Math.round(days))) : 30,
+  };
 }
 
 export function voucherPctFromNotes(notes: string | null | undefined): number {
   return Math.round(voucherRateFromNotes(notes) * 1000) / 10;
 }
 
-export function withVoucherPct(notes: string | null | undefined, pct: number): string {
-  const safe = Math.max(0, Math.min(50, pct));
+export function withVoucherSettings(
+  notes: string | null | undefined,
+  settings: { onlinePct: number; pos: PosVoucherSettings },
+): string {
   const rest = String(notes || "")
-    .replace(/\[voucher_pct=\d+(?:\.\d+)?\]\n?/, "")
+    .replace(/\[voucher_pct=[^\]]+\]\n?/g, "")
+    .replace(/\[pos_voucher=[^\]]+\]\n?/g, "")
+    .replace(/\[pos_voucher_pct=[^\]]+\]\n?/g, "")
+    .replace(/\[pos_voucher_days=[^\]]+\]\n?/g, "")
     .trim();
-  return [`[voucher_pct=${safe}]`, rest].filter(Boolean).join("\n");
+  const onlinePct = Math.max(0, Math.min(50, settings.onlinePct));
+  const posPct = Math.max(0, Math.min(50, settings.pos.pct));
+  const days = Math.max(1, Math.min(365, Math.round(settings.pos.days)));
+  return [
+    `[voucher_pct=${onlinePct}]`,
+    `[pos_voucher=${settings.pos.enabled ? "on" : "off"}]`,
+    `[pos_voucher_pct=${posPct}]`,
+    `[pos_voucher_days=${days}]`,
+    rest,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function withVoucherPct(notes: string | null | undefined, pct: number): string {
+  return withVoucherSettings(notes, { onlinePct: pct, pos: readPosVoucherSettings(notes) });
 }
 
 export function voucherDeadline(from = new Date(), days = VOUCHER_VALID_DAYS): Date {

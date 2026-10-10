@@ -137,6 +137,7 @@ export function PosTerminal({
     total: number;
     given: number;
     change: number;
+    voucher?: { amount: number; code: string; expiresOn: string; days: number } | null;
   } | null>(null);
   const [showOneOff, setShowOneOff] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -192,6 +193,7 @@ export function PosTerminal({
       phase,
       given: thanks?.given ?? payUi.given,
       change: thanks?.change ?? payUi.change,
+      voucher: thanks?.voucher ?? null,
       updatedAt: Date.now(),
     });
   }, [tenantId, shopName, currency, locale, displayLines, totals, showPayment, payUi, cart.length]);
@@ -555,16 +557,20 @@ export function PosTerminal({
         ok: true;
         saleId: string;
         receiptNumber: string;
+        voucher: { amount: number; code: string; expiresOn: string; days: number } | null;
       }>(res);
       if (data) {
         toast.success(`Receipt ${data.receiptNumber}`);
-        window.open(`/sales/${data.saleId}`, "_blank", "noopener,noreferrer");
-        afterSaleRecorded(payments[0]?.method === "card" ? "card" : "cash");
+        window.open(`/sales/${data.saleId}?print=1`, "_blank", "noopener,noreferrer");
+        afterSaleRecorded(payments[0]?.method === "card" ? "card" : "cash", data.voucher);
       }
     });
   }
 
-  function afterSaleRecorded(method: "cash" | "card") {
+  function afterSaleRecorded(
+    method: "cash" | "card",
+    voucher?: { amount: number; code: string; expiresOn: string; days: number } | null,
+  ) {
     const given = tenderRef.current.given;
     const change = tenderRef.current.change;
     thanksSnapshotRef.current = {
@@ -574,12 +580,16 @@ export function PosTerminal({
       total: totals.total,
       given,
       change,
+      voucher: voucher ?? null,
     };
     setPayUi({ phase: "thanks", given, change });
-    window.setTimeout(() => {
-      thanksSnapshotRef.current = null;
-      setPayUi({ phase: "cart" });
-    }, 4000);
+    window.setTimeout(
+      () => {
+        thanksSnapshotRef.current = null;
+        setPayUi({ phase: "cart" });
+      },
+      voucher ? 12000 : 4000,
+    );
     if (method === "cash" && change > 0) {
       setChangeHold({ given, change });
     }

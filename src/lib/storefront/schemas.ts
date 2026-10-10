@@ -80,6 +80,9 @@ export const updateStorefrontSettingsSchema = z.object({
   instagramUrl: optionalUrl,
   onlinePriceMarkupPct: z.coerce.number().min(0).max(50),
   voucherEarnPct: z.coerce.number().min(0).max(50),
+  posVoucherEnabled: z.boolean(),
+  posVoucherPct: z.coerce.number().min(0).max(50),
+  posVoucherDays: z.coerce.number().int().min(1).max(365),
   themeId: z
     .enum([
       "market",

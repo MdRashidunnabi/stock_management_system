@@ -1,4 +1,5 @@
 import type { SaleFullRow } from "@/lib/pos/schemas";
+import { parseVoucherNote } from "@/lib/vouchers/note";
 import { formatEuro } from "@/lib/utils";
 import { formatVatPercent } from "@/lib/pos/vat-display";
 import { formatTillLabel } from "@/lib/pos/shifts";
@@ -21,6 +22,8 @@ const PAYMENT_LABEL: Record<string, string> = {
  * 80mm thermal till slip: narrow, long, VAT on every line then a final VAT total.
  */
 export function ThermalReceipt({ shopName, sale }: { shopName: string; sale: SaleFullRow }) {
+  const voucher = parseVoucherNote(sale.notes);
+  const showVoucher = voucher?.status === "active" && voucher.code;
   return (
     <>
       <style>{`
@@ -28,7 +31,7 @@ export function ThermalReceipt({ shopName, sale }: { shopName: string; sale: Sal
           @page { size: 80mm auto; margin: 3mm; }
           html, body { background: #fff !important; }
           body * { visibility: hidden; }
-          #receipt-thermal, #receipt-thermal * { visibility: visible; }
+          #receipt-thermal, #receipt-thermal *, #receipt-voucher, #receipt-voucher * { visibility: visible; }
           #receipt-thermal {
             position: absolute;
             left: 0;
@@ -144,6 +147,20 @@ export function ThermalReceipt({ shopName, sale }: { shopName: string; sale: Sal
 
         <p className="pt-2 text-center">Thank you. Keep this slip for returns.</p>
       </div>
+      {showVoucher && voucher?.code ? (
+        <div
+          id="receipt-voucher"
+          className="border-border mx-auto mt-6 w-full max-w-[80mm] space-y-2 rounded-lg border border-dashed p-3 font-mono text-[11px] leading-tight text-black print:mt-0 print:break-before-page print:rounded-none print:border-0"
+        >
+          <p className="text-center text-sm font-bold uppercase">{shopName}</p>
+          <p className="text-center text-sm font-bold">VOUCHER {formatEuro(voucher.amount)}</p>
+          <p className="text-center text-base font-bold tracking-[0.2em]">{voucher.code}</p>
+          <p className="text-center">Valid until {voucher.expires}</p>
+          <p className="text-center">
+            Use once on the website or in the shop. After it is used, this code stops working.
+          </p>
+        </div>
+      ) : null}
     </>
   );
 }

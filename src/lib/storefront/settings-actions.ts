@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { ActionError, staffActionClient } from "@/lib/safe-action";
 import { updateStorefrontSettingsSchema } from "@/lib/storefront/schemas";
-import { withVoucherPct } from "@/lib/vouchers/rules";
+import { withVoucherSettings } from "@/lib/vouchers/rules";
 
 const SETTINGS_ROLES = ["owner", "manager", "super_admin"] as const;
 
@@ -48,7 +48,16 @@ export const updateStorefrontSettingsAction = staffActionClient([...SETTINGS_ROL
       .maybeSingle();
     const { error: noteError } = await supabase
       .from("tenants")
-      .update({ notes: withVoucherPct(tenant?.notes, parsedInput.voucherEarnPct) })
+      .update({
+        notes: withVoucherSettings(tenant?.notes, {
+          onlinePct: parsedInput.voucherEarnPct,
+          pos: {
+            enabled: parsedInput.posVoucherEnabled,
+            pct: parsedInput.posVoucherPct,
+            days: parsedInput.posVoucherDays,
+          },
+        }),
+      })
       .eq("id", ctx.tenant.tenantId);
     if (noteError) throw new ActionError(noteError.message);
 

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { DeliverySettings } from "@/lib/storefront/delivery";
 import { resolveStorefrontLogoUrl } from "@/lib/storefront/logo-url";
 import { parseShopTemplateId, type ShopTemplateId } from "@/lib/storefront/templates";
-import { voucherPctFromNotes } from "@/lib/vouchers/rules";
+import { readPosVoucherSettings, voucherPctFromNotes } from "@/lib/vouchers/rules";
 
 export interface StorefrontSettingsRow {
   tenantId: string;
@@ -28,6 +28,9 @@ export interface StorefrontSettingsRow {
   instagramUrl: string | null;
   onlinePriceMarkupPct: number;
   voucherEarnPct: number;
+  posVoucherEnabled: boolean;
+  posVoucherPct: number;
+  posVoucherDays: number;
   themeId: ShopTemplateId;
 }
 
@@ -81,6 +84,9 @@ export async function getStorefrontSettingsForTenant(
     instagramUrl: sf.instagram_url,
     onlinePriceMarkupPct: Number(sf.online_price_markup_pct ?? 0.5),
     voucherEarnPct: voucherPctFromNotes(tenant.notes),
+    posVoucherEnabled: readPosVoucherSettings(tenant.notes).enabled,
+    posVoucherPct: readPosVoucherSettings(tenant.notes).pct,
+    posVoucherDays: readPosVoucherSettings(tenant.notes).days,
     themeId: parseShopTemplateId(sf.theme_id),
   };
 }

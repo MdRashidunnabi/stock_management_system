@@ -44,14 +44,26 @@ async function rememberVoucherOnOrder(
     .eq("id", orderId)
     .maybeSingle();
   if (clean) {
-    const { data: rows } = await admin
-      .from("online_orders")
-      .select("id, notes")
-      .eq("tenant_id", order?.tenant_id ?? "")
-      .ilike("notes", `%code=${clean}%`)
-      .limit(10);
+    const [{ data: rows }, { data: saleRows }] = await Promise.all([
+      admin
+        .from("online_orders")
+        .select("id, notes")
+        .eq("tenant_id", order?.tenant_id ?? "")
+        .ilike("notes", `%code=${clean}%`)
+        .limit(10),
+      admin
+        .from("sales")
+        .select("id, notes")
+        .eq("tenant_id", order?.tenant_id ?? "")
+        .ilike("notes", `%code=${clean}%`)
+        .limit(10),
+    ]);
+    const found = [
+      ...(rows ?? []).map((row) => ({ ...row, table: "online_orders" as const })),
+      ...(saleRows ?? []).map((row) => ({ ...row, table: "sales" as const })),
+    ];
     const today = new Date().toISOString().slice(0, 10);
-    const match = (rows ?? [])
+    const match = found
       .map((row) => ({ row, voucher: parseVoucherNote(row.notes) }))
       .find(
         (item) =>
@@ -64,7 +76,7 @@ async function rememberVoucherOnOrder(
     } else {
       discount = voucherDiscount(match.voucher.amount, products);
       await admin
-        .from("online_orders")
+        .from(match.row.table)
         .update({
           notes: withVoucherNote(match.row.notes, { ...match.voucher, status: "redeemed" }),
         })
@@ -122,14 +134,22 @@ export async function quoteStorefrontVoucher(shopSlug: string, code: string, pro
     .eq("slug", shopSlug)
     .maybeSingle();
   if (!tenant) return { ok: false as const, error: "That voucher code is not valid." };
-  const { data: rows } = await admin
-    .from("online_orders")
-    .select("notes")
-    .eq("tenant_id", tenant.id)
-    .ilike("notes", `%code=${clean}%`)
-    .limit(10);
   const today = new Date().toISOString().slice(0, 10);
-  const match = (rows ?? [])
+  const [{ data: rows }, { data: sales }] = await Promise.all([
+    admin
+      .from("online_orders")
+      .select("notes")
+      .eq("tenant_id", tenant.id)
+      .ilike("notes", `%code=${clean}%`)
+      .limit(10),
+    admin
+      .from("sales")
+      .select("notes")
+      .eq("tenant_id", tenant.id)
+      .ilike("notes", `%code=${clean}%`)
+      .limit(10),
+  ]);
+  const match = [...(rows ?? []), ...(sales ?? [])]
     .map((row) => parseVoucherNote(row.notes))
     .find(
       (voucher) =>

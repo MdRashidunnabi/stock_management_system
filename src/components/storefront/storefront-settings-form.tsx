@@ -29,6 +29,7 @@ export function StorefrontSettingsForm({ settings, shopPath, appOrigin }: Props)
   const [enableOnlinePayment, setEnableOnlinePayment] = useState(settings.enableOnlinePayment);
   const [logoUrl, setLogoUrl] = useState(settings.logoUrl ?? "");
   const [themeId, setThemeId] = useState<ShopTemplateId>(settings.themeId);
+  const [posVoucherEnabled, setPosVoucherEnabled] = useState(settings.posVoucherEnabled);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -56,6 +57,9 @@ export function StorefrontSettingsForm({ settings, shopPath, appOrigin }: Props)
         instagramUrl: String(fd.get("instagramUrl") ?? ""),
         onlinePriceMarkupPct: Number(fd.get("onlinePriceMarkupPct")),
         voucherEarnPct: Number(fd.get("voucherEarnPct")),
+        posVoucherEnabled,
+        posVoucherPct: Number(fd.get("posVoucherPct")),
+        posVoucherDays: Number(fd.get("posVoucherDays")),
         themeId,
       });
 
@@ -238,6 +242,45 @@ export function StorefrontSettingsForm({ settings, shopPath, appOrigin }: Props)
                 step={0.1}
                 defaultValue={settings.voucherEarnPct}
               />
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">Till vouchers</p>
+                <p className="text-muted-foreground text-xs">
+                  Print a voucher with the till receipt after payment.
+                </p>
+              </div>
+              <Switch
+                checked={posVoucherEnabled}
+                onCheckedChange={setPosVoucherEnabled}
+                aria-label="Till vouchers"
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="posVoucherPct">Till voucher percentage (%)</Label>
+                <Input
+                  id="posVoucherPct"
+                  name="posVoucherPct"
+                  type="number"
+                  min={0}
+                  max={50}
+                  step={0.1}
+                  defaultValue={settings.posVoucherPct}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="posVoucherDays">Valid for (days)</Label>
+                <Input
+                  id="posVoucherDays"
+                  name="posVoucherDays"
+                  type="number"
+                  min={1}
+                  max={365}
+                  step={1}
+                  defaultValue={settings.posVoucherDays}
+                />
+              </div>
             </div>
           </div>
         </section>

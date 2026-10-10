@@ -58,6 +58,18 @@ export function CustomerDisplayScreen() {
               </p>
             ) : null}
             <p className="text-muted-foreground mt-4 text-2xl tabular-nums">{money(view.total)}</p>
+            {view.voucher ? (
+              <div className="mt-8 rounded-3xl bg-emerald-600 px-10 py-6 text-white">
+                <p className="text-sm font-medium tracking-[0.2em] uppercase">Your voucher</p>
+                <p className="mt-2 text-6xl font-semibold tabular-nums">
+                  {money(view.voucher.amount)}
+                </p>
+                <p className="mt-3 font-mono text-3xl tracking-[0.2em]">{view.voucher.code}</p>
+                <p className="mt-2 text-lg">
+                  Valid {view.voucher.days} days, until {view.voucher.expiresOn}
+                </p>
+              </div>
+            ) : null}
           </div>
         ) : empty ? (
           <div className="flex flex-1 flex-col items-center justify-center text-center">

@@ -29,6 +29,7 @@ export type CustomerDisplayState = {
   phase: CustomerDisplayPhase;
   given?: number;
   change?: number;
+  voucher?: { amount: number; code: string; expiresOn: string; days: number } | null;
   updatedAt: number;
 };
 

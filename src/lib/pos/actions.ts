@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { entityIdSchema } from "@/lib/entity-id";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ActionError, staffActionClient } from "@/lib/safe-action";
 import { assertTillMaySell } from "@/lib/license/assert";
 import {
@@ -15,6 +16,8 @@ import {
 import { productTextSearchOrFilter } from "@/lib/security/postgrest-filter";
 import { assertLineDiscountAllowed } from "@/lib/security/discount-policy";
 import { canAttachSaleToTill } from "@/lib/security/till-session";
+import { makeVoucherCode, voucherNoteLine } from "@/lib/vouchers/note";
+import { earnedVoucherAmount, eligibleSpend, readPosVoucherSettings } from "@/lib/vouchers/rules";
 
 const POS_ROLES = ["owner", "manager", "cashier", "warehouse", "accountant"] as const;
 
@@ -263,6 +266,16 @@ export const commitPosSaleAction = staffActionClient([...POS_ROLES])
       throw new ActionError(friendlyRpcError(error));
     }
 
+    const voucher = await issueTillVoucher({
+      supabase: createAdminClient(),
+      tenantId: ctx.tenant.tenantId,
+      saleId: data.sale_id,
+      total: Number(data.total),
+      voucherPaid: parsedInput.payments
+        .filter((p) => p.method === "voucher")
+        .reduce((sum, p) => sum + p.amount, 0),
+    });
+
     revalidatePath("/pos");
     revalidatePath("/sales");
     revalidatePath("/dashboard");
@@ -274,8 +287,47 @@ export const commitPosSaleAction = staffActionClient([...POS_ROLES])
       total: Number(data.total),
       vatTotal: Number(data.vat_total),
       sessionId: data.pos_session_id,
+      voucher,
     };
   });
+
+async function issueTillVoucher(input: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  tenantId: string;
+  saleId: string;
+  total: number;
+  voucherPaid: number;
+}) {
+  const { data: tenant } = await input.supabase
+    .from("tenants")
+    .select("notes")
+    .eq("id", input.tenantId)
+    .maybeSingle();
+  const settings = readPosVoucherSettings(tenant?.notes);
+  if (!settings.enabled) return null;
+  const eligible = eligibleSpend(input.total, input.voucherPaid);
+  const amount = earnedVoucherAmount(eligible, settings.pct / 100);
+  if (amount <= 0) return null;
+  const code = makeVoucherCode();
+  const expires = new Date();
+  expires.setDate(expires.getDate() + settings.days);
+  const expiresOn = expires.toISOString().slice(0, 10);
+  const line = voucherNoteLine({
+    status: "active",
+    amount,
+    eligible,
+    code,
+    expires: expiresOn,
+  });
+  const { data: sale } = await input.supabase
+    .from("sales")
+    .select("notes")
+    .eq("id", input.saleId)
+    .maybeSingle();
+  const notes = [line, sale?.notes].filter(Boolean).join("\n");
+  await input.supabase.from("sales").update({ notes }).eq("id", input.saleId);
+  return { amount, code, expiresOn, days: settings.days };
+}
 
 /* ----------------------------- Sale queries ----------------------------- */
 
