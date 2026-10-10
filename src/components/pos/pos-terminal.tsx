@@ -829,6 +829,78 @@ export function PosTerminal({
 
 /* ----------------------------- Helpers ----------------------------- */
 
+function isWeightUnit(unit: string): boolean {
+  const u = unit.trim().toLowerCase();
+  return u === "kg" || u === "g" || u === "lb";
+}
+
+function formatQtyInput(qty: number): string {
+  const rounded = Math.round(qty * 1000) / 1000;
+  return String(rounded);
+}
+
+function QtyField({
+  qty,
+  unit,
+  onQtyDelta,
+  onQtySet,
+}: {
+  qty: number;
+  unit: string;
+  onQtyDelta: (d: number) => void;
+  onQtySet: (q: number) => void;
+}) {
+  const weight = isWeightUnit(unit);
+  const [draft, setDraft] = useState<string | null>(null);
+  const text = draft ?? formatQtyInput(qty);
+
+  function commit(raw: string) {
+    const v = Number(raw.replace(",", "."));
+    if (Number.isFinite(v) && v > 0) onQtySet(Math.round(v * 1000) / 1000);
+    setDraft(null);
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <Button
+        type="button"
+        size="icon"
+        variant="outline"
+        className="size-7"
+        onClick={() => onQtyDelta(weight ? -0.1 : -1)}
+      >
+        <Minus className="size-3" />
+      </Button>
+      <Input
+        type="text"
+        inputMode="decimal"
+        value={text}
+        aria-label={weight ? "Weight" : "Quantity"}
+        onFocus={(e) => {
+          setDraft(formatQtyInput(qty));
+          e.currentTarget.select();
+        }}
+        onBlur={() => commit(text)}
+        onChange={(e) => {
+          const raw = e.target.value.replace(",", ".");
+          if (!/^\d*\.?\d{0,3}$/.test(raw)) return;
+          setDraft(raw);
+        }}
+        className="h-7 w-20 text-center text-xs"
+      />
+      <Button
+        type="button"
+        size="icon"
+        variant="outline"
+        className="size-7"
+        onClick={() => onQtyDelta(weight ? 0.1 : 1)}
+      >
+        <Plus className="size-3" />
+      </Button>
+    </div>
+  );
+}
+
 function CartLineRow({
   line,
   money,
@@ -899,37 +971,12 @@ function CartLineRow({
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="size-7"
-                onClick={() => onQtyDelta(-1)}
-              >
-                <Minus className="size-3" />
-              </Button>
-              <Input
-                type="number"
-                min={0.0001}
-                step={1}
-                value={line.qty}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  if (Number.isFinite(v) && v > 0) onQtySet(v);
-                }}
-                className="h-7 w-16 text-center text-xs"
-              />
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="size-7"
-                onClick={() => onQtyDelta(1)}
-              >
-                <Plus className="size-3" />
-              </Button>
-            </div>
+            <QtyField
+              qty={line.qty}
+              unit={line.baseUnit}
+              onQtyDelta={onQtyDelta}
+              onQtySet={onQtySet}
+            />
 
             <Input
               type="number"
