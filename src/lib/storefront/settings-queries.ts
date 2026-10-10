@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { DeliverySettings } from "@/lib/storefront/delivery";
 import { resolveStorefrontLogoUrl } from "@/lib/storefront/logo-url";
 import { parseShopTemplateId, type ShopTemplateId } from "@/lib/storefront/templates";
+import { voucherPctFromNotes } from "@/lib/vouchers/rules";
 
 export interface StorefrontSettingsRow {
   tenantId: string;
@@ -26,6 +27,7 @@ export interface StorefrontSettingsRow {
   youtubeUrl: string | null;
   instagramUrl: string | null;
   onlinePriceMarkupPct: number;
+  voucherEarnPct: number;
   themeId: ShopTemplateId;
 }
 
@@ -36,7 +38,7 @@ export async function getStorefrontSettingsForTenant(
 
   const { data: tenant, error: tErr } = await supabase
     .from("tenants")
-    .select("id, slug, display_name")
+    .select("id, slug, display_name, notes")
     .eq("id", tenantId)
     .maybeSingle();
 
@@ -78,6 +80,7 @@ export async function getStorefrontSettingsForTenant(
     youtubeUrl: sf.youtube_url,
     instagramUrl: sf.instagram_url,
     onlinePriceMarkupPct: Number(sf.online_price_markup_pct ?? 0.5),
+    voucherEarnPct: voucherPctFromNotes(tenant.notes),
     themeId: parseShopTemplateId(sf.theme_id),
   };
 }

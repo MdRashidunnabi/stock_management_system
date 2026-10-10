@@ -100,6 +100,69 @@ export const searchProductsForPos = staffActionClient([...POS_ROLES])
     return { ok: true, rows };
   });
 
+export const listPosCategories = staffActionClient([...POS_ROLES])
+  .metadata({ actionName: "pos.categories" })
+  .inputSchema(z.object({}))
+  .action(async () => {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("categories")
+      .select("id, name, position")
+      .eq("is_active", true)
+      .order("position", { ascending: true })
+      .order("name", { ascending: true });
+    if (error) throw new ActionError(error.message);
+    return { ok: true as const, rows: data ?? [] };
+  });
+
+export const listPosCategoryProducts = staffActionClient([...POS_ROLES])
+  .metadata({ actionName: "pos.categoryProducts" })
+  .inputSchema(
+    z.object({
+      branchId: entityIdSchema,
+      categoryId: entityIdSchema,
+    }),
+  )
+  .action(async ({ parsedInput }): Promise<{ ok: true; rows: ProductSearchResult[] }> => {
+    const supabase = await createClient();
+    const { data: prods, error } = await supabase
+      .from("products")
+      .select(
+        "id, name, primary_image_url, sku, barcode, base_unit, selling_price, vat_code, vat_included, is_active",
+      )
+      .eq("is_active", true)
+      .eq("category_id", parsedInput.categoryId)
+      .order("name", { ascending: true })
+      .limit(800);
+    if (error) throw new ActionError(error.message);
+    const ids = (prods ?? []).map((p) => p.id);
+    const byProduct = new Map<string, number>();
+    for (let i = 0; i < ids.length; i += 150) {
+      const slice = ids.slice(i, i + 150);
+      const { data: balances, error: bErr } = await supabase
+        .from("stock_balances")
+        .select("product_id, quantity")
+        .eq("branch_id", parsedInput.branchId)
+        .eq("state", "available")
+        .in("product_id", slice);
+      if (bErr) throw new ActionError(bErr.message);
+      for (const b of balances ?? []) byProduct.set(b.product_id, Number(b.quantity ?? 0));
+    }
+    const rows: ProductSearchResult[] = (prods ?? []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      primary_image_url: p.primary_image_url ?? null,
+      sku: p.sku,
+      barcode: p.barcode,
+      base_unit: p.base_unit,
+      selling_price: Number(p.selling_price ?? 0),
+      vat_code: p.vat_code ?? "STD",
+      vat_included: p.vat_included ?? true,
+      available: byProduct.get(p.id) ?? 0,
+    }));
+    return { ok: true, rows };
+  });
+
 /* ----------------------------- Commit sale ----------------------------- */
 
 export const commitPosSaleAction = staffActionClient([...POS_ROLES])

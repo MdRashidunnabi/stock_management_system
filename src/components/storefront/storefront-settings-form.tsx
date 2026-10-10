@@ -55,6 +55,7 @@ export function StorefrontSettingsForm({ settings, shopPath, appOrigin }: Props)
         youtubeUrl: String(fd.get("youtubeUrl") ?? ""),
         instagramUrl: String(fd.get("instagramUrl") ?? ""),
         onlinePriceMarkupPct: Number(fd.get("onlinePriceMarkupPct")),
+        voucherEarnPct: Number(fd.get("voucherEarnPct")),
         themeId,
       });
 
@@ -216,6 +217,28 @@ export function StorefrontSettingsForm({ settings, shopPath, appOrigin }: Props)
               required
               defaultValue={settings.onlinePriceMarkupPct}
             />
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">Voucher</h2>
+            <p className="text-muted-foreground text-sm">
+              Percent of the product total, after any voucher code, that becomes the customer&apos;s
+              next voucher.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="voucherEarnPct">Voucher percentage (%)</Label>
+              <Input
+                id="voucherEarnPct"
+                name="voucherEarnPct"
+                type="number"
+                min={0}
+                max={50}
+                step={0.1}
+                defaultValue={settings.voucherEarnPct}
+              />
+            </div>
           </div>
         </section>
 

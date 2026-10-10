@@ -79,6 +79,7 @@ export const updateStorefrontSettingsSchema = z.object({
   youtubeUrl: optionalUrl,
   instagramUrl: optionalUrl,
   onlinePriceMarkupPct: z.coerce.number().min(0).max(50),
+  voucherEarnPct: z.coerce.number().min(0).max(50),
   themeId: z
     .enum([
       "market",

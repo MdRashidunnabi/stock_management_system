@@ -22,7 +22,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getSafeActionData, getSafeActionError } from "@/lib/parse-safe-action-result";
 import { cn, formatMoney } from "@/lib/utils";
-import { commitPosSaleAction, searchProductsForPos } from "@/lib/pos/actions";
+import {
+  commitPosSaleAction,
+  listPosCategories,
+  listPosCategoryProducts,
+  searchProductsForPos,
+} from "@/lib/pos/actions";
 import { lookupProductByBarcodeAction } from "@/lib/catalog/barcode-lookup";
 import { useHidScanner } from "@/hooks/use-hid-scanner";
 import { playScanTone } from "@/lib/pos/scan-tone";
@@ -103,6 +108,9 @@ export function PosTerminal({
   const skipCartPersistRef = useRef(true);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ProductSearchResult[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [categoryProducts, setCategoryProducts] = useState<ProductSearchResult[]>([]);
   const [searchHint, setSearchHint] = useState<string | null>(null);
   const [searchPending, startSearch] = useTransition();
   const [showPayment, setShowPayment] = useState(false);
@@ -206,6 +214,30 @@ export function PosTerminal({
     if (!isValidBranchId(activeBranchId)) return;
     savePosCart(tenantId, activeBranchId, cart);
   }, [cart, tenantId, activeBranchId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await listPosCategories({});
+      const data = getSafeActionData<{ ok: true; rows: { id: string; name: string }[] }>(res);
+      if (!cancelled && data?.rows) setCategories(data.rows);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId]);
+
+  function openCategory(id: string) {
+    if (!isValidBranchId(activeBranchId)) return;
+    setCategoryId(id);
+    setQuery("");
+    setResults([]);
+    startSearch(async () => {
+      const res = await listPosCategoryProducts({ branchId: activeBranchId, categoryId: id });
+      const data = getSafeActionData<{ ok: true; rows: ProductSearchResult[] }>(res);
+      setCategoryProducts(data?.rows ?? []);
+    });
+  }
 
   /* ------------------------------ Search ------------------------------ */
 
@@ -636,6 +668,26 @@ export function PosTerminal({
           </div>
         </div>
 
+        {categories.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {categories.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => openCategory(c.id)}
+                className={cn(
+                  "rounded-lg px-3 py-2 text-sm font-semibold",
+                  categoryId === c.id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card border-border hover:border-primary border",
+                )}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         <Button
           type="button"
           variant="outline"
@@ -659,21 +711,25 @@ export function PosTerminal({
           formatAmount={money}
         />
 
-        {results.length > 0 ? (
+        {(results.length > 0 ? results : categoryProducts).length > 0 ? (
           <Card className="overflow-hidden">
             <CardHeader className="py-3">
-              <CardTitle className="text-sm font-medium">Tap a product to add</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {results.length > 0 ? "Tap a product to add" : "Tap a product in this category"}
+              </CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {results.map((p) => (
+            <CardContent className="grid max-h-[28rem] grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3">
+              {(results.length > 0 ? results : categoryProducts).map((p) => (
                 <button
                   key={p.id}
                   type="button"
                   onClick={() => {
                     addToCart(p);
-                    setQuery("");
-                    setResults([]);
-                    searchRef.current?.focus();
+                    if (results.length > 0) {
+                      setQuery("");
+                      setResults([]);
+                      searchRef.current?.focus();
+                    }
                   }}
                   className="hover:border-primary border-border bg-card flex items-start gap-3 rounded-lg border p-3 text-left transition-colors"
                 >

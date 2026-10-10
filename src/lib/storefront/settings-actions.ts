@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { ActionError, staffActionClient } from "@/lib/safe-action";
 import { updateStorefrontSettingsSchema } from "@/lib/storefront/schemas";
+import { withVoucherPct } from "@/lib/vouchers/rules";
 
 const SETTINGS_ROLES = ["owner", "manager", "super_admin"] as const;
 
@@ -39,6 +40,17 @@ export const updateStorefrontSettingsAction = staffActionClient([...SETTINGS_ROL
       .eq("tenant_id", ctx.tenant.tenantId);
 
     if (error) throw new ActionError(error.message);
+
+    const { data: tenant } = await supabase
+      .from("tenants")
+      .select("notes")
+      .eq("id", ctx.tenant.tenantId)
+      .maybeSingle();
+    const { error: noteError } = await supabase
+      .from("tenants")
+      .update({ notes: withVoucherPct(tenant?.notes, parsedInput.voucherEarnPct) })
+      .eq("id", ctx.tenant.tenantId);
+    if (noteError) throw new ActionError(noteError.message);
 
     revalidatePath("/settings/storefront");
     revalidatePath("/online-orders");

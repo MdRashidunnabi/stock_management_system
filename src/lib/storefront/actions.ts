@@ -7,7 +7,12 @@ import { hitRateLimit } from "@/lib/security/rate-limit";
 import { publicStorefrontOrderError } from "@/lib/security/public-error";
 import { MIN_ADVANCE_DAYS, minAdvanceDateYmd } from "@/lib/reports/period";
 import { parseVoucherNote, withVoucherNote } from "@/lib/vouchers/note";
-import { earnedVoucherAmount, eligibleSpend, voucherDiscount } from "@/lib/vouchers/rules";
+import {
+  earnedVoucherAmount,
+  eligibleSpend,
+  voucherDiscount,
+  voucherRateFromNotes,
+} from "@/lib/vouchers/rules";
 
 export type PlaceOrderResult =
   | {
@@ -33,12 +38,12 @@ async function rememberVoucherOnOrder(
   const clean = code?.trim().toUpperCase() || "";
   let discount = 0;
   let warning: string | undefined;
+  const { data: order } = await admin
+    .from("online_orders")
+    .select("tenant_id")
+    .eq("id", orderId)
+    .maybeSingle();
   if (clean) {
-    const { data: order } = await admin
-      .from("online_orders")
-      .select("tenant_id")
-      .eq("id", orderId)
-      .maybeSingle();
     const { data: rows } = await admin
       .from("online_orders")
       .select("id, notes")
@@ -66,7 +71,15 @@ async function rememberVoucherOnOrder(
         .eq("id", match.row.id);
     }
   }
-  const earned = earnedVoucherAmount(eligibleSpend(products, discount));
+  const { data: shopTenant } = await admin
+    .from("tenants")
+    .select("notes")
+    .eq("id", order?.tenant_id ?? "")
+    .maybeSingle();
+  const earned = earnedVoucherAmount(
+    eligibleSpend(products, discount),
+    voucherRateFromNotes(shopTenant?.notes),
+  );
   const total = Math.round((Math.max(0, products - discount) + deliveryFee) * 100) / 100;
   const { data: current } = await admin
     .from("online_orders")
