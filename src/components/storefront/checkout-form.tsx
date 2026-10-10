@@ -175,6 +175,7 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
         clientUuid,
         wantedForDate: wantedForDate || undefined,
         isAdvance: Boolean(wantedForDate),
+        voucherCode: String(fd.get("voucher_code") ?? ""),
       });
 
       if (!res.ok) {
@@ -191,6 +192,9 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
       });
       if (res.deliveryFee > 0) params.set("delivery", String(res.deliveryFee));
       if (wantedForDate) params.set("wanted", wantedForDate);
+      if (res.earnedVoucher > 0) params.set("earned", String(res.earnedVoucher));
+      if (res.voucherDiscount > 0) params.set("saved", String(res.voucherDiscount));
+      if (res.voucherWarning) params.set("voucherNote", res.voucherWarning);
       const successHref = `/shop/${shopSlug}/order/success?${params.toString()}`;
       setRedirecting(true);
       router.push(successHref);
@@ -277,7 +281,7 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
                 }}
               />
               <span>
-                <span className="font-medium">Order ahead</span>
+                <span className="font-medium">Advance Order</span>
                 <span className="text-muted-foreground mt-0.5 block text-xs">
                   At least {MIN_ADVANCE_DAYS} days in advance. We prepare for your chosen date.
                 </span>
@@ -434,6 +438,20 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
                 </p>
               </div>
             )}
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="voucher_code">Voucher code</Label>
+              <Input
+                id="voucher_code"
+                name="voucher_code"
+                placeholder="From your paper voucher"
+                autoCapitalize="characters"
+              />
+              <p className="text-muted-foreground text-xs">
+                The code is on the voucher you received with a previous order. It comes off the
+                products only, then that code stops working.
+              </p>
+            </div>
 
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="notes">Notes</Label>

@@ -25,6 +25,7 @@ export const placeOnlineOrderSchema = z
       .optional()
       .or(z.literal("")),
     isAdvance: z.boolean().optional(),
+    voucherCode: z.string().max(32).optional().or(z.literal("")),
   })
   .superRefine((data, ctx) => {
     if (data.fulfillment === "delivery") {

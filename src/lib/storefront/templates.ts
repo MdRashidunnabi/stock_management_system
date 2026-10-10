@@ -33,14 +33,14 @@ export type ShopTemplate = {
 export const SHOP_TEMPLATES: ShopTemplate[] = [
   {
     id: "market",
-    name: "Market",
-    blurb: "Fresh grocery look — teal, round cards, categories on the left.",
-    bestFor: "Greengrocers and convenience shops",
+    name: "Needs Green",
+    blurb: "The Needs shop. Cream page, green header, categories on the left.",
+    bestFor: "Needs and Asian grocery",
     nav: "side",
-    hero: "gradient",
+    hero: "panel",
     header: "bar",
     density: "regular",
-    preview: { bg: "#f4f8fb", fg: "#0f172a", accent: "#059669", card: "#ffffff" },
+    preview: { bg: "#fff8f0", fg: "#1c1917", accent: "#2ea043", card: "#ffffff" },
   },
   {
     id: "noir",
@@ -146,6 +146,7 @@ export const SHOP_TEMPLATES: ShopTemplate[] = [
 export const DEFAULT_SHOP_TEMPLATE: ShopTemplateId = "market";
 
 export function parseShopTemplateId(value: unknown): ShopTemplateId {
+  if (value === "needs") return "market";
   if (typeof value === "string" && (SHOP_TEMPLATE_IDS as readonly string[]).includes(value)) {
     return value as ShopTemplateId;
   }
@@ -154,5 +155,6 @@ export function parseShopTemplateId(value: unknown): ShopTemplateId {
 
 export function getShopTemplate(id: unknown): ShopTemplate {
   const parsed = parseShopTemplateId(id);
-  return SHOP_TEMPLATES.find((t) => t.id === parsed) ?? SHOP_TEMPLATES[0]!;
+  const found = SHOP_TEMPLATES.find((t) => t.id === parsed) ?? SHOP_TEMPLATES[0]!;
+  return { ...found, nav: "side", header: "bar", hero: "panel" };
 }

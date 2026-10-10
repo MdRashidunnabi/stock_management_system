@@ -91,6 +91,24 @@
   width: 100%;
 }
 
+/* Needs — Colour of Spice */
+[data-shop-theme="needs"] {
+  --background: #fff8f0;
+  --foreground: #1c1917;
+  --card: #ffffff;
+  --card-foreground: #1c1917;
+  --primary: #2ea043;
+  --primary-foreground: #ffffff;
+  --muted: #fff1e4;
+  --muted-foreground: #78716c;
+  --border: #f0e2d4;
+  --accent: #e8f6e4;
+  --accent-foreground: #1f7a32;
+  --info: #1a6aa5;
+  --shop-notice-bar: #2ea043;
+  --shop-hero-bg: #16351f;
+}
+
 /* 1. Market — grocery teal */
 [data-shop-theme="market"] {
   --background: #f4f8fb;
@@ -336,4 +354,25 @@
 
 [data-shop-theme="slate"] .shop-search-pill {
   border-radius: 0.5rem;
+}
+
+/* All ten colours use the Needs shop: cream page, left categories, coloured header. */
+[data-shop-theme] {
+  color-scheme: light;
+  --background: #fff8f0;
+  --foreground: #1c1917;
+  --card: #ffffff;
+  --card-foreground: #1c1917;
+  --muted: #fff1e4;
+  --muted-foreground: #78716c;
+  --border: #f0e2d4;
+  --shop-hero-bg: #16351f;
+}
+
+[data-shop-theme="market"] {
+  --primary: #2ea043;
+  --primary-foreground: #ffffff;
+  --accent: #e8f6e4;
+  --accent-foreground: #1f7a32;
+  --shop-notice-bar: #2ea043;
 }

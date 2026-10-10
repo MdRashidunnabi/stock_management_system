@@ -56,7 +56,7 @@ export function CategoryNav({
         <span className="truncate">Offers</span>
       </Link>
       <Link href={`${base}/advance`} className={linkClass(extraActive === "advance")}>
-        <span className="truncate">Order ahead</span>
+        <span className="truncate">Advance Order</span>
       </Link>
       {categories.map((c) => (
         <Link

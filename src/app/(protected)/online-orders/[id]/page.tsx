@@ -18,6 +18,8 @@ import { formatEuro, formatDateTimeIE } from "@/lib/utils";
 import { FulfillmentStepper } from "@/components/online-orders/fulfillment-stepper";
 import { LineResolveControls } from "@/components/online-orders/line-resolve-controls";
 import { PrintInvoiceButton } from "@/components/online-orders/print-invoice-button";
+import { VoucherIssuePanel } from "@/components/online-orders/voucher-issue-panel";
+import { getOnlineOrderVoucher } from "@/lib/vouchers/admin";
 import { fulfillmentStageLabel, lineStatusLabel } from "@/lib/storefront/fulfillment";
 
 export const metadata: Metadata = { title: "Online order" };
@@ -29,7 +31,10 @@ export default async function OnlineOrderDetailPage({
 }) {
   await requireRole(["owner", "manager", "warehouse", "delivery"]);
   const { id } = await params;
-  const detail = await getOnlineOrderDetail(id);
+  const [detail, voucher] = await Promise.all([
+    getOnlineOrderDetail(id),
+    getOnlineOrderVoucher(id),
+  ]);
   if (!detail) notFound();
 
   const { order, items, payment } = detail;
@@ -157,6 +162,21 @@ export default async function OnlineOrderDetailPage({
               </Table>
             </div>
 
+            {items.length === 0 && voucher && voucher.externalItems.length > 0 ? (
+              <ul className="mt-4 space-y-1 text-sm">
+                {voucher.externalItems.map((line, i) => (
+                  <li key={`${line.name}-${i}`} className="flex justify-between gap-3">
+                    <span>
+                      {line.name} × {line.qty}
+                    </span>
+                    <span className="font-mono">
+                      {formatEuro(Number(line.qty ?? 0) * Number(line.unitPrice ?? 0))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
             <dl className="mt-4 ml-auto max-w-xs space-y-1 text-sm">
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Products</dt>
@@ -166,6 +186,12 @@ export default async function OnlineOrderDetailPage({
                 <dt className="text-muted-foreground">Delivery</dt>
                 <dd className="font-mono">{formatEuro(order.delivery_fee)}</dd>
               </div>
+              {voucher && voucher.discount > 0 ? (
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Voucher</dt>
+                  <dd className="font-mono">−{formatEuro(voucher.discount)}</dd>
+                </div>
+              ) : null}
               <div className="flex justify-between border-t pt-1 font-semibold">
                 <dt>Total</dt>
                 <dd className="font-mono">{formatEuro(order.total)}</dd>
@@ -194,6 +220,7 @@ export default async function OnlineOrderDetailPage({
             <Badge>{fulfillmentStageLabel(order.fulfillment_stage)}</Badge>
             {order.is_advance ? <Badge variant="secondary">Advance</Badge> : null}
           </div>
+          <VoucherIssuePanel orderId={order.id} voucher={voucher} cancelled={cancelled} />
           <h2 className="text-sm font-semibold">Tracking</h2>
           <FulfillmentStepper
             orderId={order.id}

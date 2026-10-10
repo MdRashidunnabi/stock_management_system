@@ -16,6 +16,9 @@ export default async function OrderSuccessPage({
     payment?: string;
     delivery?: string;
     wanted?: string;
+    earned?: string;
+    saved?: string;
+    voucherNote?: string;
   }>;
 }) {
   const { slug } = await params;
@@ -25,6 +28,8 @@ export default async function OrderSuccessPage({
   const total = sp.total ? Number(sp.total) : null;
   const deliveryFee = sp.delivery ? Number(sp.delivery) : 0;
   const fulfillment = sp.fulfillment === "takeaway" ? "collection" : "delivery";
+  const earned = sp.earned ? Number(sp.earned) : 0;
+  const saved = sp.saved ? Number(sp.saved) : 0;
   const cardPay = sp.payment === "online_card";
   const payment = cardPay
     ? "online card — we will send a secure payment link after we confirm stock"
@@ -57,6 +62,25 @@ export default async function OrderSuccessPage({
           </li>
         ) : null}
       </ul>
+      {saved > 0 ? (
+        <p className="mt-4 text-sm font-medium">
+          Voucher used: {formatEuro(saved)} off the products.
+        </p>
+      ) : null}
+      {sp.voucherNote ? <p className="mt-3 text-sm text-amber-800">{sp.voucherNote}</p> : null}
+      {earned > 0 ? (
+        <div className="mx-auto mt-6 max-w-sm rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-left text-sm">
+          <p className="font-semibold text-emerald-900">Your next voucher</p>
+          <p className="mt-1 text-2xl font-bold text-emerald-800">{formatEuro(earned)}</p>
+          <p className="mt-2 text-emerald-900">
+            Valid for 30 days after you receive it. This screen has no code and no barcode.
+          </p>
+          <p className="mt-2 text-emerald-900">
+            You will receive the original paper voucher, with its code, when you receive your
+            products. After that code is used on a later order, it stops working.
+          </p>
+        </div>
+      ) : null}
       <p className="text-muted-foreground mt-4 text-xs">
         Stock has been reserved from our shop. We will call you to confirm your order.
         {cardPay

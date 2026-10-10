@@ -15,6 +15,9 @@ export type PlaceOrderResult =
       total: number;
       deliveryFee: number;
       productsTotal: number;
+      voucherDiscount: number;
+      earnedVoucher: number;
+      voucherWarning?: string;
     }
   | { ok: false; error: string };
 
@@ -42,6 +45,7 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
     clientUuid,
     wantedForDate,
     isAdvance,
+    voucherCode,
   } = parsed.data;
 
   const wanted = wantedForDate?.trim() || "";
@@ -108,6 +112,27 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
     return { ok: false, error: "Order could not be placed. Please try again." };
   }
 
+  let voucherDiscount = 0;
+  let earnedVoucher = 0;
+  let voucherWarning: string | undefined;
+  const voucher = await admin.rpc("apply_online_order_voucher", {
+    p_order_id: row.online_order_id,
+    p_code: voucherCode?.trim() || "",
+  });
+  if (voucher.error) {
+    const msg = voucher.error.message;
+    if (msg.includes("voucher:")) {
+      voucherWarning = msg.includes("deadline")
+        ? "That voucher has passed its deadline, so it was not taken off this order."
+        : "That voucher code was not accepted, so it was not taken off this order.";
+    }
+  } else if (voucher.data && typeof voucher.data === "object") {
+    const body = voucher.data as { discount?: number; earned?: number; total?: number };
+    voucherDiscount = Number(body.discount ?? 0);
+    earnedVoucher = Number(body.earned ?? 0);
+    if (body.total != null) row.total = Number(body.total);
+  }
+
   if (advance || items.some((i) => i.ifUnavailable)) {
     await admin
       .from("online_orders")
@@ -146,5 +171,8 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
     total: Number(row.total),
     deliveryFee: Number(row.delivery_fee ?? 0),
     productsTotal: Number(row.products_total ?? row.total),
+    voucherDiscount,
+    earnedVoucher,
+    voucherWarning,
   };
 }

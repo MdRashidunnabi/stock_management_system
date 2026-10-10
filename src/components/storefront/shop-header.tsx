@@ -25,8 +25,16 @@ export function ShopHeader({
 
   return (
     <header className="bg-card/95 border-border/80 sticky top-0 z-40 border-b backdrop-blur-md">
-      <div className="shop-notice-bar px-4 py-2 text-center text-xs font-medium">
-        {shop.orderNotice ?? "Pay on delivery — we will confirm your order by phone."}
+      <div className="shop-notice-bar flex items-center justify-between gap-3 px-4 py-2 text-xs font-medium text-white">
+        <p>{shop.orderNotice ?? "Free delivery over the shop minimum. Fresh food every week."}</p>
+        {shop.phone ? (
+          <a
+            href={`tel:${shop.phone.replace(/\s/g, "")}`}
+            className="hidden font-semibold sm:inline"
+          >
+            {shop.phone}
+          </a>
+        ) : null}
       </div>
       <div className="shop-shell mx-auto max-w-6xl space-y-3 px-4 py-3 sm:px-6">
         <div className="shop-header-row flex items-center justify-between gap-3">
@@ -41,6 +49,14 @@ export function ShopHeader({
               className="hidden rounded-full sm:inline-flex"
               asChild
             >
+              <Link href={`${base}/order/track`}>Track</Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden rounded-full sm:inline-flex"
+              asChild
+            >
               <Link href={`${base}/offers`}>Offers</Link>
             </Button>
             <Button
@@ -49,7 +65,7 @@ export function ShopHeader({
               className="hidden rounded-full sm:inline-flex"
               asChild
             >
-              <Link href={`${base}/advance`}>Order ahead</Link>
+              <Link href={`${base}/advance`}>Advance Order</Link>
             </Button>
             {shop.phone ? (
               <Button variant="ghost" size="icon" className="rounded-full lg:hidden" asChild>
@@ -78,7 +94,7 @@ export function ShopHeader({
             <Button size="sm" className="relative gap-2 rounded-full px-4" asChild>
               <Link href={`${base}/cart`}>
                 <ShoppingCart className="size-4" />
-                <span className="hidden sm:inline">Cart</span>
+                <span className="hidden sm:inline">Bag</span>
                 {cartCount > 0 ? (
                   <span className="bg-background text-primary absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full text-[10px] font-bold shadow">
                     {cartCount > 99 ? "99+" : cartCount}

@@ -86,3 +86,20 @@ __pycache__/
 # database backups (produced by `npm run backup`)
 backups/*
 !backups/.gitkeep
+
+# product AI pipeline (local secrets, job DB, generated catalogs)
+product_ai_pipeline/.env
+product_ai_pipeline/.venv/
+product_ai_pipeline/data/*.db
+product_ai_pipeline/data/*.db-*
+product_ai_pipeline/data/control.json
+product_ai_pipeline/data/last_result.json
+product_ai_pipeline/data/*.csv
+Shops/Needscarlow/needscarlow_images/catalog_original/
+Shops/Needscarlow/needscarlow_images/catalog_ai_final/
+Shops/Needscarlow/needscarlow_images/catalog_ai_review/
+Shops/Needscarlow/needscarlow_images/catalog_ai_failed/
+Shops/Needscarlow/needscarlow_images/catalog_logs/
+
+# standalone Needs store (own repo: cleverlofttecnologiaslda-stack/NeedsCarlow)
+needscarlow-web/

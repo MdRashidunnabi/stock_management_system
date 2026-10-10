@@ -5,6 +5,7 @@ import { z } from "zod";
 import { entityIdSchema } from "@/lib/entity-id";
 import { createClient } from "@/lib/supabase/server";
 import { ActionError, staffActionClient } from "@/lib/safe-action";
+import { makeVoucherCode, parseVoucherNote, withVoucherNote } from "@/lib/vouchers/note";
 
 const OPS_ROLES = ["owner", "manager", "warehouse", "delivery"] as const;
 
@@ -38,6 +39,34 @@ export const setOnlineFulfillmentStageAction = staffActionClient([...OPS_ROLES])
     return { ok: true as const };
   });
 
+export const confirmOnlinePaymentAction = staffActionClient([...OPS_ROLES])
+  .metadata({ actionName: "online.confirmPayment" })
+  .inputSchema(z.object({ orderId: entityIdSchema }))
+  .action(async ({ parsedInput }) => {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("confirm_online_order_payment", {
+      p_order_id: parsedInput.orderId,
+    });
+    if (error?.message.includes("Could not find the function") || error?.code === "PGRST202") {
+      const issued = await issueVoucherFromNotes(parsedInput.orderId);
+      revalidatePath("/online-orders");
+      revalidatePath(`/online-orders/${parsedInput.orderId}`);
+      revalidatePath(`/online-orders/${parsedInput.orderId}/voucher`);
+      return issued;
+    }
+    if (error) throw new ActionError(friendlyOpsError(error.message));
+    revalidatePath("/online-orders");
+    revalidatePath(`/online-orders/${parsedInput.orderId}`);
+    revalidatePath(`/online-orders/${parsedInput.orderId}/voucher`);
+    const body = (data ?? {}) as { issued?: boolean; code?: string; amount?: number };
+    return {
+      ok: true as const,
+      issued: Boolean(body.issued),
+      code: body.code ? String(body.code) : null,
+      amount: Number(body.amount ?? 0),
+    };
+  });
+
 export const resolveOnlineOrderLineAction = staffActionClient([...OPS_ROLES])
   .metadata({ actionName: "online.resolveLine" })
   .inputSchema(
@@ -66,6 +95,50 @@ export const resolveOnlineOrderLineAction = staffActionClient([...OPS_ROLES])
     revalidatePath("/reports");
     return { ok: true as const };
   });
+
+async function issueVoucherFromNotes(orderId: string) {
+  const supabase = await createClient();
+  const { data: order, error } = await supabase
+    .from("online_orders")
+    .select("notes")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (error || !order) throw new ActionError("Order not found.");
+  const voucher = parseVoucherNote(order.notes);
+  if (!voucher || voucher.amount <= 0) {
+    await supabase
+      .from("payments")
+      .update({ status: "captured", captured_at: new Date().toISOString() })
+      .eq("online_order_id", orderId)
+      .eq("status", "pending");
+    return { ok: true as const, issued: false, code: null, amount: 0 };
+  }
+  if (voucher.status === "active" && voucher.code) {
+    return { ok: true as const, issued: true, code: voucher.code, amount: voucher.amount };
+  }
+  const code = makeVoucherCode();
+  const expires = new Date();
+  expires.setDate(expires.getDate() + 30);
+  const { error: updateError } = await supabase
+    .from("online_orders")
+    .update({
+      notes: withVoucherNote(order.notes, {
+        ...voucher,
+        status: "active",
+        code,
+        expires: expires.toISOString().slice(0, 10),
+      }),
+      status: "confirmed",
+    })
+    .eq("id", orderId);
+  if (updateError) throw new ActionError("Could not issue the voucher.");
+  await supabase
+    .from("payments")
+    .update({ status: "captured", captured_at: new Date().toISOString() })
+    .eq("online_order_id", orderId)
+    .eq("status", "pending");
+  return { ok: true as const, issued: true, code, amount: voucher.amount };
+}
 
 function friendlyOpsError(msg: string): string {
   if (msg.includes("already settled")) return "This line is already settled.";

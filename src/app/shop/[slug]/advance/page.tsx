@@ -11,7 +11,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const shop = await getStorefrontShop(slug);
-  return { title: `Order ahead — ${shop?.publicSiteName ?? "Shop"}` };
+  return { title: `Advance Order — ${shop?.publicSiteName ?? "Shop"}` };
 }
 
 export default async function ShopAdvancePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -25,7 +25,7 @@ export default async function ShopAdvancePage({ params }: { params: Promise<{ sl
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Order ahead</h1>
+        <h1 className="text-2xl font-bold">Advance Order</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           Pick a date at least {MIN_ADVANCE_DAYS} days from today, add products, then checkout. We
           will prepare for delivery or collection on that day.

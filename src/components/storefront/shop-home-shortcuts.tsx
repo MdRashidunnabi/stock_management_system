@@ -28,7 +28,7 @@ export function ShopHomeShortcuts({ shopSlug }: { shopSlug: string }) {
           <CalendarClock className="size-5" />
         </span>
         <span>
-          <span className="block font-semibold">Order ahead</span>
+          <span className="block font-semibold">Advance Order</span>
           <span className="text-muted-foreground mt-0.5 block text-sm">
             Book for a date at least {MIN_ADVANCE_DAYS} days from today — delivery or collection.
           </span>

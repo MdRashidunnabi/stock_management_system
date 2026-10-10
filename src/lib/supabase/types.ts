@@ -2892,6 +2892,43 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      record_needs_web_order: {
+        Args: {
+          p_customer: Json;
+          p_items: Json;
+          p_products_total: number;
+          p_delivery_fee: number;
+          p_code?: string | null;
+        };
+        Returns: Json;
+      };
+      apply_online_order_voucher: {
+        Args: {
+          p_order_id: string;
+          p_code: string;
+        };
+        Returns: Json;
+      };
+      confirm_online_order_payment: {
+        Args: {
+          p_order_id: string;
+        };
+        Returns: Json;
+      };
+      quote_needs_voucher: {
+        Args: { p_code: string };
+        Returns: Json;
+      };
+      track_needs_order: {
+        Args: { p_order: string; p_phone: string };
+        Returns: Json;
+      };
+      get_online_order_voucher: {
+        Args: {
+          p_order_id: string;
+        };
+        Returns: Json;
+      };
       commit_online_order: {
         Args: {
           p_tenant_slug: string;

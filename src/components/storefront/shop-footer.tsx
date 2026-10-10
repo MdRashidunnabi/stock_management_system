@@ -56,7 +56,7 @@ export function ShopFooter({ shop, categories }: Props) {
             </li>
             <li>
               <Link href={`${base}/advance`} className="text-info font-medium hover:underline">
-                Order ahead
+                Advance Order
               </Link>
             </li>
             <li>
