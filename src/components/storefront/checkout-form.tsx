@@ -12,13 +12,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { placeOnlineOrderAction } from "@/lib/storefront/actions";
 import {
   calculateDeliveryQuote,
-  calculateOrderTotal,
   type DeliverySettings,
   type FulfillmentType,
 } from "@/lib/storefront/delivery";
 import { MIN_ADVANCE_DAYS, minAdvanceDateYmd } from "@/lib/reports/period";
 import { cn } from "@/lib/utils";
 import { useShopMoney } from "@/components/storefront/shop-money";
+import { quoteStorefrontVoucher } from "@/lib/storefront/actions";
+import { earnedVoucherAmount, eligibleSpend, orderTotalAfterVoucher } from "@/lib/vouchers/rules";
 
 type PaymentMethod = "cod" | "online_card";
 type CheckoutStep = "options" | "details";
@@ -111,6 +112,9 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
   const [redirecting, setRedirecting] = useState(false);
   const [fulfillment, setFulfillment] = useState<FulfillmentType>("delivery");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
+  const [voucherCode, setVoucherCode] = useState("");
+  const [appliedCode, setAppliedCode] = useState("");
+  const [discount, setDiscount] = useState(0);
   const minAdvance = minAdvanceDateYmd();
   const selectedMethod = checkoutMethodOf(fulfillment, paymentMethod);
 
@@ -124,7 +128,11 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
     () => calculateDeliveryQuote(subtotal, fulfillment, delivery),
     [subtotal, fulfillment, delivery],
   );
-  const orderTotal = useMemo(() => calculateOrderTotal(subtotal, quote.fee), [subtotal, quote.fee]);
+  const orderTotal = useMemo(
+    () => orderTotalAfterVoucher(subtotal, quote.fee, discount),
+    [subtotal, quote.fee, discount],
+  );
+  const nextVoucher = earnedVoucherAmount(eligibleSpend(subtotal, discount));
   const belowMin = subtotal > 0 && subtotal < delivery.minOrder;
 
   if (redirecting) {
@@ -175,7 +183,7 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
         clientUuid,
         wantedForDate: wantedForDate || undefined,
         isAdvance: Boolean(wantedForDate),
-        voucherCode: String(fd.get("voucher_code") ?? ""),
+        voucherCode: appliedCode || String(fd.get("voucher_code") ?? ""),
       });
 
       if (!res.ok) {
@@ -217,6 +225,12 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
             <dt className="text-muted-foreground">Products</dt>
             <dd className="font-mono">{money(subtotal)}</dd>
           </div>
+          {discount > 0 ? (
+            <div className="flex justify-between text-emerald-800">
+              <dt>Voucher</dt>
+              <dd className="font-mono">−{money(discount)}</dd>
+            </div>
+          ) : null}
           <div className="flex justify-between">
             <dt className="text-muted-foreground">Delivery</dt>
             <dd className="font-mono">
@@ -229,6 +243,54 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
           </div>
         </dl>
         <p className="text-muted-foreground mt-2 text-xs">{quote.label}</p>
+        {nextVoucher > 0 ? (
+          <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-emerald-950">
+            <p className="text-xs font-semibold">Your next voucher</p>
+            <p className="text-2xl font-bold">{money(nextVoucher)}</p>
+            <p className="mt-1 text-xs">
+              5% of {money(eligibleSpend(subtotal, discount))} paid for products. This page has no
+              code. You receive the paper voucher with the order. It lasts 30 days.
+            </p>
+          </div>
+        ) : null}
+        <div className="mt-3 flex gap-2">
+          <Input
+            value={voucherCode}
+            onChange={(e) => {
+              setVoucherCode(e.target.value.toUpperCase());
+              setAppliedCode("");
+              setDiscount(0);
+            }}
+            placeholder="Voucher code"
+            className="uppercase"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              startTransition(async () => {
+                const code = voucherCode.trim();
+                if (!code) {
+                  setDiscount(0);
+                  setAppliedCode("");
+                  return;
+                }
+                const quoted = await quoteStorefrontVoucher(shopSlug, code, subtotal);
+                if (!quoted.ok) {
+                  setDiscount(0);
+                  setAppliedCode("");
+                  setError(quoted.error);
+                  return;
+                }
+                setError(null);
+                setAppliedCode(code);
+                setDiscount(quoted.discount);
+              });
+            }}
+          >
+            Apply
+          </Button>
+        </div>
         {belowMin && fulfillment === "delivery" ? (
           <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">
             Minimum order for delivery is €{delivery.minOrder.toFixed(2)} (you can still checkout).

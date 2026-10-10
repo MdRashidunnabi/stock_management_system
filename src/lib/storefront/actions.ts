@@ -6,6 +6,8 @@ import { placeOnlineOrderSchema } from "@/lib/storefront/schemas";
 import { hitRateLimit } from "@/lib/security/rate-limit";
 import { publicStorefrontOrderError } from "@/lib/security/public-error";
 import { MIN_ADVANCE_DAYS, minAdvanceDateYmd } from "@/lib/reports/period";
+import { parseVoucherNote, withVoucherNote } from "@/lib/vouchers/note";
+import { earnedVoucherAmount, eligibleSpend, voucherDiscount } from "@/lib/vouchers/rules";
 
 export type PlaceOrderResult =
   | {
@@ -20,6 +22,115 @@ export type PlaceOrderResult =
       voucherWarning?: string;
     }
   | { ok: false; error: string };
+
+async function rememberVoucherOnOrder(
+  orderId: string,
+  products: number,
+  deliveryFee: number,
+  code: string | undefined,
+) {
+  const admin = createAdminClient();
+  const clean = code?.trim().toUpperCase() || "";
+  let discount = 0;
+  let warning: string | undefined;
+  if (clean) {
+    const { data: order } = await admin
+      .from("online_orders")
+      .select("tenant_id")
+      .eq("id", orderId)
+      .maybeSingle();
+    const { data: rows } = await admin
+      .from("online_orders")
+      .select("id, notes")
+      .eq("tenant_id", order?.tenant_id ?? "")
+      .ilike("notes", `%code=${clean}%`)
+      .limit(10);
+    const today = new Date().toISOString().slice(0, 10);
+    const match = (rows ?? [])
+      .map((row) => ({ row, voucher: parseVoucherNote(row.notes) }))
+      .find(
+        (item) =>
+          item.voucher?.code === clean &&
+          item.voucher.status === "active" &&
+          (!item.voucher.expires || item.voucher.expires >= today),
+      );
+    if (!match?.voucher) {
+      warning = "That voucher code was not accepted, so it was not taken off this order.";
+    } else {
+      discount = voucherDiscount(match.voucher.amount, products);
+      await admin
+        .from("online_orders")
+        .update({
+          notes: withVoucherNote(match.row.notes, { ...match.voucher, status: "redeemed" }),
+        })
+        .eq("id", match.row.id);
+    }
+  }
+  const earned = earnedVoucherAmount(eligibleSpend(products, discount));
+  const total = Math.round((Math.max(0, products - discount) + deliveryFee) * 100) / 100;
+  const { data: current } = await admin
+    .from("online_orders")
+    .select("notes")
+    .eq("id", orderId)
+    .maybeSingle();
+  await admin
+    .from("online_orders")
+    .update({
+      notes:
+        earned > 0
+          ? withVoucherNote(current?.notes, {
+              status: "pending",
+              amount: earned,
+              eligible: eligibleSpend(products, discount),
+              code: null,
+              expires: null,
+            })
+          : current?.notes,
+      total,
+      subtotal: total,
+    })
+    .eq("id", orderId);
+  if (discount > 0) {
+    await admin
+      .from("payments")
+      .update({ amount: total })
+      .eq("online_order_id", orderId)
+      .eq("status", "pending");
+  }
+  return { discount, earned, total, warning };
+}
+
+export async function quoteStorefrontVoucher(shopSlug: string, code: string, products: number) {
+  const admin = createAdminClient();
+  const clean = code.trim().toUpperCase();
+  const { data: tenant } = await admin
+    .from("tenants")
+    .select("id")
+    .eq("slug", shopSlug)
+    .maybeSingle();
+  if (!tenant) return { ok: false as const, error: "That voucher code is not valid." };
+  const { data: rows } = await admin
+    .from("online_orders")
+    .select("notes")
+    .eq("tenant_id", tenant.id)
+    .ilike("notes", `%code=${clean}%`)
+    .limit(10);
+  const today = new Date().toISOString().slice(0, 10);
+  const match = (rows ?? [])
+    .map((row) => parseVoucherNote(row.notes))
+    .find(
+      (voucher) =>
+        voucher?.code === clean &&
+        voucher.status === "active" &&
+        (!voucher.expires || voucher.expires >= today),
+    );
+  if (!match) return { ok: false as const, error: "That voucher code is not valid." };
+  return {
+    ok: true as const,
+    amount: match.amount,
+    discount: voucherDiscount(match.amount, products),
+  };
+}
 
 /**
  * Public checkout — uses service role to call commit_online_order.
@@ -119,7 +230,21 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
     p_order_id: row.online_order_id,
     p_code: voucherCode?.trim() || "",
   });
-  if (voucher.error) {
+  if (
+    voucher.error?.message.includes("Could not find the function") ||
+    voucher.error?.code === "PGRST202"
+  ) {
+    const applied = await rememberVoucherOnOrder(
+      row.online_order_id,
+      Number(row.products_total ?? 0),
+      Number(row.delivery_fee ?? 0),
+      voucherCode,
+    );
+    voucherDiscount = applied.discount;
+    earnedVoucher = applied.earned;
+    if (applied.total != null) row.total = applied.total;
+    voucherWarning = applied.warning;
+  } else if (voucher.error) {
     const msg = voucher.error.message;
     if (msg.includes("voucher:")) {
       voucherWarning = msg.includes("deadline")
