@@ -19,7 +19,7 @@ import { MIN_ADVANCE_DAYS, minAdvanceDateYmd } from "@/lib/reports/period";
 import { cn } from "@/lib/utils";
 import { useShopMoney } from "@/components/storefront/shop-money";
 import { quoteStorefrontVoucher } from "@/lib/storefront/actions";
-import { earnedVoucherAmount, eligibleSpend, orderTotalAfterVoucher } from "@/lib/vouchers/rules";
+import { orderTotalAfterVoucher } from "@/lib/vouchers/rules";
 
 type PaymentMethod = "cod" | "online_card";
 type CheckoutStep = "options" | "details";
@@ -132,7 +132,6 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
     () => orderTotalAfterVoucher(subtotal, quote.fee, discount),
     [subtotal, quote.fee, discount],
   );
-  const nextVoucher = earnedVoucherAmount(eligibleSpend(subtotal, discount));
   const belowMin = subtotal > 0 && subtotal < delivery.minOrder;
 
   if (redirecting) {
@@ -243,16 +242,6 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
           </div>
         </dl>
         <p className="text-muted-foreground mt-2 text-xs">{quote.label}</p>
-        {nextVoucher > 0 ? (
-          <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-emerald-950">
-            <p className="text-xs font-semibold">Your next voucher</p>
-            <p className="text-2xl font-bold">{money(nextVoucher)}</p>
-            <p className="mt-1 text-xs">
-              5% of {money(eligibleSpend(subtotal, discount))} paid for products. This page has no
-              code. You receive the paper voucher with the order. It lasts 30 days.
-            </p>
-          </div>
-        ) : null}
         <div className="mt-3 flex gap-2">
           <Input
             value={voucherCode}
