@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth/tenant";
 import { formatMoney } from "@/lib/utils";
-import { getPeriodRange, type ReportChannel, type ReportPeriod } from "@/lib/reports/period";
+import {
+  getCustomDateRange,
+  getPeriodRange,
+  type ReportChannel,
+  type ReportPeriod,
+} from "@/lib/reports/period";
 import {
   getCatalogIntelligence,
   getChannelSalesSplit,
@@ -30,6 +35,18 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "channels", label: "Till vs online" },
 ];
 
+function customRange(from: string | undefined, to: string | undefined, timeZone: string) {
+  const start = from?.trim() ?? "";
+  const end = (to?.trim() || start).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(end)) return null;
+  const fromYmd = start <= end ? start : end;
+  const toYmd = start <= end ? end : start;
+  const range = getCustomDateRange(fromYmd, toYmd, new Date(), timeZone);
+  if (!range) return null;
+  return { ...range, fromYmd, toYmd };
+}
+
 function parsePeriod(v: string | undefined): ReportPeriod {
   if (v === "week" || v === "month" || v === "today") return v;
   return "today";
@@ -46,6 +63,8 @@ export default async function ReportsPage({
   searchParams: Promise<{
     tab?: string;
     period?: string;
+    from?: string;
+    to?: string;
     channel?: string;
     q?: string;
     category?: string;
@@ -62,7 +81,8 @@ export default async function ReportsPage({
   const categoryId = sp.category ?? "";
   const brandId = sp.brand ?? "";
   const supplierId = sp.supplier ?? "";
-  const range = getPeriodRange(period, new Date(), tenant.timezone);
+  const custom = customRange(sp.from, sp.to, tenant.timezone);
+  const range = custom ?? getPeriodRange(period, new Date(), tenant.timezone);
   const money = (n: number) => formatMoney(n, tenant.currency, tenant.locale);
   const filters = {
     period: range,
@@ -83,7 +103,11 @@ export default async function ReportsPage({
   const hrefFor = (id: Tab) => {
     const p = new URLSearchParams();
     p.set("tab", id);
-    p.set("period", period);
+    p.set("period", custom ? "custom" : period);
+    if (custom) {
+      p.set("from", custom.fromYmd);
+      p.set("to", custom.toYmd);
+    }
     if (channel !== "all") p.set("channel", channel);
     if (q) p.set("q", q);
     if (categoryId) p.set("category", categoryId);
@@ -123,7 +147,9 @@ export default async function ReportsPage({
 
       <ReportFiltersBar
         tab={tab}
-        period={period}
+        period={custom ? "custom" : period}
+        from={custom?.fromYmd ?? ""}
+        to={custom?.toYmd ?? ""}
         channel={channel}
         q={q}
         categoryId={categoryId}

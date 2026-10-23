@@ -1,13 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { ReportChannel, ReportPeriod } from "@/lib/reports/period";
+import type { ReportChannel } from "@/lib/reports/period";
 import type { ReportLookups } from "@/lib/reports/intelligence";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-const PERIODS: Array<{ value: ReportPeriod; label: string }> = [
+const PERIODS: Array<{ value: "today" | "week" | "month"; label: string }> = [
   { value: "today", label: "Today" },
   { value: "week", label: "This week" },
   { value: "month", label: "This month" },
@@ -22,6 +22,8 @@ const CHANNELS: Array<{ value: ReportChannel; label: string }> = [
 export function ReportFiltersBar({
   tab,
   period,
+  from,
+  to,
   channel,
   q,
   categoryId,
@@ -30,7 +32,9 @@ export function ReportFiltersBar({
   lookups,
 }: {
   tab: string;
-  period: ReportPeriod;
+  period: "today" | "week" | "month" | "custom";
+  from: string;
+  to: string;
   channel: ReportChannel;
   q: string;
   categoryId: string;
@@ -45,6 +49,8 @@ export function ReportFiltersBar({
     const merged = {
       tab,
       period,
+      from,
+      to,
       channel,
       q,
       category: categoryId,
@@ -64,11 +70,16 @@ export function ReportFiltersBar({
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
+        const nextFrom = String(fd.get("from") ?? "");
+        const nextTo = String(fd.get("to") ?? "");
         go({
           q: String(fd.get("q") ?? ""),
           category: String(fd.get("category") ?? ""),
           brand: String(fd.get("brand") ?? ""),
           supplier: String(fd.get("supplier") ?? ""),
+          from: nextFrom,
+          to: nextTo || nextFrom,
+          period: nextFrom ? "custom" : period === "custom" ? "today" : period,
         });
       }}
     >
@@ -77,7 +88,7 @@ export function ReportFiltersBar({
           <button
             key={p.value}
             type="button"
-            onClick={() => go({ period: p.value })}
+            onClick={() => go({ period: p.value, from: "", to: "" })}
             className={cn(
               "rounded-md px-3 py-1.5 text-xs font-medium",
               period === p.value
@@ -103,6 +114,19 @@ export function ReportFiltersBar({
             {c.label}
           </button>
         ))}
+      </div>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1">
+          <Label htmlFor="from">From</Label>
+          <Input id="from" name="from" type="date" defaultValue={from} className="w-44" />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="to">To</Label>
+          <Input id="to" name="to" type="date" defaultValue={to} className="w-44" />
+        </div>
+        <p className="text-muted-foreground pb-2 text-xs">
+          One day, or a range such as 5 October to 10 October. Then press Apply filters.
+        </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1">

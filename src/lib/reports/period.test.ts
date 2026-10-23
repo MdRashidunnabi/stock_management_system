@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   dublinStartOfDay,
+  getCustomDateRange,
   getDublinOffsetMinutes,
   getPeriodRange,
   getPriorPeriodRange,
@@ -108,6 +109,27 @@ describe("getPriorPeriodRange", () => {
     const period = getPeriodRange("today", now);
     const prior = getPriorPeriodRange(period);
     expect(prior.label).toBe("Prior 1 day");
+  });
+});
+
+describe("getCustomDateRange", () => {
+  const now = new Date("2026-10-23T12:00:00.000Z");
+
+  it("covers a single day from midnight to the next midnight", () => {
+    const r = getCustomDateRange("2026-10-05", "2026-10-05", now);
+    expect(r).not.toBeNull();
+    expect(r?.label).toBe("2026-10-05");
+    expect(r?.days).toBe(1);
+    expect(r?.fromIso).toBe("2026-10-04T23:00:00.000Z");
+    expect(r?.toIso).toBe("2026-10-05T23:00:00.000Z");
+  });
+
+  it("covers 5 October through 10 October inclusive", () => {
+    const r = getCustomDateRange("2026-10-05", "2026-10-10", now);
+    expect(r?.label).toBe("2026-10-05 – 2026-10-10");
+    expect(r?.days).toBe(6);
+    expect(r?.fromIso).toBe("2026-10-04T23:00:00.000Z");
+    expect(r?.toIso).toBe("2026-10-10T23:00:00.000Z");
   });
 });
 
