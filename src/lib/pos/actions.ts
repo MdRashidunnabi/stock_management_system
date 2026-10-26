@@ -23,7 +23,7 @@ import {
   voucherNoteLine,
   withVoucherNote,
 } from "@/lib/vouchers/note";
-import { earnedVoucherAmount, eligibleSpend, readPosVoucherSettings } from "@/lib/vouchers/rules";
+import { earnedFromTiers, eligibleSpend, readPosVoucherSettings } from "@/lib/vouchers/rules";
 
 const POS_ROLES = ["owner", "manager", "cashier", "warehouse", "accountant"] as const;
 
@@ -424,7 +424,7 @@ async function issueTillVoucher(input: {
   const settings = readPosVoucherSettings(tenant?.notes);
   if (!settings.enabled) return null;
   const eligible = eligibleSpend(input.total, input.voucherPaid);
-  const amount = earnedVoucherAmount(eligible, settings.pct / 100);
+  const amount = earnedFromTiers(eligible, tenant?.notes, "pos");
   if (amount <= 0) return null;
   const code = makeVoucherCode();
   const expires = new Date();

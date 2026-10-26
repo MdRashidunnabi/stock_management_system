@@ -18,19 +18,27 @@ import { formatEuro, formatDateTimeIE } from "@/lib/utils";
 import { FulfillmentStepper } from "@/components/online-orders/fulfillment-stepper";
 import { LineResolveControls } from "@/components/online-orders/line-resolve-controls";
 import { PrintInvoiceButton } from "@/components/online-orders/print-invoice-button";
+import { RefundCardButton } from "@/components/online-orders/refund-card-button";
 import { VoucherIssuePanel } from "@/components/online-orders/voucher-issue-panel";
 import { getOnlineOrderVoucher } from "@/lib/vouchers/admin";
 import { fulfillmentStageLabel, lineStatusLabel } from "@/lib/storefront/fulfillment";
+import { AutoPrint } from "@/components/pos/auto-print";
+import { code39Svg } from "@/lib/vouchers/code39";
+import { parseVoucherNote } from "@/lib/vouchers/note";
 
 export const metadata: Metadata = { title: "Online order" };
 
 export default async function OnlineOrderDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ print?: string }>;
 }) {
-  await requireRole(["owner", "manager", "warehouse", "delivery"]);
+  await requireRole(["owner", "manager", "cashier", "warehouse", "delivery"]);
   const { id } = await params;
+  const sp = await searchParams;
+  const printNow = sp.print === "1";
   const [detail, voucher] = await Promise.all([
     getOnlineOrderDetail(id),
     getOnlineOrderVoucher(id),
@@ -38,6 +46,7 @@ export default async function OnlineOrderDetailPage({
   if (!detail) notFound();
 
   const { order, items, payment } = detail;
+  const slip = parseVoucherNote(order.notes);
   const cancelled = order.status === "cancelled";
   const candidatesByLine = await Promise.all(
     items.map((line) =>
@@ -49,6 +58,8 @@ export default async function OnlineOrderDetailPage({
 
   return (
     <div className="space-y-6">
+      <AutoPrint enabled={printNow} />
+      <p className="text-sm font-semibold">Order {order.order_number}</p>
       <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <div>
           <Link
@@ -221,6 +232,15 @@ export default async function OnlineOrderDetailPage({
             {order.is_advance ? <Badge variant="secondary">Advance</Badge> : null}
           </div>
           <VoucherIssuePanel orderId={order.id} voucher={voucher} cancelled={cancelled} />
+          {payment &&
+          payment.method === "card" &&
+          payment.status !== "refunded" &&
+          payment.amount - payment.refunded_amount > 0.009 ? (
+            <RefundCardButton
+              orderId={order.id}
+              amount={Math.round((payment.amount - payment.refunded_amount) * 100) / 100}
+            />
+          ) : null}
           <h2 className="text-sm font-semibold">Tracking</h2>
           <FulfillmentStepper
             orderId={order.id}
@@ -229,6 +249,23 @@ export default async function OnlineOrderDetailPage({
             disabled={cancelled}
           />
         </aside>
+      </div>
+      {slip?.code ? (
+        <section className="mx-auto max-w-sm space-y-2 border border-dashed p-4 text-center font-mono text-sm">
+          <p className="font-bold">VOUCHER {formatEuro(slip.amount)}</p>
+          <div
+            className="[&_svg]:mx-auto [&_svg]:h-16 [&_svg]:w-full"
+            dangerouslySetInnerHTML={{ __html: code39Svg(slip.code, 70) }}
+          />
+          <p className="text-base font-bold tracking-[0.2em]">{slip.code}</p>
+          <p>Order {order.order_number}</p>
+          <p>Valid until {slip.expires}</p>
+        </section>
+      ) : null}
+      <div className="print:hidden">
+        <Button asChild variant="outline">
+          <Link href={`/online-orders/${order.id}?print=1`}>Print receipt and voucher</Link>
+        </Button>
       </div>
     </div>
   );

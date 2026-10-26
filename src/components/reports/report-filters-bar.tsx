@@ -83,6 +83,21 @@ export function ReportFiltersBar({
         });
       }}
     >
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1">
+          <Label htmlFor="report-kind">Report</Label>
+          <select
+            id="report-kind"
+            value={tab}
+            onChange={(e) => go({ tab: e.target.value })}
+            className="border-input bg-background h-10 rounded-md border px-3 text-sm"
+          >
+            <option value="products">Sales report</option>
+            <option value="catalogue">Stock report</option>
+            <option value="channels">Till vs online</option>
+          </select>
+        </div>
+      </div>
       <div className="flex flex-wrap gap-2">
         {PERIODS.map((p) => (
           <button

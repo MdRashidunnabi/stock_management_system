@@ -91,6 +91,7 @@ export interface ProductLite {
   id: string;
   name: string;
   sku: string | null;
+  barcode: string | null;
   base_unit: string;
   purchase_price: number | null;
   vat_code: VatCode;

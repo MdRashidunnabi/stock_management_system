@@ -5,6 +5,8 @@ node_modules
 .vercel
 apps
 backups
+Shops
+Shops_Data
 coverage
 playwright-report
 test-results

@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ShopEditSheet } from "@/components/platform/shop-edit-sheet";
+import { formatAccessUntilLabel } from "@/lib/billing/access-until";
 import { platformRestoreTillAction, platformRevokeTillAction } from "@/lib/license/actions";
 import { getSafeActionError } from "@/lib/parse-safe-action-result";
 import type { PosDeviceRow } from "@/lib/license/types";
@@ -32,6 +33,7 @@ export function PlatformTenantWorkbench({
   displayName,
   slug,
   status,
+  accessUntil = null,
   cardLabel,
   monthlyLabel,
   members,
@@ -41,6 +43,7 @@ export function PlatformTenantWorkbench({
   displayName: string;
   slug: string;
   status: string;
+  accessUntil?: string | null;
   cardLabel: string;
   monthlyLabel: string;
   members: Member[];
@@ -89,6 +92,11 @@ export function PlatformTenantWorkbench({
               <TableCell>
                 {monthlyLabel}
                 {cardLabel ? ` · ${cardLabel}` : ""}
+                <span className="mt-1 block text-xs">
+                  {accessUntil
+                    ? `Allowed until ${formatAccessUntilLabel(accessUntil)}`
+                    : "No end date"}
+                </span>
               </TableCell>
               <TableCell>
                 <Badge variant="outline" className="capitalize">

@@ -16,7 +16,7 @@ export function productTextSearchOrFilter(query: string): string {
   const safe = escapePostgrestOrValue(query);
   const ilike = escapeIlikePattern(safe);
   if (!ilike) return "name.eq.__no_match__";
-  return `name.ilike.%${ilike}%,sku.ilike.%${ilike}%,barcode.eq.${safe}`;
+  return `name.ilike.%${ilike}%,sku.ilike.%${ilike}%,barcode.ilike.%${ilike}%`;
 }
 
 export function productNameSkuOrFilter(query: string): string {

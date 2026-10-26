@@ -9,9 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { DeliveryAreasEditor } from "@/components/storefront/delivery-areas-editor";
 import { StorefrontLogoField } from "@/components/storefront/storefront-logo-field";
+import { VoucherTiersEditor } from "@/components/storefront/voucher-tiers-editor";
 import { ShopThemePicker } from "@/components/storefront/shop-theme-picker";
-import { updateStorefrontSettingsAction } from "@/lib/storefront/settings-actions";
+import type { DeliveryArea } from "@/lib/storefront/delivery";
+import type { VoucherTier } from "@/lib/vouchers/rules";
+import {
+  checkShopDomainAction,
+  updateStorefrontSettingsAction,
+} from "@/lib/storefront/settings-actions";
+import type { ShopDomainStatus } from "@/lib/storefront/shop-domain";
 import type { StorefrontSettingsRow } from "@/lib/storefront/settings-queries";
 import type { ShopTemplateId } from "@/lib/storefront/templates";
 
@@ -19,9 +27,17 @@ interface Props {
   settings: StorefrontSettingsRow;
   shopPath: string;
   appOrigin: string;
+  domainStatus: ShopDomainStatus | null;
+  webhookUrl: string;
 }
 
-export function StorefrontSettingsForm({ settings, shopPath, appOrigin }: Props) {
+export function StorefrontSettingsForm({
+  settings,
+  shopPath,
+  appOrigin,
+  domainStatus,
+  webhookUrl,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +46,10 @@ export function StorefrontSettingsForm({ settings, shopPath, appOrigin }: Props)
   const [logoUrl, setLogoUrl] = useState(settings.logoUrl ?? "");
   const [themeId, setThemeId] = useState<ShopTemplateId>(settings.themeId);
   const [posVoucherEnabled, setPosVoucherEnabled] = useState(settings.posVoucherEnabled);
+  const [areas, setAreas] = useState<DeliveryArea[]>(settings.deliveryAreas);
+  const [onlineTiers, setOnlineTiers] = useState<VoucherTier[]>(settings.onlineVoucherTiers);
+  const [posTiers, setPosTiers] = useState<VoucherTier[]>(settings.posVoucherTiers);
+  const [domain, setDomain] = useState<ShopDomainStatus | null>(domainStatus);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -41,9 +61,12 @@ export function StorefrontSettingsForm({ settings, shopPath, appOrigin }: Props)
         publicSiteName: String(fd.get("publicSiteName") ?? ""),
         logoUrl,
         customDomain: String(fd.get("customDomain") ?? ""),
-        deliveryStandardFee: Number(fd.get("deliveryStandardFee")),
-        deliveryFreeOver: Number(fd.get("deliveryFreeOver")),
-        deliveryMinOrder: Number(fd.get("deliveryMinOrder")),
+        deliveryStandardFee: Math.max(0, ...areas.map((area) => Number(area.fee) || 0)),
+        deliveryFreeOver: 9999,
+        deliveryMinOrder: areas.length
+          ? Math.min(...areas.map((area) => Number(area.minOrder) || 0))
+          : 0,
+        deliveryAreasJson: JSON.stringify(areas),
         enableTakeaway,
         enableOnlinePayment,
         orderNotice: String(fd.get("orderNotice") ?? ""),
@@ -56,10 +79,17 @@ export function StorefrontSettingsForm({ settings, shopPath, appOrigin }: Props)
         youtubeUrl: String(fd.get("youtubeUrl") ?? ""),
         instagramUrl: String(fd.get("instagramUrl") ?? ""),
         onlinePriceMarkupPct: Number(fd.get("onlinePriceMarkupPct")),
-        voucherEarnPct: Number(fd.get("voucherEarnPct")),
+        voucherEarnPct: 0,
+        voucherMinimum: 0,
         posVoucherEnabled,
-        posVoucherPct: Number(fd.get("posVoucherPct")),
+        posVoucherPct: 0,
         posVoucherDays: Number(fd.get("posVoucherDays")),
+        posVoucherMinimum: 0,
+        onlineTiersJson: JSON.stringify(onlineTiers),
+        posTiersJson: JSON.stringify(posTiers),
+        stripePublishableKey: String(fd.get("stripePublishableKey") ?? ""),
+        stripeSecretKey: String(fd.get("stripeSecretKey") ?? ""),
+        stripeWebhookSecret: String(fd.get("stripeWebhookSecret") ?? ""),
         themeId,
       });
 
@@ -80,14 +110,23 @@ export function StorefrontSettingsForm({ settings, shopPath, appOrigin }: Props)
       }
 
       toast.success("Online shop settings saved");
+      setDomain(result.data.domain ?? null);
       router.refresh();
     });
   }
 
   const defaultShopUrl = `${appOrigin}${shopPath}`;
-  const domainHint = settings.customDomain
-    ? `When DNS points ${settings.customDomain} to this app, customers can use your domain. Until then: ${defaultShopUrl}`
-    : `Default shop link: ${defaultShopUrl}`;
+
+  function checkDomain() {
+    startTransition(async () => {
+      const result = await checkShopDomainAction();
+      if (result?.serverError) {
+        toast.error(result.serverError);
+        return;
+      }
+      setDomain(result?.data?.domain ?? null);
+    });
+  }
 
   return (
     <form onSubmit={onSubmit} className="space-y-8">
@@ -118,7 +157,46 @@ export function StorefrontSettingsForm({ settings, shopPath, appOrigin }: Props)
               defaultValue={settings.customDomain ?? ""}
               placeholder="yourshop.ie"
             />
-            <p className="text-muted-foreground text-xs">{domainHint}</p>
+            <p className="text-muted-foreground text-xs">
+              Shop link until the domain is live: {defaultShopUrl}
+            </p>
+            {domain ? (
+              <div className="space-y-3 rounded-lg border p-3">
+                <p className="text-sm">{domain.message}</p>
+                {domain.records.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="text-muted-foreground">
+                          <th className="py-1 pr-3 font-medium">Type</th>
+                          <th className="py-1 pr-3 font-medium">Host</th>
+                          <th className="py-1 font-medium">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {domain.records.map((row) => (
+                          <tr key={`${row.type}-${row.host}-${row.value}`}>
+                            <td className="py-1 pr-3">{row.type}</td>
+                            <td className="py-1 pr-3">{row.host}</td>
+                            <td className="py-1 font-mono">{row.value}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={pending}
+                  onClick={checkDomain}
+                >
+                  {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+                  Attach and check certificate
+                </Button>
+              </div>
+            ) : null}
           </div>
         </section>
 
@@ -228,21 +306,13 @@ export function StorefrontSettingsForm({ settings, shopPath, appOrigin }: Props)
           <div>
             <h2 className="text-lg font-semibold">Voucher</h2>
             <p className="text-muted-foreground text-sm">
-              Percent of the product total, after any voucher code, that becomes the customer&apos;s
-              next voucher.
+              The next voucher depends on how much the customer spends. Delivery is not included.
             </p>
-            <div className="space-y-2">
-              <Label htmlFor="voucherEarnPct">Voucher percentage (%)</Label>
-              <Input
-                id="voucherEarnPct"
-                name="voucherEarnPct"
-                type="number"
-                min={0}
-                max={50}
-                step={0.1}
-                defaultValue={settings.voucherEarnPct}
-              />
-            </div>
+            <VoucherTiersEditor
+              title="Online sales"
+              tiers={onlineTiers}
+              onChange={setOnlineTiers}
+            />
             <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
               <div>
                 <p className="text-sm font-medium">Till vouchers</p>
@@ -256,19 +326,10 @@ export function StorefrontSettingsForm({ settings, shopPath, appOrigin }: Props)
                 aria-label="Till vouchers"
               />
             </div>
+            {posVoucherEnabled ? (
+              <VoucherTiersEditor title="Till sales" tiers={posTiers} onChange={setPosTiers} />
+            ) : null}
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="posVoucherPct">Till voucher percentage (%)</Label>
-                <Input
-                  id="posVoucherPct"
-                  name="posVoucherPct"
-                  type="number"
-                  min={0}
-                  max={50}
-                  step={0.1}
-                  defaultValue={settings.posVoucherPct}
-                />
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="posVoucherDays">Valid for (days)</Label>
                 <Input
@@ -287,46 +348,13 @@ export function StorefrontSettingsForm({ settings, shopPath, appOrigin }: Props)
 
         <section className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold">Delivery charges</h2>
+            <h2 className="text-lg font-semibold">Delivery areas</h2>
+            <p className="text-muted-foreground text-sm">
+              Each area has its own minimum order, delivery charge, lead time, and delivery times.
+              Customers see this when they order.
+            </p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="deliveryStandardFee">Standard fee (€)</Label>
-              <Input
-                id="deliveryStandardFee"
-                name="deliveryStandardFee"
-                type="number"
-                step="0.01"
-                min={0}
-                required
-                defaultValue={settings.delivery.standardFee}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="deliveryFreeOver">Free delivery over (€)</Label>
-              <Input
-                id="deliveryFreeOver"
-                name="deliveryFreeOver"
-                type="number"
-                step="0.01"
-                min={0}
-                required
-                defaultValue={settings.delivery.freeOver}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="deliveryMinOrder">Min order hint (€)</Label>
-              <Input
-                id="deliveryMinOrder"
-                name="deliveryMinOrder"
-                type="number"
-                step="0.01"
-                min={0}
-                required
-                defaultValue={settings.delivery.minOrder}
-              />
-            </div>
-          </div>
+          <DeliveryAreasEditor areas={areas} onChange={setAreas} />
         </section>
 
         <section className="space-y-4">
@@ -340,6 +368,49 @@ export function StorefrontSettingsForm({ settings, shopPath, appOrigin }: Props)
               onCheckedChange={setEnableTakeaway}
               aria-label="Enable takeaway"
             />
+          </div>
+          <div className="space-y-3 rounded-lg border p-3">
+            <div>
+              <p className="text-sm font-medium">Stripe card payments</p>
+              <p className="text-muted-foreground text-xs">
+                {settings.stripeConnected
+                  ? `Connected ${settings.stripePublishableHint ?? ""}. Leave a box empty to keep the saved key.`
+                  : "Paste the three values from Stripe. A paid card is then added to the online order automatically."}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stripePublishableKey">Publishable key</Label>
+              <Input
+                id="stripePublishableKey"
+                name="stripePublishableKey"
+                autoComplete="off"
+                placeholder="pk_live_..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stripeSecretKey">Secret key</Label>
+              <Input
+                id="stripeSecretKey"
+                name="stripeSecretKey"
+                type="password"
+                autoComplete="off"
+                placeholder="sk_live_..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stripeWebhookSecret">Webhook signing secret</Label>
+              <Input
+                id="stripeWebhookSecret"
+                name="stripeWebhookSecret"
+                type="password"
+                autoComplete="off"
+                placeholder="whsec_..."
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-muted-foreground text-xs">Webhook URL to paste in Stripe</p>
+              <p className="font-mono text-xs break-all">{webhookUrl}</p>
+            </div>
           </div>
           <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
             <div>

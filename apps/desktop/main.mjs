@@ -81,6 +81,10 @@ function createWindow() {
     }
   });
 
+  mainWindow.once("ready-to-show", () => {
+    mainWindow?.maximize();
+  });
+
   void mainWindow.loadURL(startUrl);
 
   if (process.env.SHOPOS_DEVTOOLS === "1") {

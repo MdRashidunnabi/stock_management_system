@@ -13,12 +13,14 @@ import type { UnavailablePolicy } from "@/lib/storefront/fulfillment";
 
 export interface CartLine {
   productId: string;
+  lineKey: string;
   name: string;
   unitPrice: number;
   imageUrl: string | null;
   qty: number;
   maxQty: number;
   ifUnavailable: UnavailablePolicy;
+  cutLabel?: string;
 }
 
 interface CartContextValue {
@@ -30,15 +32,16 @@ interface CartContextValue {
   wantedForDate: string | null;
   isAdvance: boolean;
   addLine: (
-    line: Omit<CartLine, "qty" | "ifUnavailable"> & {
+    line: Omit<CartLine, "qty" | "ifUnavailable" | "lineKey"> & {
       qty?: number;
+      lineKey?: string;
       ifUnavailable?: UnavailablePolicy;
     },
   ) => void;
-  setQty: (productId: string, qty: number) => void;
-  setLinePolicy: (productId: string, policy: UnavailablePolicy) => void;
+  setQty: (lineKey: string, qty: number) => void;
+  setLinePolicy: (lineKey: string, policy: UnavailablePolicy) => void;
   setWantedForDate: (ymd: string | null) => void;
-  removeLine: (productId: string) => void;
+  removeLine: (lineKey: string) => void;
   clear: () => void;
 }
 
@@ -58,12 +61,14 @@ function normalizeLine(raw: Partial<CartLine> & { productId: string }): CartLine
   if (!Number.isFinite(qty) || qty <= 0) return null;
   return {
     productId: raw.productId,
+    lineKey: raw.lineKey || raw.productId,
     name: raw.name,
     unitPrice: Number(raw.unitPrice ?? 0),
     imageUrl: raw.imageUrl ?? null,
     qty,
     maxQty: Number.isFinite(maxQty) ? maxQty : qty,
     ifUnavailable: raw.ifUnavailable === "substitute" ? "substitute" : "omit",
+    cutLabel: raw.cutLabel,
   };
 }
 
@@ -104,18 +109,20 @@ export function CartProvider({ shopSlug, children }: { shopSlug: string; childre
 
   const addLine = useCallback(
     (
-      line: Omit<CartLine, "qty" | "ifUnavailable"> & {
+      line: Omit<CartLine, "qty" | "ifUnavailable" | "lineKey"> & {
         qty?: number;
+        lineKey?: string;
         ifUnavailable?: UnavailablePolicy;
       },
     ) => {
       setLines((prev) => {
-        const existing = prev.find((l) => l.productId === line.productId);
+        const key = line.lineKey || line.productId;
+        const existing = prev.find((l) => l.lineKey === key);
         const add = line.qty ?? 1;
         if (existing) {
           const nextQty = Math.min(existing.maxQty, existing.qty + add);
           return prev.map((l) =>
-            l.productId === line.productId
+            l.lineKey === key
               ? {
                   ...l,
                   qty: nextQty,
@@ -130,6 +137,7 @@ export function CartProvider({ shopSlug, children }: { shopSlug: string; childre
           ...prev,
           {
             ...line,
+            lineKey: key,
             qty,
             ifUnavailable: line.ifUnavailable ?? "omit",
           },
@@ -139,12 +147,12 @@ export function CartProvider({ shopSlug, children }: { shopSlug: string; childre
     [],
   );
 
-  const setQty = useCallback((productId: string, qty: number) => {
+  const setQty = useCallback((lineKey: string, qty: number) => {
     setLines(
       (prev) =>
         prev
           .map((l) => {
-            if (l.productId !== productId) return l;
+            if (l.lineKey !== lineKey && l.productId !== lineKey) return l;
             if (qty <= 0) return null;
             return { ...l, qty: Math.min(l.maxQty, qty) };
           })
@@ -152,9 +160,11 @@ export function CartProvider({ shopSlug, children }: { shopSlug: string; childre
     );
   }, []);
 
-  const setLinePolicy = useCallback((productId: string, policy: UnavailablePolicy) => {
+  const setLinePolicy = useCallback((lineKey: string, policy: UnavailablePolicy) => {
     setLines((prev) =>
-      prev.map((l) => (l.productId === productId ? { ...l, ifUnavailable: policy } : l)),
+      prev.map((l) =>
+        l.lineKey === lineKey || l.productId === lineKey ? { ...l, ifUnavailable: policy } : l,
+      ),
     );
   }, []);
 
@@ -162,8 +172,8 @@ export function CartProvider({ shopSlug, children }: { shopSlug: string; childre
     setWantedState(ymd && /^\d{4}-\d{2}-\d{2}$/.test(ymd) ? ymd : null);
   }, []);
 
-  const removeLine = useCallback((productId: string) => {
-    setLines((prev) => prev.filter((l) => l.productId !== productId));
+  const removeLine = useCallback((lineKey: string) => {
+    setLines((prev) => prev.filter((l) => l.lineKey !== lineKey && l.productId !== lineKey));
   }, []);
 
   const clear = useCallback(() => {

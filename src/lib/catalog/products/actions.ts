@@ -82,6 +82,16 @@ export async function listProducts(args: ListProductsArgs = {}) {
   };
 }
 
+export async function listStockForExport(branchId: string | null) {
+  const rows: ProductListRow[] = [];
+  for (let page = 1; page <= 40; page += 1) {
+    const batch = await listProducts({ status: "active", page, pageSize: 250, branchId });
+    rows.push(...batch.rows);
+    if (rows.length >= batch.total || batch.rows.length === 0) break;
+  }
+  return rows;
+}
+
 async function loadAvailableStockByProductId(
   supabase: Awaited<ReturnType<typeof createClient>>,
   branchId: string | null,

@@ -36,7 +36,7 @@ export function CartShell({ shopSlug }: { shopSlug: string }) {
 
       <ul className="divide-y overflow-hidden rounded-2xl border bg-white shadow-sm dark:bg-stone-900">
         {lines.map((line) => (
-          <li key={line.productId} className="flex gap-4 p-4">
+          <li key={line.lineKey} className="flex gap-4 p-4">
             <div className="bg-background size-20 shrink-0 overflow-hidden rounded-xl dark:bg-stone-800">
               {line.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -45,6 +45,11 @@ export function CartShell({ shopSlug }: { shopSlug: string }) {
             </div>
             <div className="min-w-0 flex-1 space-y-2">
               <p className="font-semibold text-stone-900 dark:text-stone-50">{line.name}</p>
+              {/^\s*whole\b/i.test(line.cutLabel || line.name) ? (
+                <p className="text-xs text-amber-800">
+                  Estimate only. We confirm the whole-fish price after weighing and tell you.
+                </p>
+              ) : null}
               <p className="text-primary dark:text-success">{money(line.unitPrice)} each</p>
               <div className="flex flex-wrap items-center gap-2">
                 <QuantityStepper
@@ -53,7 +58,7 @@ export function CartShell({ shopSlug }: { shopSlug: string }) {
                   max={line.maxQty}
                   min={0}
                   className="max-w-[140px]"
-                  onChange={(n) => setQty(line.productId, n)}
+                  onChange={(n) => setQty(line.lineKey, n)}
                 />
                 <Button
                   type="button"
@@ -61,7 +66,7 @@ export function CartShell({ shopSlug }: { shopSlug: string }) {
                   size="icon"
                   className="size-8 text-stone-500"
                   aria-label="Remove"
-                  onClick={() => removeLine(line.productId)}
+                  onClick={() => removeLine(line.lineKey)}
                 >
                   <Trash2 className="size-4" />
                 </Button>
@@ -75,9 +80,9 @@ export function CartShell({ shopSlug }: { shopSlug: string }) {
                     <input
                       type="radio"
                       className="mt-0.5"
-                      name={`unavail-${line.productId}`}
+                      name={`unavail-${line.lineKey}`}
                       checked={line.ifUnavailable === "omit"}
-                      onChange={() => setLinePolicy(line.productId, "omit")}
+                      onChange={() => setLinePolicy(line.lineKey, "omit")}
                     />
                     <span>Skip it and refund me</span>
                   </label>
@@ -85,9 +90,9 @@ export function CartShell({ shopSlug }: { shopSlug: string }) {
                     <input
                       type="radio"
                       className="mt-0.5"
-                      name={`unavail-${line.productId}`}
+                      name={`unavail-${line.lineKey}`}
                       checked={line.ifUnavailable === "substitute"}
-                      onChange={() => setLinePolicy(line.productId, "substitute")}
+                      onChange={() => setLinePolicy(line.lineKey, "substitute")}
                     />
                     <span>Send a similar product instead</span>
                   </label>

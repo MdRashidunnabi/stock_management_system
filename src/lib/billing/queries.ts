@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getBillingAccountForTenant } from "@/lib/billing/account-queries";
 import { resolveSubscriptionAccess } from "@/lib/billing/access";
+import { accessUntilFromNotes } from "@/lib/billing/access-until";
 import type { SubscriptionAccess, TenantBillingRow } from "@/lib/billing/types";
 import { isPlatformStaff } from "@/lib/platform/auth";
 
@@ -63,7 +64,7 @@ export async function getTenantSubscriptionAccess(
 
   const { data: tenant, error } = await supabase
     .from("tenants")
-    .select("status, trial_ends_at")
+    .select("status, trial_ends_at, notes")
     .eq("id", tenantId)
     .maybeSingle();
 
@@ -81,6 +82,7 @@ export async function getTenantSubscriptionAccess(
     trialEndsAt: tenant.trial_ends_at,
     cardOnFile,
     monthlyAmountCents,
+    accessUntil: accessUntilFromNotes(tenant.notes),
     isPlatformOverride: platform,
   });
 }
@@ -172,11 +174,15 @@ export async function getPlatformTenantDetail(tenantId: string) {
   const admin = createAdminClient();
   const { data: tenant } = await admin
     .from("tenants")
-    .select("id, slug, display_name, legal_name, status, trial_ends_at, created_at, vat_number")
+    .select(
+      "id, slug, display_name, legal_name, status, trial_ends_at, created_at, vat_number, notes",
+    )
     .eq("id", tenantId)
     .maybeSingle();
 
   if (!tenant) return null;
+  const accessUntil = accessUntilFromNotes(tenant.notes);
+  const { notes: _notes, ...tenantPublic } = tenant;
 
   const { data: billing } = await admin
     .from("tenant_billing")
@@ -203,7 +209,8 @@ export async function getPlatformTenantDetail(tenantId: string) {
   }));
 
   return {
-    tenant,
+    tenant: tenantPublic,
+    accessUntil,
     billing: billing ? mapBilling(billing as Parameters<typeof mapBilling>[0]) : null,
     members,
   };

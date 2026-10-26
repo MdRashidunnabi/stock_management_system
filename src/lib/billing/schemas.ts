@@ -61,6 +61,10 @@ export const extendTrialSchema = platformTenantActionSchema.extend({
   days: z.coerce.number().int().min(1).max(90),
 });
 
+export const setAccessUntilSchema = platformTenantActionSchema.extend({
+  until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a date."),
+});
+
 export const SHOP_MEMBER_ROLES = ["owner", "manager", "accountant", "cashier"] as const;
 
 export const platformCreateShopMemberSchema = z.object({

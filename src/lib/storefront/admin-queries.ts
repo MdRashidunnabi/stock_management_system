@@ -21,6 +21,8 @@ export interface OnlineOrderRow {
   fulfillment_stage: FulfillmentStage | string;
   wanted_for_date: string | null;
   is_advance: boolean;
+  card_paid: boolean;
+  notes: string | null;
 }
 
 export interface OnlineOrderLine {
@@ -72,7 +74,7 @@ export async function listOnlineOrdersForTenant(limit = 80): Promise<OnlineOrder
   const { data, error } = await supabase
     .from("online_orders")
     .select(
-      "id, order_number, status, customer_name, customer_phone, fulfillment_type, payment_method, delivery_fee, products_total, total, pickup_at, created_at, sale_id, fulfillment_stage, wanted_for_date, is_advance",
+      "id, order_number, status, customer_name, customer_phone, fulfillment_type, payment_method, delivery_fee, products_total, total, pickup_at, created_at, sale_id, fulfillment_stage, wanted_for_date, is_advance, notes",
     )
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -87,6 +89,8 @@ export async function listOnlineOrdersForTenant(limit = 80): Promise<OnlineOrder
     fulfillment_stage: r.fulfillment_stage ?? "preparing",
     wanted_for_date: r.wanted_for_date ?? null,
     is_advance: Boolean(r.is_advance),
+    card_paid: String(r.notes || "").includes("STRIPE status=paid"),
+    notes: r.notes ?? null,
   }));
 }
 
@@ -162,6 +166,7 @@ export async function getOnlineOrderDetail(orderId: string): Promise<OnlineOrder
       fulfillment_stage: order.fulfillment_stage ?? "preparing",
       wanted_for_date: order.wanted_for_date,
       is_advance: Boolean(order.is_advance),
+      card_paid: String(order.notes || "").includes("STRIPE status=paid"),
       delivery_address: order.delivery_address,
       notes: order.notes,
       branch_id: order.branch_id,

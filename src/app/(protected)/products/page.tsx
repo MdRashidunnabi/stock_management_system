@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Plus, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -97,22 +97,32 @@ export default async function ProductsPage({
             <p className="text-muted-foreground text-sm">{activeBranch.code}</p>
           ) : null}
         </div>
-        {canWrite ? (
-          <div className="flex gap-2">
-            <Button asChild variant="outline">
-              <Link href="/products/import">
-                <Upload className="size-4" />
-                Bulk import
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link href="/products/new">
-                <Plus className="size-4" />
-                New product
-              </Link>
-            </Button>
-          </div>
-        ) : null}
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link
+              href={activeBranchId ? `/products/stock?branch=${activeBranchId}` : "/products/stock"}
+            >
+              <Download className="size-4" />
+              Download stock
+            </Link>
+          </Button>
+          {canWrite ? (
+            <>
+              <Button asChild variant="outline">
+                <Link href="/products/import">
+                  <Upload className="size-4" />
+                  Bulk import
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/products/new">
+                  <Plus className="size-4" />
+                  New product
+                </Link>
+              </Button>
+            </>
+          ) : null}
+        </div>
       </header>
 
       <Card>

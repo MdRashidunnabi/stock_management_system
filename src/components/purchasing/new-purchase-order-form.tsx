@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getSafeActionData, getSafeActionError } from "@/lib/parse-safe-action-result";
+import { ProductSearchField } from "@/components/purchasing/product-search-field";
 import { createPurchaseOrderAction } from "@/lib/purchasing/orders/actions";
 import { formatMoney } from "@/lib/utils";
 import {
@@ -88,12 +89,14 @@ export function NewPurchaseOrderForm({
   const [expectedAt, setExpectedAt] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [rows, setRows] = useState<LineRow[]>([emptyRow()]);
+  const [foundProducts, setFoundProducts] = useState<ProductLite[]>([]);
 
   const productById = useMemo(() => {
     const m = new Map<string, ProductLite>();
     for (const p of products) m.set(p.id, p);
+    for (const p of foundProducts) m.set(p.id, p);
     return m;
-  }, [products]);
+  }, [products, foundProducts]);
 
   function patchRow(key: string, patch: Partial<LineRow>) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -107,12 +110,14 @@ export function NewPurchaseOrderForm({
     setRows((prev) => (prev.length === 1 ? prev : prev.filter((r) => r.key !== key)));
   }
 
-  function pickProduct(rowKey: string, productId: string) {
-    const product = productById.get(productId);
+  function pickProduct(rowKey: string, product: ProductLite) {
+    setFoundProducts((prev) =>
+      prev.some((row) => row.id === product.id) ? prev : [...prev, product],
+    );
     patchRow(rowKey, {
-      productId,
-      vatCode: product?.vat_code ?? "STD",
-      unitCost: product?.purchase_price != null ? product.purchase_price.toFixed(4) : "0.00",
+      productId: product.id,
+      vatCode: product.vat_code ?? "STD",
+      unitCost: product.purchase_price != null ? product.purchase_price.toFixed(4) : "0.00",
     });
   }
 
@@ -261,19 +266,10 @@ export function NewPurchaseOrderForm({
                 return (
                   <tr key={r.key} className="border-border border-t align-top">
                     <td className="p-2">
-                      <select
-                        value={r.productId}
-                        onChange={(e) => pickProduct(r.key, e.target.value)}
-                        className="border-input bg-background h-9 w-full rounded-md border px-2 text-sm"
-                      >
-                        <option value="">Pick a product…</option>
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.sku ? `${p.sku} - ` : ""}
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
+                      <ProductSearchField
+                        product={product ?? null}
+                        onPick={(picked) => pickProduct(r.key, picked)}
+                      />
                       {product?.base_unit ? (
                         <p className="text-muted-foreground mt-1 text-xs">
                           unit: {product.base_unit}

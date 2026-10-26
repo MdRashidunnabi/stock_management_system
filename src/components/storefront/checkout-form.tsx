@@ -12,9 +12,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { placeOnlineOrderAction } from "@/lib/storefront/actions";
 import {
   calculateDeliveryQuote,
+  quoteDeliveryArea,
+  type DeliveryArea,
   type DeliverySettings,
   type FulfillmentType,
 } from "@/lib/storefront/delivery";
+import { isWholeFishCut } from "@/lib/storefront/cuts";
 import { MIN_ADVANCE_DAYS, minAdvanceDateYmd } from "@/lib/reports/period";
 import { cn } from "@/lib/utils";
 import { useShopMoney } from "@/components/storefront/shop-money";
@@ -44,6 +47,7 @@ function applyCheckoutMethod(method: CheckoutMethod): {
 interface Props {
   shopSlug: string;
   delivery: DeliverySettings;
+  deliveryAreas: DeliveryArea[];
   enableTakeaway: boolean;
   enableOnlinePayment: boolean;
 }
@@ -102,7 +106,13 @@ function ChoiceCard({
   );
 }
 
-export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlinePayment }: Props) {
+export function CheckoutForm({
+  shopSlug,
+  delivery,
+  deliveryAreas,
+  enableTakeaway,
+  enableOnlinePayment,
+}: Props) {
   const router = useRouter();
   const { lines, subtotal, clear, wantedForDate, isAdvance, setWantedForDate } = useCart();
   const money = useShopMoney();
@@ -110,6 +120,7 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<CheckoutStep>("options");
   const [redirecting, setRedirecting] = useState(false);
+  const [areaId, setAreaId] = useState(deliveryAreas[0]?.id ?? "");
   const [fulfillment, setFulfillment] = useState<FulfillmentType>("delivery");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
   const [voucherCode, setVoucherCode] = useState("");
@@ -124,15 +135,19 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
     setPaymentMethod(next.paymentMethod);
   }
 
-  const quote = useMemo(
-    () => calculateDeliveryQuote(subtotal, fulfillment, delivery),
-    [subtotal, fulfillment, delivery],
-  );
+  const area = deliveryAreas.find((row) => row.id === areaId) ?? deliveryAreas[0] ?? null;
+  const quote = useMemo(() => {
+    if (fulfillment === "delivery" && area) return quoteDeliveryArea(subtotal, fulfillment, area);
+    return calculateDeliveryQuote(subtotal, fulfillment, delivery);
+  }, [subtotal, fulfillment, delivery, area]);
   const orderTotal = useMemo(
     () => orderTotalAfterVoucher(subtotal, quote.fee, discount),
     [subtotal, quote.fee, discount],
   );
-  const belowMin = subtotal > 0 && subtotal < delivery.minOrder;
+  const belowMin = fulfillment === "delivery" && area != null && subtotal + 0.009 < area.minOrder;
+  const wholeFish = lines.some(
+    (line) => isWholeFishCut(line.cutLabel) || isWholeFishCut(line.name),
+  );
 
   if (redirecting) {
     return <p className="text-muted-foreground text-sm">Taking you to your order confirmation…</p>;
@@ -152,9 +167,11 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (step !== "details") {
+      if (belowMin) return;
       setStep("details");
       return;
     }
+    if (belowMin) return;
     setError(null);
     const fd = new FormData(e.currentTarget);
     const clientUuid = crypto.randomUUID();
@@ -168,6 +185,7 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
         shopSlug,
         items: lines.map((l) => ({
           productId: l.productId,
+          cutLabel: l.cutLabel || "",
           qty: l.qty,
           ifUnavailable: l.ifUnavailable,
         })),
@@ -178,6 +196,7 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
         paymentMethod,
         deliveryAddress: fulfillment === "delivery" ? String(fd.get("address") ?? "") : undefined,
         pickupAt: fulfillment === "takeaway" ? pickupAt : undefined,
+        deliveryAreaId: fulfillment === "delivery" ? area?.id : undefined,
         notes: String(fd.get("notes") ?? ""),
         clientUuid,
         wantedForDate: wantedForDate || undefined,
@@ -188,6 +207,11 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
       if (!res.ok) {
         setError(res.error);
         toast.error(res.error);
+        return;
+      }
+
+      if (res.checkoutUrl) {
+        window.location.assign(res.checkoutUrl);
         return;
       }
 
@@ -212,8 +236,7 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
   }
 
   const fulfillmentLabel = fulfillment === "takeaway" ? "Collection" : "Home delivery";
-  const paymentLabel =
-    paymentMethod === "online_card" ? "Pay online (card link)" : "Cash on delivery";
+  const paymentLabel = paymentMethod === "online_card" ? "Card" : "Cash on delivery";
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
@@ -242,6 +265,12 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
           </div>
         </dl>
         <p className="text-muted-foreground mt-2 text-xs">{quote.label}</p>
+        {wholeFish ? (
+          <p className="mt-2 text-xs text-amber-800">
+            Whole fish is priced after we weigh it. The amount above is an estimate, and we will
+            tell you the final price.
+          </p>
+        ) : null}
         <div className="mt-3 flex gap-2">
           <Input
             value={voucherCode}
@@ -280,9 +309,33 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
             Apply
           </Button>
         </div>
-        {belowMin && fulfillment === "delivery" ? (
+        {fulfillment === "delivery" && deliveryAreas.length > 0 ? (
+          <fieldset className="mt-3 space-y-2">
+            <legend className="text-sm font-medium">Delivery area</legend>
+            {deliveryAreas.map((row) => (
+              <label key={row.id} className="flex cursor-pointer gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="delivery_area"
+                  checked={area?.id === row.id}
+                  onChange={() => setAreaId(row.id)}
+                />
+                <span>
+                  <span className="font-medium">{row.name}</span>
+                  <span className="text-muted-foreground block text-xs">
+                    Minimum €{row.minOrder.toFixed(2)} · delivery €{row.fee.toFixed(2)}
+                    {row.times ? ` · ${row.times}` : ""}
+                    {row.leadDays > 0 ? ` · ${row.leadDays} day lead time` : " · same day"}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        ) : null}
+        {belowMin && area ? (
           <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">
-            Minimum order for delivery is €{delivery.minOrder.toFixed(2)} (you can still checkout).
+            The minimum order for {area.name} is €{area.minOrder.toFixed(2)}. Add more products
+            before placing the order.
           </p>
         ) : null}
       </div>
@@ -382,7 +435,7 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
                 <ChoiceCard
                   selected={selectedMethod === "delivery_card"}
                   title="Home delivery — card"
-                  description="We bring it to you. After we confirm the order we send a payment link. You do not enter card details here."
+                  description="We bring it to you. You pay by card on the secure Stripe page before the order is finished."
                   icon={<CreditCard className="size-4" />}
                   onSelect={() => selectCheckout("delivery_card")}
                 />
@@ -391,7 +444,7 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
                 <ChoiceCard
                   selected={selectedMethod === "takeaway_card"}
                   title="Collection — card"
-                  description="Collect in store. After we confirm the order we send a payment link. You do not enter card details here."
+                  description="Collect in store. You pay by card on the secure Stripe page before the order is finished."
                   icon={<CreditCard className="size-4" />}
                   onSelect={() => selectCheckout("takeaway_card")}
                 />
@@ -405,6 +458,7 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
             type="button"
             size="lg"
             className="bg-primary hover:bg-primary/90 w-full"
+            disabled={belowMin}
             onClick={() => {
               setError(null);
               setStep("details");
@@ -525,11 +579,11 @@ export function CheckoutForm({ shopSlug, delivery, enableTakeaway, enableOnlineP
             type="submit"
             size="lg"
             className="bg-primary hover:bg-primary/90 w-full"
-            disabled={pending}
+            disabled={pending || belowMin}
           >
             {pending ? <Loader2 className="size-4 animate-spin" /> : null}
             {paymentMethod === "online_card"
-              ? `Place order — ${money(orderTotal)} (payment link next)`
+              ? `Pay ${money(orderTotal)} by card`
               : `Place order — ${money(orderTotal)}`}
           </Button>
         </>

@@ -19,6 +19,7 @@ import { round2 } from "@/lib/pos/totals";
 
 type Method = "cash" | "card";
 type Step = "choose" | "cash" | "card";
+const CARD_BRANDS = ["Visa", "Mastercard", "American Express", "Revolut", "Other"] as const;
 
 export type PosPayUiState = {
   phase: CustomerDisplayPhase;
@@ -34,7 +35,7 @@ interface Props {
   currency?: string;
   formatAmount?: (n: number) => string;
   onClose: () => void;
-  onConfirm: (payments: { method: Method; amount: number }[]) => void;
+  onConfirm: (payments: { method: Method; amount: number; cardBrand?: string }[]) => void;
   onUiState?: (state: PosPayUiState) => void;
 }
 
@@ -52,6 +53,8 @@ export function PosPaymentDialog({
   const [openSnap, setOpenSnap] = useState(open);
   const [step, setStep] = useState<Step>(cashOnly ? "cash" : "choose");
   const [buffer, setBuffer] = useState("");
+  const [custom, setCustom] = useState(false);
+  const [cardBrand, setCardBrand] = useState<string | null>(null);
   const finishing = useRef(false);
   const prevPending = useRef(pending);
   const drawerKicked = useRef(false);
@@ -61,6 +64,8 @@ export function PosPaymentDialog({
     setOpenSnap(open);
     if (open) {
       setBuffer("");
+      setCustom(false);
+      setCardBrand(null);
       setStep(cashOnly ? "cash" : "choose");
     }
   }
@@ -107,13 +112,15 @@ export function PosPaymentDialog({
   }
 
   function goCash() {
-    openDrawerOnce();
+    setCustom(false);
+    setBuffer("");
     setStep("cash");
   }
 
   useEffect(() => {
-    if (open && step === "cash") openDrawerOnce();
-  }, [open, step]);
+    if (!open || step !== "cash" || !tender.enough) return;
+    openDrawerOnce();
+  }, [open, step, tender.enough]);
 
   function finishCash(nextGiven: number) {
     if (finishing.current || pending) return;
@@ -126,21 +133,25 @@ export function PosPaymentDialog({
   }
 
   function finishCard() {
-    if (finishing.current || pending) return;
+    if (finishing.current || pending || !cardBrand) return;
     finishing.current = true;
-    onConfirm([{ method: "card", amount: round2(total) }]);
+    onConfirm([{ method: "card", amount: round2(total), cardBrand }]);
   }
 
   function applyNote(note: number) {
-    const next = round2(given + note);
-    const result = evaluateCashTender(total, next);
+    const next = custom ? note : round2(given + note);
+    setCustom(false);
     setBuffer(formatBuffer(next));
-    if (result.enough) finishCash(next);
   }
 
   function applyExact() {
+    setCustom(false);
     setBuffer(formatBuffer(total));
-    finishCash(total);
+  }
+
+  function startOther() {
+    setCustom(true);
+    setBuffer("");
   }
 
   function onKey(key: string) {
@@ -148,14 +159,9 @@ export function PosPaymentDialog({
   }
 
   useEffect(() => {
-    if (!open || step !== "cash" || pending) return;
+    if (!open || step !== "cash" || !custom || pending) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") return;
-      if (e.key === "Enter" && tender.enough) {
-        e.preventDefault();
-        finishCash(given);
-        return;
-      }
+      if (e.key === "Escape" || e.key === "Enter") return;
       if (e.key === "Backspace") {
         e.preventDefault();
         onKey("back");
@@ -173,7 +179,7 @@ export function PosPaymentDialog({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, step, pending, tender.enough, given]);
+  }, [open, step, custom, pending]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && !pending && onClose()}>
@@ -217,15 +223,18 @@ export function PosPaymentDialog({
             buffer={buffer}
             tender={tender}
             notes={notes}
+            custom={custom}
             pending={pending}
             formatAmount={formatAmount}
             showBack={!cashOnly}
             onBack={() => {
               setBuffer("");
+              setCustom(false);
               setStep("choose");
             }}
             onNote={applyNote}
             onExact={applyExact}
+            onOther={startOther}
             onKey={onKey}
             onComplete={() => finishCash(given)}
           />
@@ -242,12 +251,29 @@ export function PosPaymentDialog({
               <ArrowLeft className="size-4" />
               Back
             </button>
-            <p className="text-muted-foreground text-base">Confirm after the machine accepts.</p>
+            <p className="text-muted-foreground text-base">
+              Choose the card, then let the customer pay on the card machine. Confirm only after the
+              machine accepts.
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {CARD_BRANDS.map((brand) => (
+                <Button
+                  key={brand}
+                  type="button"
+                  variant={cardBrand === brand ? "secondary" : "outline"}
+                  className="h-14 text-base"
+                  disabled={pending}
+                  onClick={() => setCardBrand(brand)}
+                >
+                  {brand}
+                </Button>
+              ))}
+            </div>
             <Button
               type="button"
               size="lg"
               className="h-20 w-full text-xl"
-              disabled={pending}
+              disabled={pending || !cardBrand}
               onClick={finishCard}
             >
               {pending ? (
@@ -298,12 +324,14 @@ function CashPad({
   buffer,
   tender,
   notes,
+  custom,
   pending,
   formatAmount,
   showBack,
   onBack,
   onNote,
   onExact,
+  onOther,
   onKey,
   onComplete,
 }: {
@@ -311,12 +339,14 @@ function CashPad({
   buffer: string;
   tender: ReturnType<typeof evaluateCashTender>;
   notes: number[];
+  custom: boolean;
   pending: boolean;
   formatAmount: (n: number) => string;
   showBack: boolean;
   onBack: () => void;
   onNote: (note: number) => void;
   onExact: () => void;
+  onOther: () => void;
   onKey: (key: string) => void;
   onComplete: () => void;
 }) {
@@ -339,7 +369,7 @@ function CashPad({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="border-border rounded-2xl border p-5">
           <p className="text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase">
-            Note given
+            Amount given
           </p>
           <p className="mt-1 text-5xl font-semibold tracking-tight tabular-nums">
             {buffer ? formatAmount(tender.given) : formatAmount(0)}
@@ -387,32 +417,54 @@ function CashPad({
             {formatAmount(note)}
           </Button>
         ))}
-      </div>
-
-      <div className="grid grid-cols-3 gap-2">
-        {keys.map((key) => (
-          <Button
-            key={key}
-            type="button"
-            variant="outline"
-            className="h-14 text-lg font-semibold"
-            disabled={pending}
-            onClick={() => onKey(key === "clear" ? "clear" : key)}
-          >
-            {key === "clear" ? "C" : key}
-          </Button>
-        ))}
         <Button
           type="button"
-          variant="outline"
-          className="col-span-3 h-12"
+          variant={custom ? "secondary" : "outline"}
+          className="h-16 text-lg font-semibold"
           disabled={pending}
-          onClick={() => onKey("back")}
+          onClick={onOther}
         >
-          <Delete className="size-4" />
-          Delete
+          Other
         </Button>
       </div>
+
+      {custom ? (
+        <div className="space-y-2">
+          <p className="text-muted-foreground text-sm">Type the amount the customer handed over.</p>
+          <div className="grid grid-cols-3 gap-2">
+            {keys.map((key) => (
+              <Button
+                key={key}
+                type="button"
+                variant="outline"
+                className="h-14 text-lg font-semibold"
+                disabled={pending}
+                onClick={() => onKey(key === "clear" ? "clear" : key)}
+              >
+                {key === "clear" ? "C" : key}
+              </Button>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              className="col-span-3 h-12"
+              disabled={pending}
+              onClick={() => onKey("back")}
+            >
+              <Delete className="size-4" />
+              Delete
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      <p className="text-muted-foreground text-base">
+        {tender.enough
+          ? tender.change > 0
+            ? `Give ${formatAmount(tender.change)} change, then confirm the payment.`
+            : "Amount is exact. Confirm the payment."
+          : "Tap a note, or Other to type a custom amount."}
+      </p>
 
       <Button
         type="button"
@@ -421,13 +473,8 @@ function CashPad({
         disabled={pending || !tender.enough}
         onClick={onComplete}
       >
-        {pending ? (
-          <Loader2 className="size-6 animate-spin" />
-        ) : tender.enough ? (
-          <>Complete · give {formatAmount(tender.change)}</>
-        ) : (
-          "Tap the note first"
-        )}
+        {pending ? <Loader2 className="size-6 animate-spin" /> : <Banknote className="size-6" />}
+        Confirm cash payment
       </Button>
     </div>
   );

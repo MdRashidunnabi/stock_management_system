@@ -4,6 +4,8 @@ import { ExternalLink, Globe } from "lucide-react";
 import { StorefrontSettingsForm } from "@/components/storefront/storefront-settings-form";
 import { requireRole } from "@/lib/auth/tenant";
 import { getStorefrontSettingsForTenant } from "@/lib/storefront/settings-queries";
+import { stripeWebhookUrl } from "@/lib/storefront/stripe-shop";
+import { readShopDomain } from "@/lib/storefront/vercel-domain";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -13,6 +15,9 @@ export const metadata: Metadata = {
 export default async function StorefrontSettingsPage() {
   const tenant = await requireRole(["owner", "manager", "super_admin"]);
   const settings = await getStorefrontSettingsForTenant(tenant.tenantId);
+  const domainStatus = settings?.customDomain
+    ? await readShopDomain(settings.customDomain).catch(() => null)
+    : null;
   const shopPath = `/shop/${tenant.tenantSlug}`;
   const appOrigin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -47,7 +52,13 @@ export default async function StorefrontSettingsPage() {
         </Button>
       </div>
 
-      <StorefrontSettingsForm settings={settings} shopPath={shopPath} appOrigin={appOrigin} />
+      <StorefrontSettingsForm
+        settings={settings}
+        shopPath={shopPath}
+        appOrigin={appOrigin}
+        domainStatus={domainStatus}
+        webhookUrl={stripeWebhookUrl(appOrigin, tenant.tenantSlug)}
+      />
     </div>
   );
 }

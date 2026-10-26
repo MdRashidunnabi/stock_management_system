@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { OnlinePrice } from "@/components/storefront/online-price";
 import { QuantityStepper } from "@/components/storefront/quantity-stepper";
 import { StockBadge } from "@/components/storefront/stock-badge";
 import { useCart } from "@/components/storefront/cart-context";
+import { isCounterProduct } from "@/lib/storefront/cuts";
 import type { StorefrontProduct } from "@/lib/storefront/queries";
 
 interface Props {
@@ -17,7 +19,8 @@ export function ProductCard({ shopSlug, product }: Props) {
   const { lines, addLine, setQty } = useCart();
   const href = `/shop/${shopSlug}/product/${product.id}`;
   const max = Math.floor(product.available);
-  const canBuy = product.stock.canAddToCart && max > 0;
+  const counter = isCounterProduct(product.barcode, product.sku);
+  const canBuy = product.stock.canAddToCart && (counter || max > 0);
   const cartQty = lines.find((l) => l.productId === product.id)?.qty ?? 0;
   const displayQty = canBuy ? (cartQty > 0 ? cartQty : 0) : 0;
 
@@ -45,13 +48,13 @@ export function ProductCard({ shopSlug, product }: Props) {
   return (
     <article className="shop-product-card bg-card border-border/80 flex h-full flex-col overflow-hidden border shadow-sm transition-shadow hover:shadow-md">
       <Link href={href} className="block">
-        <div className="relative h-40 w-full bg-white">
+        <div className="relative h-36 w-full overflow-hidden bg-white">
           {product.primaryImageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={product.primaryImageUrl}
               alt={product.name}
-              className="size-full object-cover object-center"
+              className="size-full object-contain object-center p-2"
             />
           ) : (
             <div className="text-muted-foreground flex size-full items-center justify-center text-sm">
@@ -61,7 +64,7 @@ export function ProductCard({ shopSlug, product }: Props) {
         </div>
       </Link>
 
-      <div className="flex flex-1 flex-col gap-2 px-3 pt-3 pb-3">
+      <div className="flex flex-1 flex-col gap-1.5 px-3 py-2.5">
         <StockBadge stock={product.stock} />
 
         <Link href={href} className="hover:text-primary">
@@ -78,7 +81,11 @@ export function ProductCard({ shopSlug, product }: Props) {
           size="sm"
         />
 
-        {canBuy ? (
+        {counter ? (
+          <Button asChild className="mt-auto w-full" variant="outline">
+            <Link href={href}>Choose cut</Link>
+          </Button>
+        ) : canBuy ? (
           <QuantityStepper
             value={displayQty}
             max={max}

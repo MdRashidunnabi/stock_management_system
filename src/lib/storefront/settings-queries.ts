@@ -1,10 +1,22 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import type { DeliverySettings } from "@/lib/storefront/delivery";
+import {
+  deliveryAreasFromNotes,
+  type DeliveryArea,
+  type DeliverySettings,
+} from "@/lib/storefront/delivery";
 import { resolveStorefrontLogoUrl } from "@/lib/storefront/logo-url";
 import { parseShopTemplateId, type ShopTemplateId } from "@/lib/storefront/templates";
-import { readPosVoucherSettings, voucherPctFromNotes } from "@/lib/vouchers/rules";
+import { readShopStripe } from "@/lib/storefront/stripe-shop";
+import {
+  readOnlineVoucherTiers,
+  readPosVoucherSettings,
+  readPosVoucherTiers,
+  voucherMinimumFromNotes,
+  voucherPctFromNotes,
+  type VoucherTier,
+} from "@/lib/vouchers/rules";
 
 export interface StorefrontSettingsRow {
   tenantId: string;
@@ -14,8 +26,11 @@ export interface StorefrontSettingsRow {
   publicSiteName: string | null;
   customDomain: string | null;
   delivery: DeliverySettings;
+  deliveryAreas: DeliveryArea[];
   enableTakeaway: boolean;
   enableOnlinePayment: boolean;
+  stripeConnected: boolean;
+  stripePublishableHint: string | null;
   orderNotice: string | null;
   logoUrl: string | null;
   footerAbout: string | null;
@@ -28,9 +43,13 @@ export interface StorefrontSettingsRow {
   instagramUrl: string | null;
   onlinePriceMarkupPct: number;
   voucherEarnPct: number;
+  voucherMinimum: number;
   posVoucherEnabled: boolean;
   posVoucherPct: number;
   posVoucherDays: number;
+  posVoucherMinimum: number;
+  onlineVoucherTiers: VoucherTier[];
+  posVoucherTiers: VoucherTier[];
   themeId: ShopTemplateId;
 }
 
@@ -70,8 +89,11 @@ export async function getStorefrontSettingsForTenant(
       freeOver: Number(sf.delivery_free_over ?? 50),
       minOrder: Number(sf.delivery_min_order ?? 15),
     },
+    deliveryAreas: deliveryAreasFromNotes(tenant.notes),
     enableTakeaway: sf.enable_takeaway ?? true,
     enableOnlinePayment: sf.enable_online_payment ?? true,
+    stripeConnected: readShopStripe(tenant.notes) != null,
+    stripePublishableHint: maskKey(readShopStripe(tenant.notes)?.publishableKey),
     orderNotice: sf.order_notice,
     logoUrl: resolveStorefrontLogoUrl(sf.logo_url),
     footerAbout: sf.footer_about,
@@ -84,9 +106,19 @@ export async function getStorefrontSettingsForTenant(
     instagramUrl: sf.instagram_url,
     onlinePriceMarkupPct: Number(sf.online_price_markup_pct ?? 0.5),
     voucherEarnPct: voucherPctFromNotes(tenant.notes),
+    voucherMinimum: voucherMinimumFromNotes(tenant.notes),
     posVoucherEnabled: readPosVoucherSettings(tenant.notes).enabled,
     posVoucherPct: readPosVoucherSettings(tenant.notes).pct,
     posVoucherDays: readPosVoucherSettings(tenant.notes).days,
+    posVoucherMinimum: readPosVoucherSettings(tenant.notes).minimum,
+    onlineVoucherTiers: readOnlineVoucherTiers(tenant.notes),
+    posVoucherTiers: readPosVoucherTiers(tenant.notes),
     themeId: parseShopTemplateId(sf.theme_id),
   };
+}
+
+function maskKey(value: string | undefined): string | null {
+  if (!value) return null;
+  if (value.length <= 10) return value;
+  return `${value.slice(0, 8)}…${value.slice(-4)}`;
 }

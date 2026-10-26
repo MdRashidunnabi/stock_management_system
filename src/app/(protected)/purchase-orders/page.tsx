@@ -14,20 +14,42 @@ import { Badge } from "@/components/ui/badge";
 import { formatDateTimeIE, formatEuro } from "@/lib/utils";
 import type { PurchaseOrderStatus } from "@/lib/purchasing/schemas";
 
-export const metadata = { title: "Purchase orders · ShopOS" };
+export const metadata = { title: "Buy stock · ShopOS" };
 
-export default async function PurchaseOrdersPage() {
+export default async function PurchaseOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
   await requireRole(["owner", "manager", "warehouse"]);
+  const { view } = await searchParams;
+  const pendingOnly = view === "pending";
 
-  const orders = await listPurchaseOrders(150);
+  const orders = (await listPurchaseOrders(150)).filter((po) =>
+    pendingOnly ? po.status === "submitted" || po.status === "partially_received" : true,
+  );
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight" data-guide="purchase-orders">
-            Purchase orders
+            Buy stock
           </h1>
+          <div className="mt-2 flex gap-2 text-sm">
+            <Link
+              href="/purchase-orders"
+              className={pendingOnly ? "text-muted-foreground" : "font-medium"}
+            >
+              All
+            </Link>
+            <Link
+              href="/purchase-orders?view=pending"
+              className={pendingOnly ? "font-medium" : "text-muted-foreground"}
+            >
+              Pending
+            </Link>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Link
@@ -48,7 +70,11 @@ export default async function PurchaseOrdersPage() {
       <div className="border-border bg-card overflow-x-auto rounded-lg border">
         {orders.length === 0 ? (
           <div className="space-y-2 p-10 text-center">
-            <p className="text-muted-foreground text-sm">No purchase orders yet.</p>
+            <p className="text-muted-foreground text-sm">
+              {pendingOnly
+                ? "Nothing is waiting. A part delivery stays here until the rest arrives and you finalise it."
+                : "No purchase orders yet."}
+            </p>
             <Link
               href="/purchase-orders/new"
               className="text-primary inline-flex items-center gap-1 text-sm hover:underline"
@@ -97,12 +123,22 @@ export default async function PurchaseOrdersPage() {
                     {formatEuro(po.total)}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Link
-                      href={`/purchase-orders/${po.id}`}
-                      className="text-primary inline-flex items-center gap-1 text-xs hover:underline"
-                    >
-                      Open <ArrowRight className="size-3" />
-                    </Link>
+                    <div className="flex justify-end gap-3">
+                      {po.status === "submitted" || po.status === "partially_received" ? (
+                        <Link
+                          href={`/goods-receipts/new?po=${po.id}`}
+                          className="text-primary inline-flex items-center gap-1 text-xs hover:underline"
+                        >
+                          Receive <Truck className="size-3" />
+                        </Link>
+                      ) : null}
+                      <Link
+                        href={`/purchase-orders/${po.id}`}
+                        className="text-primary inline-flex items-center gap-1 text-xs hover:underline"
+                      >
+                        Open <ArrowRight className="size-3" />
+                      </Link>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

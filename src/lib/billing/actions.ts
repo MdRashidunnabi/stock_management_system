@@ -7,6 +7,7 @@ import {
   paymentCardSchema,
   extendTrialSchema,
   platformTenantActionSchema,
+  setAccessUntilSchema,
   platformCreateShopMemberSchema,
   platformShopMemberIdSchema,
   platformUpdateShopMemberRoleSchema,
@@ -24,6 +25,12 @@ import {
   demoSuspend,
 } from "@/lib/billing/demo-provider";
 import { emailSchema, fullNameSchema, passwordSchema } from "@/lib/auth/schemas";
+import {
+  accessUntilHasEnded,
+  formatAccessUntilLabel,
+  isRealCalendarDate,
+  withAccessUntil,
+} from "@/lib/billing/access-until";
 import { hitRateLimit } from "@/lib/security/rate-limit";
 import { sendStaffAccessEmail } from "@/lib/mail/staff-access";
 
@@ -127,6 +134,82 @@ export const simulateOwnerPaymentAction = staffActionClient(["owner"])
 async function assertPlatform() {
   if (!(await isPlatformStaff())) throw new ActionError("Platform access required.");
 }
+
+async function writeAccessUntil(tenantId: string, until: string | null) {
+  const admin = createAdminClient();
+  const { data, error: readError } = await admin
+    .from("tenants")
+    .select("notes, status")
+    .eq("id", tenantId)
+    .maybeSingle();
+  if (readError) throw new Error(readError.message);
+  if (!data) throw new Error("Shop not found.");
+
+  const notes = withAccessUntil(data.notes, until);
+  const turnOn = Boolean(until && !accessUntilHasEnded(until));
+  const { error } = await admin
+    .from("tenants")
+    .update({
+      notes,
+      ...(turnOn ? { status: "active" as const } : {}),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tenantId);
+  if (error) throw new Error(error.message);
+  return { status: turnOn ? "active" : data.status, accessUntil: until };
+}
+
+export const platformSetAccessUntilAction = authActionClient
+  .metadata({ actionName: "platform.setAccessUntil" })
+  .inputSchema(setAccessUntilSchema)
+  .action(async ({ parsedInput }) => {
+    await assertPlatform();
+    if (!isRealCalendarDate(parsedInput.until)) {
+      throw new ActionError("Choose a real date.");
+    }
+    const year = Number(parsedInput.until.slice(0, 4));
+    const maxYear = new Date().getFullYear() + 10;
+    if (year < 2024 || year > maxYear) {
+      throw new ActionError("Choose a date within the next 10 years.");
+    }
+    let saved: { status: string; accessUntil: string | null };
+    try {
+      saved = await writeAccessUntil(parsedInput.tenantId, parsedInput.until);
+    } catch (e) {
+      throw new ActionError(e instanceof Error ? e.message : "Could not save the end date.");
+    }
+    revalidatePlatform(parsedInput.tenantId);
+    const label = formatAccessUntilLabel(parsedInput.until);
+    const ended = accessUntilHasEnded(parsedInput.until);
+    return {
+      ok: true as const,
+      status: saved.status,
+      accessUntil: parsedInput.until,
+      message: ended
+        ? `This shop stopped on ${label}.`
+        : `This shop can be used until ${label}. They still need their email and password.`,
+    };
+  });
+
+export const platformClearAccessUntilAction = authActionClient
+  .metadata({ actionName: "platform.clearAccessUntil" })
+  .inputSchema(platformTenantActionSchema)
+  .action(async ({ parsedInput }) => {
+    await assertPlatform();
+    let saved: { status: string; accessUntil: string | null };
+    try {
+      saved = await writeAccessUntil(parsedInput.tenantId, null);
+    } catch (e) {
+      throw new ActionError(e instanceof Error ? e.message : "Could not remove the end date.");
+    }
+    revalidatePlatform(parsedInput.tenantId);
+    return {
+      ok: true as const,
+      status: saved.status,
+      accessUntil: null,
+      message: "End date removed. This shop is not stopped by a date.",
+    };
+  });
 
 export const platformExtendTrialAction = authActionClient
   .metadata({ actionName: "platform.extendTrial" })

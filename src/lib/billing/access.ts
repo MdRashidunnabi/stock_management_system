@@ -1,5 +1,6 @@
 import "server-only";
 
+import { accessUntilHasEnded, formatAccessUntilLabel } from "@/lib/billing/access-until";
 import type { SubscriptionAccess } from "@/lib/billing/types";
 
 export interface TenantAccessInput {
@@ -7,6 +8,8 @@ export interface TenantAccessInput {
   trialEndsAt: string | null;
   cardOnFile: boolean;
   monthlyAmountCents: number;
+  /** Superadmin end date (YYYY-MM-DD). The shop stops after this Dublin day. */
+  accessUntil?: string | null;
   isPlatformOverride?: boolean;
 }
 
@@ -45,6 +48,22 @@ export function resolveSubscriptionAccess(input: TenantAccessInput): Subscriptio
       needsPayment: false,
       needsCard: false,
       isTrial: input.status === "trial",
+      monthlyAmountEur,
+    };
+  }
+
+  if (input.accessUntil && accessUntilHasEnded(input.accessUntil)) {
+    const label = formatAccessUntilLabel(input.accessUntil);
+    return {
+      canUseApp: false,
+      canUseStorefront: false,
+      reason: `This shop was allowed until ${label}. Ask ShopOS to extend it.`,
+      status: input.status,
+      trialEndsAt: input.trialEndsAt,
+      daysLeftInTrial: 0,
+      needsPayment: false,
+      needsCard: false,
+      isTrial: false,
       monthlyAmountEur,
     };
   }

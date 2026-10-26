@@ -10,6 +10,7 @@ export type ShopEditPayload = {
   displayName: string;
   slug: string;
   status: string;
+  accessUntil: string | null;
   members: { user_id: string; email: string | null; role: string; is_active: boolean }[];
   devices: PosDeviceRow[];
 };
@@ -24,6 +25,7 @@ export async function loadShopEditData(tenantId: string): Promise<ShopEditPayloa
     displayName: detail.tenant.display_name,
     slug: detail.tenant.slug,
     status: detail.tenant.status,
+    accessUntil: detail.accessUntil,
     members: detail.members.map((m) => ({
       user_id: m.user_id,
       email: m.email,

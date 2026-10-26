@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { entityIdSchema } from "@/lib/entity-id";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ActionError, staffActionClient } from "@/lib/safe-action";
+import { refundStripeOrder } from "@/lib/storefront/stripe-shop";
 import { makeVoucherCode, parseVoucherNote, withVoucherNote } from "@/lib/vouchers/note";
 
-const OPS_ROLES = ["owner", "manager", "warehouse", "delivery"] as const;
+const OPS_ROLES = ["owner", "manager", "cashier", "warehouse", "delivery"] as const;
 
 const STAGE_VALUES = [
   "preparing",
@@ -26,12 +28,36 @@ export const setOnlineFulfillmentStageAction = staffActionClient([...OPS_ROLES])
       stage: z.enum(STAGE_VALUES),
     }),
   )
-  .action(async ({ parsedInput }) => {
-    const supabase = await createClient();
-    const { error } = await supabase.rpc("set_online_fulfillment_stage", {
-      p_order_id: parsedInput.orderId,
-      p_stage: parsedInput.stage,
-    });
+  .action(async ({ parsedInput, ctx }) => {
+    const admin = createAdminClient();
+    const { data: order } = await admin
+      .from("online_orders")
+      .select("id, status, fulfillment_type")
+      .eq("id", parsedInput.orderId)
+      .eq("tenant_id", ctx.tenant.tenantId)
+      .maybeSingle();
+    if (!order) throw new ActionError("Order not found.");
+    if (order.status === "cancelled") throw new ActionError("This order is cancelled.");
+    const deliveryStages = ["preparing", "prepared_for_delivery", "on_the_way", "delivered"];
+    const collectionStages = ["preparing", "ready_for_collection", "collected"];
+    const allowed = order.fulfillment_type === "delivery" ? deliveryStages : collectionStages;
+    if (!allowed.includes(parsedInput.stage)) {
+      throw new ActionError(
+        order.fulfillment_type === "delivery"
+          ? "That stage is for collection orders."
+          : "That stage is for delivery orders.",
+      );
+    }
+    const status =
+      parsedInput.stage === "delivered" || parsedInput.stage === "collected"
+        ? "fulfilled"
+        : order.status === "pending"
+          ? "confirmed"
+          : order.status;
+    const { error } = await admin
+      .from("online_orders")
+      .update({ fulfillment_stage: parsedInput.stage, status })
+      .eq("id", order.id);
     if (error) throw new ActionError(friendlyOpsError(error.message));
     revalidatePath("/online-orders");
     revalidatePath(`/online-orders/${parsedInput.orderId}`);
@@ -81,6 +107,10 @@ export const resolveOnlineOrderLineAction = staffActionClient([...OPS_ROLES])
     if (parsedInput.action === "substitute" && !parsedInput.substituteProductId) {
       throw new ActionError("Pick a similar product to send instead.");
     }
+    const refundedToCard =
+      parsedInput.action === "omit"
+        ? await refundOmittedLine(parsedInput.orderId, parsedInput.itemId)
+        : false;
     const supabase = await createClient();
     const { error } = await supabase.rpc("resolve_online_order_line", {
       p_item_id: parsedInput.itemId,
@@ -93,8 +123,80 @@ export const resolveOnlineOrderLineAction = staffActionClient([...OPS_ROLES])
     revalidatePath("/sales");
     revalidatePath("/products");
     revalidatePath("/reports");
-    return { ok: true as const };
+    return { ok: true as const, refundedToCard };
   });
+
+export const refundOnlineCardAction = staffActionClient([...OPS_ROLES])
+  .metadata({ actionName: "online.refundCard" })
+  .inputSchema(z.object({ orderId: entityIdSchema }))
+  .action(async ({ parsedInput }) => {
+    const supabase = createAdminClient();
+    const { data: pay } = await supabase
+      .from("payments")
+      .select("amount, refunded_amount, status, method")
+      .eq("online_order_id", parsedInput.orderId)
+      .eq("method", "card")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    const remaining = round2(Number(pay?.amount ?? 0) - Number(pay?.refunded_amount ?? 0));
+    if (!pay || pay.status === "refunded" || remaining <= 0) {
+      throw new ActionError("This order has no Stripe card payment left to refund.");
+    }
+    const refunded = await refundStripeOrder({
+      orderId: parsedInput.orderId,
+      amount: remaining,
+      idempotencyKey: `refund-order-${parsedInput.orderId}-${Math.round(remaining * 100)}`,
+    }).catch((err: unknown) => {
+      throw new ActionError(err instanceof Error ? err.message : "Stripe did not refund the card.");
+    });
+    await supabase
+      .from("payments")
+      .update({
+        refunded_amount: round2(Number(pay.refunded_amount ?? 0) + refunded),
+        refunded_at: new Date().toISOString(),
+        status: "refunded",
+      })
+      .eq("online_order_id", parsedInput.orderId)
+      .eq("method", "card");
+    revalidatePath("/online-orders");
+    revalidatePath(`/online-orders/${parsedInput.orderId}`);
+    return { ok: true as const, amount: refunded };
+  });
+
+async function refundOmittedLine(orderId: string, itemId: string) {
+  const supabase = await createClient();
+  const [{ data: item }, { data: order }, { data: pay }] = await Promise.all([
+    supabase
+      .from("online_order_items")
+      .select("line_total_gross, line_status")
+      .eq("id", itemId)
+      .maybeSingle(),
+    supabase.from("online_orders").select("payment_method").eq("id", orderId).maybeSingle(),
+    supabase
+      .from("payments")
+      .select("status, method")
+      .eq("online_order_id", orderId)
+      .eq("method", "card")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  if (!item || item.line_status !== "ok") return false;
+  if (order?.payment_method !== "online_card" || pay?.status !== "captured") return false;
+  await refundStripeOrder({
+    orderId,
+    amount: Number(item.line_total_gross ?? 0),
+    idempotencyKey: `refund-line-${itemId}`,
+  }).catch((err: unknown) => {
+    throw new ActionError(err instanceof Error ? err.message : "Stripe did not refund the card.");
+  });
+  return true;
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 async function issueVoucherFromNotes(orderId: string) {
   const supabase = await createClient();

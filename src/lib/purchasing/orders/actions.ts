@@ -210,7 +210,7 @@ export async function listProductsForPurchasing(
   const supabase = await createClient();
   let q = supabase
     .from("products")
-    .select("id, name, sku, base_unit, purchase_price, vat_code, default_supplier_id")
+    .select("id, name, sku, barcode, base_unit, purchase_price, vat_code, default_supplier_id")
     .eq("is_active", true)
     .order("name")
     .limit(limit);
@@ -226,6 +226,7 @@ export async function listProductsForPurchasing(
     id: p.id,
     name: p.name,
     sku: p.sku,
+    barcode: p.barcode,
     base_unit: p.base_unit,
     purchase_price: p.purchase_price === null ? null : Number(p.purchase_price),
     vat_code: p.vat_code ?? "STD",

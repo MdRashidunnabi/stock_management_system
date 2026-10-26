@@ -71,7 +71,11 @@ export default async function NewGoodsReceiptPage({
         .filter((it) => it.qty_outstanding > 0)
         .map((it) => ({
           productId: it.product_id,
+          productName: it.product_name,
+          productSku: it.product_sku,
           quantity: it.qty_outstanding,
+          ordered: it.quantity,
+          received: it.qty_received,
           unitCost: it.unit_cost,
           vatCode: it.vat_code,
         }))

@@ -14,12 +14,21 @@ interface Props {
 export function ShopHeader({ shop, cartCount = 0 }: Props) {
   const base = `/shop/${shop.slug}`;
   const whatsapp = shop.whatsapp?.replace(/\D/g, "");
+  const deliveryLine = shop.deliveryAreas
+    .map(
+      (area) =>
+        `${area.name}: minimum €${area.minOrder.toFixed(2)}, delivery €${area.fee.toFixed(2)}${area.times ? `, ${area.times}` : ""}`,
+    )
+    .join(" · ");
 
   return (
     <header className="sticky top-0 z-40 bg-white shadow-sm">
       <div className="shop-notice-bar text-white">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-3 px-3 py-1.5 text-xs sm:text-sm">
-          <p>{shop.orderNotice ?? "Free delivery over the shop minimum. Fresh food every week."}</p>
+          <p>
+            {shop.orderNotice ? `${shop.orderNotice}. ` : ""}
+            {deliveryLine}
+          </p>
           {shop.phone ? (
             <a
               href={`tel:${shop.phone.replace(/\s/g, "")}`}

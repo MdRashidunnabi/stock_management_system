@@ -7,7 +7,7 @@ import { code39Svg } from "@/lib/vouchers/code39";
 import { formatEuro, formatDateTimeIE } from "@/lib/utils";
 
 export default async function VoucherPrintPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireRole(["owner", "manager", "warehouse", "delivery"]);
+  await requireRole(["owner", "manager", "cashier", "warehouse", "delivery"]);
   const { id } = await params;
   const [detail, voucher] = await Promise.all([
     getOnlineOrderDetail(id),

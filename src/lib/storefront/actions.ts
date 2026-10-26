@@ -7,12 +7,12 @@ import { hitRateLimit } from "@/lib/security/rate-limit";
 import { publicStorefrontOrderError } from "@/lib/security/public-error";
 import { MIN_ADVANCE_DAYS, minAdvanceDateYmd } from "@/lib/reports/period";
 import { parseVoucherNote, withVoucherNote } from "@/lib/vouchers/note";
-import {
-  earnedVoucherAmount,
-  eligibleSpend,
-  voucherDiscount,
-  voucherRateFromNotes,
-} from "@/lib/vouchers/rules";
+import { earnedFromTiers, eligibleSpend, voucherDiscount } from "@/lib/vouchers/rules";
+import { deliveryAreasFromNotes } from "@/lib/storefront/delivery";
+import { isWholeFishCut } from "@/lib/storefront/cuts";
+import { computeOnlinePriceDisplay } from "@/lib/storefront/pricing";
+import { createStripeCheckout, readShopStripe } from "@/lib/storefront/stripe-shop";
+import { env } from "@/lib/env";
 
 export type PlaceOrderResult =
   | {
@@ -25,6 +25,7 @@ export type PlaceOrderResult =
       voucherDiscount: number;
       earnedVoucher: number;
       voucherWarning?: string;
+      checkoutUrl?: string;
     }
   | { ok: false; error: string };
 
@@ -88,10 +89,7 @@ async function rememberVoucherOnOrder(
     .select("notes")
     .eq("id", order?.tenant_id ?? "")
     .maybeSingle();
-  const earned = earnedVoucherAmount(
-    eligibleSpend(products, discount),
-    voucherRateFromNotes(shopTenant?.notes),
-  );
+  const earned = earnedFromTiers(eligibleSpend(products, discount), shopTenant?.notes, "online");
   const total = Math.round((Math.max(0, products - discount) + deliveryFee) * 100) / 100;
   const { data: current } = await admin
     .from("online_orders")
@@ -190,6 +188,7 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
     wantedForDate,
     isAdvance,
     voucherCode,
+    deliveryAreaId,
   } = parsed.data;
 
   const wanted = wantedForDate?.trim() || "";
@@ -211,6 +210,35 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
   }
 
   const admin = createAdminClient();
+  const { data: shopTenant } = await admin
+    .from("tenants")
+    .select("notes")
+    .eq("slug", shopKey)
+    .maybeSingle();
+  const stripeKeys = paymentMethod === "online_card" ? readShopStripe(shopTenant?.notes) : null;
+  if (paymentMethod === "online_card" && !stripeKeys) {
+    return {
+      ok: false,
+      error:
+        "Card payment is not connected for this shop yet. Choose cash, or add the Stripe keys in Online shop settings.",
+    };
+  }
+
+  const areas = deliveryAreasFromNotes(shopTenant?.notes);
+  const area =
+    fulfillment === "delivery" ? (areas.find((row) => row.id === deliveryAreaId) ?? null) : null;
+  if (fulfillment === "delivery" && !area) {
+    return { ok: false, error: "Choose a delivery area." };
+  }
+  if (area) {
+    const estimate = await estimateOnlineProducts(admin, shopKey, items);
+    if (estimate + 0.009 < area.minOrder) {
+      return {
+        ok: false,
+        error: `The minimum order for ${area.name} is €${area.minOrder.toFixed(2)}.`,
+      };
+    }
+  }
 
   const { data, error } = await admin.rpc("commit_online_order", {
     p_tenant_slug: shopKey,
@@ -270,7 +298,7 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
     const applied = await rememberVoucherOnOrder(
       row.online_order_id,
       Number(row.products_total ?? 0),
-      Number(row.delivery_fee ?? 0),
+      area ? area.fee : Number(row.delivery_fee ?? 0),
       voucherCode,
     );
     voucherDiscount = applied.discount;
@@ -322,6 +350,96 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
   revalidatePath("/products");
   revalidatePath("/reports");
 
+  const cutNotes = items
+    .map((item) => item.cutLabel?.trim())
+    .filter((label): label is string => Boolean(label));
+  const wholeFish = items.some((item) => isWholeFishCut(item.cutLabel));
+  const serviceNotes = [
+    area
+      ? `Delivery area: ${area.name}. Charge €${area.fee.toFixed(2)}. Minimum €${area.minOrder.toFixed(2)}. ${area.times || "Delivery time is set by the shop"}. Lead time ${area.leadDays} day(s).`
+      : "",
+    wholeFish
+      ? "Whole fish: the price is an estimate until it is weighed. Tell the customer the final price."
+      : "",
+    cutNotes.length ? `Cuts: ${cutNotes.join("; ")}` : "",
+  ].filter(Boolean);
+  const productsTotal = Number(row.products_total ?? 0);
+  const fee = area ? area.fee : Number(row.delivery_fee ?? 0);
+  const chargedTotal = Math.round((Math.max(0, productsTotal - voucherDiscount) + fee) * 100) / 100;
+  const { data: orderRow } = await admin
+    .from("online_orders")
+    .select("notes, sale_id")
+    .eq("id", row.online_order_id)
+    .maybeSingle();
+  await admin
+    .from("online_orders")
+    .update({
+      delivery_fee: fee,
+      total: chargedTotal,
+      notes: serviceNotes.length
+        ? [...serviceNotes, orderRow?.notes].filter(Boolean).join("\n")
+        : (orderRow?.notes ?? null),
+    })
+    .eq("id", row.online_order_id);
+  if (orderRow?.sale_id) {
+    await admin.from("sales").update({ total: chargedTotal }).eq("id", orderRow.sale_id);
+  }
+  await admin
+    .from("payments")
+    .update({ amount: chargedTotal })
+    .eq("online_order_id", row.online_order_id)
+    .eq("status", "pending");
+  row.total = chargedTotal;
+  row.delivery_fee = fee;
+  if (cutNotes.length) {
+    const { data: orderLines } = await admin
+      .from("online_order_items")
+      .select("id, product_id, name_snapshot")
+      .eq("online_order_id", row.online_order_id);
+    const used = new Set<string>();
+    for (const item of items) {
+      if (!item.cutLabel?.trim()) continue;
+      const line = (orderLines ?? []).find(
+        (l) => l.product_id === item.productId && !used.has(l.id),
+      );
+      if (!line) continue;
+      used.add(line.id);
+      const weighed = isWholeFishCut(item.cutLabel) ? " · final price after weighing" : "";
+      await admin
+        .from("online_order_items")
+        .update({
+          name_snapshot: `${line.name_snapshot} · ${item.cutLabel.trim()}${weighed}`,
+        })
+        .eq("id", line.id);
+    }
+  }
+
+  let checkoutUrl: string | undefined;
+  if (stripeKeys) {
+    const origin = env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+    const total = Number(row.total);
+    try {
+      checkoutUrl = await createStripeCheckout({
+        secretKey: stripeKeys.secretKey,
+        orderId: row.online_order_id,
+        orderNumber: row.order_number,
+        shopSlug: shopKey,
+        amount: total,
+        email: customerEmail,
+        successUrl: `${origin}/shop/${shopKey}/order/success?order=${encodeURIComponent(row.order_number)}&total=${total}&fulfillment=${fulfillment}&payment=online_card&paid=1&session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${origin}/shop/${shopKey}/checkout?payment=cancelled`,
+      });
+    } catch (err) {
+      return {
+        ok: false,
+        error:
+          err instanceof Error
+            ? err.message
+            : "The order was saved, but the card page did not open.",
+      };
+    }
+  }
+
   return {
     ok: true,
     orderId: row.online_order_id,
@@ -332,5 +450,46 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
     voucherDiscount,
     earnedVoucher,
     voucherWarning,
+    checkoutUrl,
   };
+}
+
+async function estimateOnlineProducts(
+  admin: ReturnType<typeof createAdminClient>,
+  shopSlug: string,
+  items: { productId: string; qty: number }[],
+): Promise<number> {
+  const { data: tenant } = await admin
+    .from("tenants")
+    .select("id")
+    .eq("slug", shopSlug)
+    .maybeSingle();
+  if (!tenant) return 0;
+  const { data: store } = await admin
+    .from("tenant_storefronts")
+    .select("online_price_markup_pct")
+    .eq("tenant_id", tenant.id)
+    .maybeSingle();
+  const markup = Number(store?.online_price_markup_pct ?? 0.5);
+  const ids = [...new Set(items.map((item) => item.productId))];
+  const { data: products } = await admin
+    .from("products")
+    .select("id, selling_price, online_selling_price, online_discount_pct")
+    .in("id", ids);
+  const byId = new Map((products ?? []).map((product) => [product.id, product]));
+  let total = 0;
+  for (const item of items) {
+    const product = byId.get(item.productId);
+    if (!product) continue;
+    const price = computeOnlinePriceDisplay({
+      sellingPrice: Number(product.selling_price ?? 0),
+      onlineSellingPrice:
+        product.online_selling_price == null ? null : Number(product.online_selling_price),
+      onlineDiscountPct:
+        product.online_discount_pct == null ? null : Number(product.online_discount_pct),
+      markupPct: markup,
+    }).price;
+    total += price * item.qty;
+  }
+  return Math.round(total * 100) / 100;
 }

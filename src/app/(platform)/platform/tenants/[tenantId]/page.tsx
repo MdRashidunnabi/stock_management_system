@@ -44,6 +44,7 @@ export default async function PlatformTenantDetailPage({
         displayName={tenant.display_name}
         slug={tenant.slug}
         status={tenant.status}
+        accessUntil={detail.accessUntil}
         cardLabel={cardLabel}
         monthlyLabel={monthlyLabel}
         members={members.map((m) => ({

@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 };
 
 export default async function OnlineOrdersPage() {
-  const tenant = await requireRole(["owner", "manager", "warehouse", "delivery"]);
+  const tenant = await requireRole(["owner", "manager", "cashier", "warehouse", "delivery"]);
   const orders = await listOnlineOrdersForTenant();
   const shopUrl = `/shop/${tenant.tenantSlug}`;
   const canEditStorefront = await hasRole(["owner", "manager", "super_admin"]);
@@ -104,7 +104,11 @@ export default async function OnlineOrdersPage() {
                   <Badge variant="secondary">{fulfillmentStageLabel(o.fulfillment_stage)}</Badge>
                 </TableCell>
                 <TableCell className="text-xs capitalize">
-                  {o.payment_method === "online_card" ? "Online card" : "COD"}
+                  {o.payment_method === "online_card"
+                    ? o.card_paid
+                      ? "Card paid"
+                      : "Card unpaid"
+                    : "COD"}
                   <div className="text-muted-foreground">
                     <Badge
                       variant={o.status === "pending" ? "secondary" : "outline"}

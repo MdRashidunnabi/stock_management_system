@@ -66,7 +66,7 @@ const NAV_ITEMS: NavItem[] = [
     href: "/online-orders",
     labelKey: "nav.onlineOrders",
     icon: <Globe className="size-4 shrink-0" />,
-    roles: ["owner", "manager", "warehouse", "delivery"],
+    roles: ["owner", "manager", "cashier", "warehouse", "delivery"],
     group: "sell",
   },
   {

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { ProductPurchasePanel } from "@/components/storefront/add-to-cart";
+import { CounterPurchase } from "@/components/storefront/counter-purchase";
+import { isCounterProduct } from "@/lib/storefront/cuts";
 import { OnlinePrice } from "@/components/storefront/online-price";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import {
@@ -89,7 +91,11 @@ export default async function ShopProductPage({
           <p className="text-muted-foreground text-xs">
             In-store price may differ. Online price only.
           </p>
-          <ProductPurchasePanel shopSlug={shop.slug} product={product} />
+          {isCounterProduct(product.barcode, product.sku) ? (
+            <CounterPurchase shopSlug={shop.slug} product={product} />
+          ) : (
+            <ProductPurchasePanel shopSlug={shop.slug} product={product} />
+          )}
         </div>
       </div>
 

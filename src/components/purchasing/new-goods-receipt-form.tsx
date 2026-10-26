@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getSafeActionData, getSafeActionError } from "@/lib/parse-safe-action-result";
+import { ProductSearchField } from "@/components/purchasing/product-search-field";
 import { createGoodsReceiptAction } from "@/lib/purchasing/receipts/actions";
 import {
   VAT_CODES,
@@ -27,7 +28,11 @@ interface BranchOption {
 
 interface InitialRow {
   productId: string;
+  productName?: string;
+  productSku?: string | null;
   quantity: number;
+  ordered?: number;
+  received?: number;
   unitCost: number;
   vatCode: VatCode;
 }
@@ -52,6 +57,10 @@ interface Props {
 interface LineRow {
   key: string;
   productId: string;
+  productName: string;
+  productSku: string;
+  ordered: number | null;
+  alreadyReceived: number | null;
   quantity: string;
   unitCost: string;
   vatCode: VatCode;
@@ -76,6 +85,10 @@ function makeRow(initial?: Partial<LineRow>): LineRow {
   return {
     key: newKey(),
     productId: "",
+    productName: "",
+    productSku: "",
+    ordered: null,
+    alreadyReceived: null,
     quantity: "1",
     unitCost: "0.00",
     vatCode: "STD",
@@ -110,18 +123,24 @@ export function NewGoodsReceiptForm({
     return initialRows.map((it) =>
       makeRow({
         productId: it.productId,
+        productName: it.productName ?? "",
+        productSku: it.productSku ?? "",
+        ordered: it.ordered ?? null,
+        alreadyReceived: it.received ?? null,
         quantity: String(it.quantity),
         unitCost: it.unitCost.toFixed(4),
         vatCode: it.vatCode,
       }),
     );
   });
+  const [foundProducts, setFoundProducts] = useState<ProductLite[]>([]);
 
   const productById = useMemo(() => {
     const m = new Map<string, ProductLite>();
     for (const p of products) m.set(p.id, p);
+    for (const p of foundProducts) m.set(p.id, p);
     return m;
-  }, [products]);
+  }, [products, foundProducts]);
 
   function patchRow(key: string, patch: Partial<LineRow>) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -135,12 +154,16 @@ export function NewGoodsReceiptForm({
     setRows((prev) => (prev.length === 1 ? prev : prev.filter((r) => r.key !== key)));
   }
 
-  function pickProduct(rowKey: string, productId: string) {
-    const product = productById.get(productId);
+  function pickProduct(rowKey: string, product: ProductLite) {
+    setFoundProducts((prev) =>
+      prev.some((row) => row.id === product.id) ? prev : [...prev, product],
+    );
     patchRow(rowKey, {
-      productId,
-      vatCode: product?.vat_code ?? "STD",
-      unitCost: product?.purchase_price != null ? product.purchase_price.toFixed(4) : "0.00",
+      productId: product.id,
+      productName: product.name,
+      productSku: product.sku ?? "",
+      vatCode: product.vat_code ?? "STD",
+      unitCost: product.purchase_price != null ? product.purchase_price.toFixed(4) : "0.00",
     });
   }
 
@@ -287,7 +310,16 @@ export function NewGoodsReceiptForm({
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label>Received line items</Label>
+          <div>
+            <Label>Received line items</Label>
+            {purchaseOrder ? (
+              <p className="text-muted-foreground text-xs">
+                Enter only what arrived. Anything left stays pending on this order until the
+                supplier delivers it. Finalise this receipt, then receive the rest later from
+                Pending.
+              </p>
+            ) : null}
+          </div>
           <Button type="button" size="sm" variant="outline" onClick={addRow}>
             <Plus className="size-4" /> Add line
           </Button>
@@ -312,19 +344,24 @@ export function NewGoodsReceiptForm({
                 return (
                   <tr key={r.key} className="border-border border-t align-top">
                     <td className="p-2">
-                      <select
-                        value={r.productId}
-                        onChange={(e) => pickProduct(r.key, e.target.value)}
-                        className="border-input bg-background h-9 w-full rounded-md border px-2 text-sm"
-                      >
-                        <option value="">Pick a product…</option>
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.sku ? `${p.sku} - ` : ""}
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
+                      <ProductSearchField
+                        product={
+                          product ??
+                          (r.productId
+                            ? {
+                                id: r.productId,
+                                name: r.productName || "Product",
+                                sku: r.productSku || null,
+                                barcode: null,
+                                base_unit: "",
+                                purchase_price: null,
+                                vat_code: r.vatCode,
+                                default_supplier_id: null,
+                              }
+                            : null)
+                        }
+                        onPick={(picked) => pickProduct(r.key, picked)}
+                      />
                       {product?.base_unit ? (
                         <p className="text-muted-foreground mt-1 text-xs">
                           unit: {product.base_unit}
@@ -343,6 +380,20 @@ export function NewGoodsReceiptForm({
                         onChange={(e) => patchRow(r.key, { quantity: e.target.value })}
                         className="h-9 text-right font-mono"
                       />
+                      {r.ordered != null ? (
+                        <p className="text-muted-foreground mt-1 text-[11px]">
+                          Ordered {r.ordered}
+                          {r.alreadyReceived ? ` · already in ${r.alreadyReceived}` : ""}. Still
+                          pending{" "}
+                          {Math.max(
+                            0,
+                            Math.round(
+                              (r.ordered - (r.alreadyReceived ?? 0) - (Number(r.quantity) || 0)) *
+                                10000,
+                            ) / 10000,
+                          )}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="p-2 text-right">
                       <Input

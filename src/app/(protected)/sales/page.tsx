@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { Receipt } from "lucide-react";
 import { getCurrentTenant } from "@/lib/auth/tenant";
 import { listRecentSales } from "@/lib/pos/actions";
+import { listOnlineOrdersForTenant } from "@/lib/storefront/admin-queries";
+import { parseVoucherNote } from "@/lib/vouchers/note";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -34,7 +36,8 @@ export default async function SalesIndexPage({
 
   const sp = await searchParams;
   const channel = sp.channel === "pos" || sp.channel === "online" ? sp.channel : "all";
-  const sales = await listRecentSales(100, channel);
+  const sales = await listRecentSales(100, channel === "online" ? "online" : channel);
+  const onlineOrders = channel === "pos" ? [] : await listOnlineOrdersForTenant(100);
 
   return (
     <div className="space-y-4">
@@ -79,6 +82,63 @@ export default async function SalesIndexPage({
           </Link>
         ))}
       </div>
+
+      {onlineOrders.length > 0 ? (
+        <div className="border-border bg-card overflow-x-auto rounded-lg border">
+          <div className="border-b px-4 py-3">
+            <h2 className="text-sm font-semibold">Online orders</h2>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order number</TableHead>
+                <TableHead>When</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Voucher</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead>Print</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {onlineOrders.map((order) => {
+                const voucher = parseVoucherNote(order.notes);
+                return (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-mono">
+                      <Link
+                        href={`/online-orders/${order.id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {order.order_number}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      {formatDateTimeIE(order.created_at)}
+                    </TableCell>
+                    <TableCell className="text-xs">{order.customer_name}</TableCell>
+                    <TableCell className="text-xs">
+                      {voucher && voucher.amount > 0
+                        ? `${formatEuro(voucher.amount)}${voucher.code ? ` · ${voucher.code}` : ""}`
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatEuro(order.total)}
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/online-orders/${order.id}?print=1`}
+                        className="text-primary text-xs hover:underline"
+                      >
+                        Receipt and voucher
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      ) : null}
 
       <div className="border-border bg-card overflow-x-auto rounded-lg border">
         {sales.length === 0 ? (

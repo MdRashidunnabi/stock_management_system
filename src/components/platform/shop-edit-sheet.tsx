@@ -81,9 +81,18 @@ export function ShopEditSheet({
                 <TenantAdminPanel
                   tenantId={payload.tenantId}
                   status={payload.status}
+                  accessUntil={payload.accessUntil}
                   embedded
-                  onUpdated={(status) => {
-                    setPayload((prev) => (prev ? { ...prev, status } : prev));
+                  onUpdated={(status, accessUntil) => {
+                    setPayload((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            status,
+                            accessUntil: accessUntil === undefined ? prev.accessUntil : accessUntil,
+                          }
+                        : prev,
+                    );
                     void reload();
                   }}
                 />

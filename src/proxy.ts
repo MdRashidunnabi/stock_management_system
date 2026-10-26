@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { rewriteShopHost } from "@/lib/storefront/domain-routing";
 import { updateSession } from "@/lib/supabase/middleware";
 
 /**
@@ -23,6 +24,8 @@ export async function proxy(request: NextRequest) {
   ) {
     return NextResponse.next();
   }
+  const shop = await rewriteShopHost(request);
+  if (shop) return shop;
   return updateSession(request);
 }
 

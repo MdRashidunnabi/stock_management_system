@@ -36,7 +36,11 @@ export function LineResolveControls({
         return;
       }
       toast.success(
-        action === "omit" ? "Line refunded and stock returned" : "Similar product sent",
+        action === "omit"
+          ? res?.data?.refundedToCard
+            ? "Refunded to the Stripe card"
+            : "Line removed. This order had no card payment to refund."
+          : "Similar product sent",
       );
       router.refresh();
     });

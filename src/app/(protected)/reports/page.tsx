@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { requireRole } from "@/lib/auth/tenant";
 import { formatMoney } from "@/lib/utils";
 import {
@@ -24,7 +23,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Reports · ShopOS" };
 
@@ -100,22 +98,6 @@ export default async function ReportsPage({
     tab === "channels" ? getChannelSalesSplit(range) : Promise.resolve(null),
   ]);
 
-  const hrefFor = (id: Tab) => {
-    const p = new URLSearchParams();
-    p.set("tab", id);
-    p.set("period", custom ? "custom" : period);
-    if (custom) {
-      p.set("from", custom.fromYmd);
-      p.set("to", custom.toYmd);
-    }
-    if (channel !== "all") p.set("channel", channel);
-    if (q) p.set("q", q);
-    if (categoryId) p.set("category", categoryId);
-    if (brandId) p.set("brand", brandId);
-    if (supplierId) p.set("supplier", supplierId);
-    return `/reports?${p.toString()}`;
-  };
-
   return (
     <div className="space-y-6">
       <div>
@@ -126,23 +108,6 @@ export default async function ReportsPage({
           {range.label}. Filter by SKU, barcode, category, brand, or supplier. Till and online use
           the same numbers.
         </p>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {TABS.map((t) => (
-          <Link
-            key={t.id}
-            href={hrefFor(t.id)}
-            className={cn(
-              "rounded-full px-4 py-1.5 text-sm font-medium",
-              tab === t.id
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t.label}
-          </Link>
-        ))}
       </div>
 
       <ReportFiltersBar

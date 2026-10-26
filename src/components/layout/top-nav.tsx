@@ -52,7 +52,7 @@ const NAV_ITEMS: NavItem[] = [
     href: "/online-orders",
     label: "Online",
     icon: <Globe className="size-4" />,
-    roles: ["owner", "manager", "warehouse", "delivery"],
+    roles: ["owner", "manager", "cashier", "warehouse", "delivery"],
   },
   {
     href: "/sessions",

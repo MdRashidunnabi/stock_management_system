@@ -4,6 +4,7 @@ export const storefrontCartItemSchema = z.object({
   productId: z.string().uuid(),
   qty: z.coerce.number().positive().max(999),
   ifUnavailable: z.enum(["substitute", "omit"]).default("omit"),
+  cutLabel: z.string().max(160).optional().or(z.literal("")),
 });
 
 export const placeOnlineOrderSchema = z
@@ -26,6 +27,7 @@ export const placeOnlineOrderSchema = z
       .or(z.literal("")),
     isAdvance: z.boolean().optional(),
     voucherCode: z.string().max(32).optional().or(z.literal("")),
+    deliveryAreaId: z.string().max(40).optional().or(z.literal("")),
   })
   .superRefine((data, ctx) => {
     if (data.fulfillment === "delivery") {
@@ -67,8 +69,12 @@ export const updateStorefrontSettingsSchema = z.object({
   deliveryStandardFee: z.coerce.number().min(0).max(99.99),
   deliveryFreeOver: z.coerce.number().min(0).max(9999),
   deliveryMinOrder: z.coerce.number().min(0).max(9999),
+  deliveryAreasJson: z.string().max(8000).optional().or(z.literal("")),
   enableTakeaway: z.boolean(),
   enableOnlinePayment: z.boolean(),
+  stripePublishableKey: z.string().max(200).optional().or(z.literal("")),
+  stripeSecretKey: z.string().max(200).optional().or(z.literal("")),
+  stripeWebhookSecret: z.string().max(200).optional().or(z.literal("")),
   orderNotice: z.string().max(500).optional().or(z.literal("")),
   footerAbout: z.string().max(4000).optional().or(z.literal("")),
   phone: z.string().max(40).optional().or(z.literal("")),
@@ -79,10 +85,14 @@ export const updateStorefrontSettingsSchema = z.object({
   youtubeUrl: optionalUrl,
   instagramUrl: optionalUrl,
   onlinePriceMarkupPct: z.coerce.number().min(0).max(50),
-  voucherEarnPct: z.coerce.number().min(0).max(50),
+  voucherEarnPct: z.coerce.number().min(0).max(50).optional().default(0),
+  voucherMinimum: z.coerce.number().min(0).max(10000).optional().default(0),
   posVoucherEnabled: z.boolean(),
-  posVoucherPct: z.coerce.number().min(0).max(50),
+  posVoucherPct: z.coerce.number().min(0).max(50).optional().default(0),
   posVoucherDays: z.coerce.number().int().min(1).max(365),
+  posVoucherMinimum: z.coerce.number().min(0).max(10000).optional().default(0),
+  onlineTiersJson: z.string().max(4000).optional().or(z.literal("")),
+  posTiersJson: z.string().max(4000).optional().or(z.literal("")),
   themeId: z
     .enum([
       "market",

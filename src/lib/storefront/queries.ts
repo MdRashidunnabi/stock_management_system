@@ -2,7 +2,11 @@ import "server-only";
 
 import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { DeliverySettings } from "@/lib/storefront/delivery";
+import {
+  deliveryAreasFromNotes,
+  type DeliveryArea,
+  type DeliverySettings,
+} from "@/lib/storefront/delivery";
 import { resolveStorefrontLogoUrl } from "@/lib/storefront/logo-url";
 import { computeOnlinePriceDisplay } from "@/lib/storefront/pricing";
 import { getStockDisplay, type StockDisplay } from "@/lib/storefront/stock-display";
@@ -27,6 +31,7 @@ export interface StorefrontShop {
   orderNotice: string | null;
   lowStockThreshold: number;
   delivery: DeliverySettings;
+  deliveryAreas: DeliveryArea[];
   enableTakeaway: boolean;
   enableOnlinePayment: boolean;
   onlinePriceMarkupPct: number;
@@ -57,6 +62,7 @@ export interface StorefrontProduct {
   id: string;
   name: string;
   sku: string | null;
+  barcode: string | null;
   /** In-store POS price (not shown on shop when online pricing is used). */
   sellingPrice: number;
   /** Customer-facing online price (after discount). */
@@ -75,7 +81,7 @@ export interface StorefrontProduct {
 }
 
 const PRODUCT_SELECT = `
-  id, name, sku, selling_price, online_selling_price, online_discount_pct, primary_image_url,
+  id, name, sku, barcode, selling_price, online_selling_price, online_discount_pct, primary_image_url,
   category_id, brand_id,
   categories ( id, name, slug ),
   brands ( id, name, slug )
@@ -106,7 +112,7 @@ export const getStorefrontShop = cache(
 
     const { data: tenant, error } = await admin
       .from("tenants")
-      .select("id, slug, display_name, status, currency, default_locale")
+      .select("id, slug, display_name, status, currency, default_locale, notes")
       .eq("slug", normalized)
       .in("status", ["trial", "active", "past_due"])
       .maybeSingle();
@@ -169,6 +175,7 @@ export const getStorefrontShop = cache(
         freeOver: Number(storefront.delivery_free_over ?? 50),
         minOrder: Number(storefront.delivery_min_order ?? 15),
       },
+      deliveryAreas: deliveryAreasFromNotes(tenant.notes),
       enableTakeaway: storefront.enable_takeaway ?? true,
       enableOnlinePayment: storefront.enable_online_payment ?? true,
       onlinePriceMarkupPct: Number(storefront.online_price_markup_pct ?? 0.5),
@@ -288,6 +295,7 @@ async function attachStock(
     id: string;
     name: string;
     sku: string | null;
+    barcode: string | null;
     selling_price: number | string | null;
     online_selling_price: number | string | null;
     online_discount_pct: number | string | null;
@@ -340,6 +348,7 @@ async function attachStock(
       id: r.id,
       name: r.name,
       sku: r.sku,
+      barcode: r.barcode ?? null,
       sellingPrice,
       onlinePrice: online.price,
       compareAtPrice: online.compareAtPrice,

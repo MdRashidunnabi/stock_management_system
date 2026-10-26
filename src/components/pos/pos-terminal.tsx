@@ -562,7 +562,7 @@ export function PosTerminal({
 
   /* ---------------------------- Commit sale ---------------------------- */
 
-  function commit(payments: { method: string; amount: number }[]) {
+  function commit(payments: { method: string; amount: number; cardBrand?: string }[]) {
     if (!isValidBranchId(activeBranchId)) {
       setServerError("Pick a branch first.");
       return;
@@ -615,6 +615,7 @@ export function PosTerminal({
         payments: payments.map((p) => ({
           method: p.method as "cash" | "card" | "contactless" | "voucher",
           amount: p.amount,
+          cardBrand: "cardBrand" in p ? p.cardBrand : undefined,
         })),
       });
       const err = getSafeActionError(res);

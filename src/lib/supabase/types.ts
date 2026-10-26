@@ -2792,6 +2792,8 @@ export type Database = {
           customer_email?: string | null;
           delivery_address?: string | null;
           notes?: string | null;
+          delivery_fee?: number;
+          products_total?: number;
           subtotal?: number;
           vat_total?: number;
           total?: number;

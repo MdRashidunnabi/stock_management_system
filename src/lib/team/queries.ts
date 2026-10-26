@@ -12,14 +12,20 @@ export type TeamMemberRow = {
   accepted_at: string | null;
   email: string | null;
   full_name: string | null;
+  /** Password the owner last set. Empty when it was chosen before this screen existed. */
+  staff_password: string | null;
 };
 
-export async function listTeamMembers(tenantId: string): Promise<TeamMemberRow[]> {
+export async function listTeamMembers(
+  tenantId: string,
+  options?: { includePasswords?: boolean },
+): Promise<TeamMemberRow[]> {
   const supabase = await createClient();
   const { data: members, error } = await supabase
     .from("user_tenants")
     .select("user_id, role, branch_id, is_active, invited_at, accepted_at")
     .eq("tenant_id", tenantId)
+    .eq("is_active", true)
     .order("created_at");
 
   if (error) throw new Error(error.message);
@@ -32,15 +38,44 @@ export async function listTeamMembers(tenantId: string): Promise<TeamMemberRow[]
     .in("id", userIds);
 
   const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+  const authById = options?.includePasswords
+    ? await loadAuthLogins(members.map((m) => m.user_id))
+    : new Map<string, { email: string | null; fullName: string | null; password: string | null }>();
 
   return members.map((m) => {
     const p = profileById.get(m.user_id);
+    const auth = authById.get(m.user_id);
     return {
       ...m,
-      email: p?.email ?? null,
-      full_name: p?.full_name ?? null,
+      email: p?.email ?? auth?.email ?? null,
+      full_name: p?.full_name ?? auth?.fullName ?? null,
+      staff_password: auth?.password ?? null,
     };
   });
+}
+
+async function loadAuthLogins(userIds: string[]) {
+  const admin = createAdminClient();
+  const entries = await Promise.all(
+    userIds.map(async (userId) => {
+      const { data, error } = await admin.auth.admin.getUserById(userId);
+      if (error || !data.user) {
+        return [userId, { email: null, fullName: null, password: null }] as const;
+      }
+      const meta = data.user.user_metadata ?? {};
+      const password = meta.shopos_staff_password;
+      const fullName = meta.full_name;
+      return [
+        userId,
+        {
+          email: data.user.email ?? null,
+          fullName: typeof fullName === "string" && fullName.length > 0 ? fullName : null,
+          password: typeof password === "string" && password.length > 0 ? password : null,
+        },
+      ] as const;
+    }),
+  );
+  return new Map(entries);
 }
 
 export async function listPendingInvites(tenantId: string) {

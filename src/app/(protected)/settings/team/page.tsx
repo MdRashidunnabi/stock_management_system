@@ -7,9 +7,10 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata: Metadata = { title: "Team" };
 
 export default async function TeamSettingsPage() {
-  const tenant = await requireRole(["owner", "manager"]);
+  const tenant = await requireRole(["owner", "manager", "super_admin"]);
+  const canControl = tenant.role === "owner" || tenant.role === "super_admin";
   const [members, invites] = await Promise.all([
-    listTeamMembers(tenant.tenantId),
+    listTeamMembers(tenant.tenantId, { includePasswords: canControl }),
     listPendingInvites(tenant.tenantId),
   ]);
 
@@ -33,6 +34,7 @@ export default async function TeamSettingsPage() {
         invites={invites}
         branches={branches ?? []}
         canManage={tenant.role === "owner" || tenant.role === "manager"}
+        canControl={canControl}
       />
     </div>
   );

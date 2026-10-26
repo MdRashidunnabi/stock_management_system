@@ -21,7 +21,7 @@
     "productName": "ShopOS",
     "copyright": "Copyright © ShopOS",
     "directories": {
-      "output": "dist",
+      "output": "installer",
       "buildResources": "build"
     },
     "files": [
@@ -44,13 +44,17 @@
           ]
         }
       ],
-      "artifactName": "ShopOS-Setup-${version}.${ext}"
+      "artifactName": "ShopOS-Setup-${version}.${ext}",
+      "signAndEditExecutable": false
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
-      "shortcutName": "ShopOS POS"
+      "createStartMenuShortcut": true,
+      "shortcutName": "ShopOS",
+      "runAfterFinish": true
     }
   }
 }

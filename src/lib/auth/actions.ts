@@ -165,27 +165,16 @@ export const signOutAction = authActionClient
 export const requestPasswordResetAction = actionClient
   .metadata({ actionName: "auth.requestPasswordReset" })
   .inputSchema(forgotPasswordSchema)
-  .action(async ({ parsedInput }) => {
-    const gate = hitAuthEmailLimit("reset", parsedInput.email);
-    if (!gate.ok) {
+  .action(
+    async (): Promise<
+      { ok: true; email: string } | { ok: false; message: string; seconds?: string }
+    > => {
       return {
-        ok: false as const,
-        message: "errors.resetWait",
-        seconds: String(gate.retryAfterSec),
+        ok: false,
+        message: "The shop owner sets this password. You cannot change it yourself.",
       };
-    }
-    const supabase = await createClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(parsedInput.email, {
-      redirectTo: await authCallbackRedirect("/reset-password"),
-    });
-    if (error) {
-      const mapped = mapAuthError(error.message);
-      if (mapped === "errors.rateLimit") {
-        return { ok: false as const, message: "errors.resetRateLimit" };
-      }
-    }
-    return { ok: true as const, email: parsedInput.email };
-  });
+    },
+  );
 
 /**
  * Send a new signup confirmation email. Always reports success so this page
@@ -226,16 +215,11 @@ export const resendSignupEmailAction = actionClient
 export const updatePasswordAction = authActionClient
   .metadata({ actionName: "auth.updatePassword" })
   .inputSchema(resetPasswordSchema)
-  .action(async ({ parsedInput }) => {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.updateUser({
-      password: parsedInput.password,
-    });
-    if (error) {
-      return { ok: false as const, message: mapAuthError(error.message) };
-    }
-    revalidatePath("/", "layout");
-    return { ok: true as const };
+  .action(async (): Promise<{ ok: true } | { ok: false; message: string }> => {
+    return {
+      ok: false,
+      message: "The shop owner sets this password. You cannot change it yourself.",
+    };
   });
 
 /**

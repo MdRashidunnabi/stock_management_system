@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -12,34 +12,60 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   platformActivateAction,
+  platformClearAccessUntilAction,
   platformExtendTrialAction,
   platformMarkPastDueAction,
+  platformSetAccessUntilAction,
   platformSetStatusAction,
   platformSimulatePaymentAction,
   platformSuspendAction,
 } from "@/lib/billing/actions";
+import { formatAccessUntilLabel } from "@/lib/billing/access-until";
 import { getSafeActionData, getSafeActionError } from "@/lib/parse-safe-action-result";
 
 const FORCE_STATUSES = ["trial", "active", "past_due", "suspended", "cancelled"] as const;
 
-type StatusResult = { ok: true; status: string; message: string };
+type StatusResult = {
+  ok: true;
+  status: string;
+  message: string;
+  accessUntil?: string | null;
+};
 
 interface Props {
   tenantId: string;
   status: string;
+  accessUntil?: string | null;
   embedded?: boolean;
-  onUpdated?: (status: string) => void;
+  onUpdated?: (status: string, accessUntil?: string | null) => void;
 }
 
-export function TenantAdminPanel({ tenantId, status, embedded = false, onUpdated }: Props) {
+export function TenantAdminPanel({
+  tenantId,
+  status,
+  accessUntil = null,
+  embedded = false,
+  onUpdated,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [current, setCurrent] = useState(status);
+  const [seenStatus, setSeenStatus] = useState(status);
+  const untilValue = accessUntil ?? "";
+  const [until, setUntil] = useState(untilValue);
+  const [savedUntil, setSavedUntil] = useState(untilValue);
+  const [seenUntil, setSeenUntil] = useState(untilValue);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
-  useEffect(() => {
+  if (status !== seenStatus) {
+    setSeenStatus(status);
     setCurrent(status);
-  }, [status]);
+  }
+  if (untilValue !== seenUntil) {
+    setSeenUntil(untilValue);
+    setUntil(untilValue);
+    setSavedUntil(untilValue);
+  }
 
   function run(label: string, fn: () => Promise<unknown>) {
     setNotice(null);
@@ -55,9 +81,13 @@ export function TenantAdminPanel({ tenantId, status, embedded = false, onUpdated
       const nextStatus = data?.status ?? current;
       const text = data?.message ?? `${label} done.`;
       setCurrent(nextStatus);
+      if (data && "accessUntil" in data) {
+        setUntil(data.accessUntil ?? "");
+        setSavedUntil(data.accessUntil ?? "");
+      }
       setNotice({ ok: true, text });
       toast.success(text);
-      onUpdated?.(nextStatus);
+      onUpdated?.(nextStatus, data && "accessUntil" in data ? data.accessUntil : accessUntil);
       router.refresh();
     });
   }
@@ -69,6 +99,49 @@ export function TenantAdminPanel({ tenantId, status, embedded = false, onUpdated
           <AlertDescription>{notice.text}</AlertDescription>
         </Alert>
       ) : null}
+      <form
+        className="space-y-2 border-b pb-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const fd = new FormData(e.currentTarget);
+          const nextUntil = String(fd.get("until") || "");
+          if (!nextUntil) return;
+          run("Set end date", () => platformSetAccessUntilAction({ tenantId, until: nextUntil }));
+        }}
+      >
+        <Label htmlFor="access-until">They can use the software until</Label>
+        <p className="text-muted-foreground text-xs">
+          {savedUntil
+            ? `Allowed until ${formatAccessUntilLabel(savedUntil)}. After that day the shop stops.`
+            : "No end date. The shop is not stopped by a date."}{" "}
+          They still need their email and password.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            id="access-until"
+            name="until"
+            type="date"
+            value={until}
+            onChange={(e) => setUntil(e.target.value)}
+            className="w-44"
+            required
+          />
+          <Button type="submit" size="sm" disabled={pending || !until}>
+            Save end date
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={pending || !savedUntil}
+            onClick={() =>
+              run("Remove end date", () => platformClearAccessUntilAction({ tenantId }))
+            }
+          >
+            Remove end date
+          </Button>
+        </div>
+      </form>
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-muted-foreground text-sm">Current status</span>
         <Badge variant="outline" className="capitalize">

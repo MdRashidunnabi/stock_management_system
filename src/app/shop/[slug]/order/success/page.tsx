@@ -3,6 +3,7 @@ import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatEuro } from "@/lib/utils";
 import { getStorefrontShop } from "@/lib/storefront/queries";
+import { confirmStripeReturn } from "@/lib/storefront/stripe-shop";
 
 export default async function OrderSuccessPage({
   params,
@@ -19,10 +20,16 @@ export default async function OrderSuccessPage({
     earned?: string;
     saved?: string;
     voucherNote?: string;
+    session_id?: string;
+    paid?: string;
   }>;
 }) {
   const { slug } = await params;
   const sp = await searchParams;
+  const paid =
+    sp.session_id != null
+      ? await confirmStripeReturn(slug, sp.session_id).catch(() => false)
+      : sp.paid === "1";
   const shop = await getStorefrontShop(slug);
   const orderNo = sp.order ?? "";
   const total = sp.total ? Number(sp.total) : null;
@@ -32,7 +39,9 @@ export default async function OrderSuccessPage({
   const saved = sp.saved ? Number(sp.saved) : 0;
   const cardPay = sp.payment === "online_card";
   const payment = cardPay
-    ? "online card — we will send a secure payment link after we confirm stock"
+    ? paid
+      ? "card — paid"
+      : "card — waiting for Stripe to confirm"
     : "cash on delivery";
 
   return (
