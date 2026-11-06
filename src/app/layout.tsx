@@ -2,11 +2,11 @@ import type { Metadata, Viewport } from "next";
 import {
   Geist,
   Geist_Mono,
-  Noto_Sans_Arabic,
   Noto_Sans_Bengali,
   Noto_Sans_Devanagari,
   Noto_Sans_SC,
 } from "next/font/google";
+import localFont from "next/font/local";
 import { SerwistProvider } from "@serwist/turbopack/react";
 import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/sonner";
@@ -33,9 +33,13 @@ const notoBengali = Noto_Sans_Bengali({
   display: "swap",
 });
 
-const notoArabic = Noto_Sans_Arabic({
-  subsets: ["arabic"],
-  weight: ["400", "600", "700"],
+/** Bundled because Google Fonts sometimes returns Arabic URLs that Turbopack cannot build on Vercel. */
+const notoArabic = localFont({
+  src: [
+    { path: "./fonts/noto-sans-arabic-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/noto-sans-arabic-600.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/noto-sans-arabic-700.woff2", weight: "700", style: "normal" },
+  ],
   variable: "--font-ar",
   display: "swap",
 });
