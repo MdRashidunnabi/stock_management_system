@@ -12,6 +12,7 @@ import {
   getStorefrontShop,
   listSimilarStorefrontProducts,
 } from "@/lib/storefront/queries";
+import { isPackSize, shopUnitLabel } from "@/lib/units";
 
 export async function generateMetadata({
   params,
@@ -36,6 +37,7 @@ export default async function ShopProductPage({
   const product = await getStorefrontProduct(shop, productId);
   if (!product) notFound();
   const similar = await listSimilarStorefrontProducts(shop, product);
+  const unitLabel = shopUnitLabel(product.unit);
 
   return (
     <div className="space-y-6">
@@ -76,6 +78,11 @@ export default async function ShopProductPage({
             </p>
           ) : null}
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{product.name}</h1>
+          {unitLabel ? (
+            <p className="text-muted-foreground text-sm">
+              {isPackSize(product.unit) ? `Pack size: ${unitLabel}` : `Price ${unitLabel}`}
+            </p>
+          ) : null}
           {product.sku ? (
             <p className="text-muted-foreground font-mono text-xs">{product.sku}</p>
           ) : null}

@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getSafeActionData, getSafeActionError } from "@/lib/parse-safe-action-result";
+import { qtyUnitLabel } from "@/lib/units";
 import { cn, formatMoney } from "@/lib/utils";
 import {
   commitPosSaleAction,
@@ -829,7 +830,7 @@ export function PosTerminal({
                     </span>
                     <span className="text-foreground font-semibold">{money(p.selling_price)}</span>
                     <span className="text-muted-foreground text-xs">
-                      {p.available} {p.base_unit} in stock
+                      {p.available} {qtyUnitLabel(p.base_unit)} in stock
                     </span>
                   </span>
                 </button>

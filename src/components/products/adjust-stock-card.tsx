@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { getSafeActionData, getSafeActionError } from "@/lib/parse-safe-action-result";
 import { adjustStockAction } from "@/lib/inventory/actions";
 import type { ProductBranchStockRow } from "@/lib/inventory/schemas";
+import { isPackSize, qtyUnitLabel } from "@/lib/units";
 
 interface Props {
   productId: string;
@@ -38,6 +39,8 @@ export function AdjustStockCard({
   const [newQuantity, setNewQuantity] = useState(() => String(branchStock[0]?.availableQty ?? ""));
   const [delta, setDelta] = useState("");
   const [reason, setReason] = useState("");
+  const unit = qtyUnitLabel(baseUnit);
+  const countLabel = isPackSize(baseUnit) ? `packs of ${baseUnit}` : baseUnit;
 
   useEffect(() => {
     queueMicrotask(() => setRows(branchStock));
@@ -58,7 +61,7 @@ export function AdjustStockCard({
         return;
       }
       if (Math.abs(target - currentQty) < 0.0001) {
-        toast.message(`Already ${formatQty(currentQty)} ${baseUnit} at this branch.`);
+        toast.message(`Already ${formatQty(currentQty)} ${unit} at this branch.`);
         return;
       }
     } else {
@@ -100,7 +103,7 @@ export function AdjustStockCard({
         setDelta("");
         setReason("");
         toast.success(
-          `Stock updated: ${formatQty(data.previousQty)} → ${formatQty(data.newQty)} ${baseUnit}`,
+          `Stock updated: ${formatQty(data.previousQty)} → ${formatQty(data.newQty)} ${unit}`,
         );
         router.refresh();
       }
@@ -127,7 +130,7 @@ export function AdjustStockCard({
                     {b.branchCode} · {b.branchName}
                   </span>
                   <span className="font-mono font-medium">
-                    {formatQty(b.availableQty)} {baseUnit}
+                    {formatQty(b.availableQty)} {unit}
                   </span>
                 </li>
               ))}
@@ -177,7 +180,7 @@ export function AdjustStockCard({
           >
             {rows.map((b) => (
               <option key={b.branchId} value={b.branchId}>
-                {b.branchCode} — {b.branchName} (now {formatQty(b.availableQty)} {baseUnit})
+                {b.branchCode} — {b.branchName} (now {formatQty(b.availableQty)} {unit})
               </option>
             ))}
           </select>
@@ -187,7 +190,7 @@ export function AdjustStockCard({
           <p className="text-muted-foreground text-xs">
             Current available:{" "}
             <span className="text-foreground font-mono font-medium">
-              {formatQty(selected.availableQty)} {baseUnit}
+              {formatQty(selected.availableQty)} {unit}
             </span>
           </p>
         ) : null}
@@ -218,7 +221,7 @@ export function AdjustStockCard({
 
         {mode === "set" ? (
           <div className="space-y-2">
-            <Label htmlFor="adj-new-qty">New quantity ({baseUnit})</Label>
+            <Label htmlFor="adj-new-qty">New quantity ({countLabel})</Label>
             <Input
               id="adj-new-qty"
               type="number"
@@ -231,7 +234,7 @@ export function AdjustStockCard({
           </div>
         ) : (
           <div className="space-y-2">
-            <Label htmlFor="adj-delta">Change (+/− {baseUnit})</Label>
+            <Label htmlFor="adj-delta">Change (+/− {countLabel})</Label>
             <Input
               id="adj-delta"
               type="number"

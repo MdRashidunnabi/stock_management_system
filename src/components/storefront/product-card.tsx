@@ -9,6 +9,7 @@ import { StockBadge } from "@/components/storefront/stock-badge";
 import { useCart } from "@/components/storefront/cart-context";
 import { isCounterProduct } from "@/lib/storefront/cuts";
 import type { StorefrontProduct } from "@/lib/storefront/queries";
+import { shopUnitLabel } from "@/lib/units";
 
 interface Props {
   shopSlug: string;
@@ -23,6 +24,7 @@ export function ProductCard({ shopSlug, product }: Props) {
   const canBuy = product.stock.canAddToCart && (counter || max > 0);
   const cartQty = lines.find((l) => l.productId === product.id)?.qty ?? 0;
   const displayQty = canBuy ? (cartQty > 0 ? cartQty : 0) : 0;
+  const unitLabel = shopUnitLabel(product.unit);
 
   function updateQty(next: number) {
     if (!canBuy) return;
@@ -70,6 +72,7 @@ export function ProductCard({ shopSlug, product }: Props) {
         <Link href={href} className="hover:text-primary">
           <h3 className="line-clamp-2 text-sm leading-snug font-semibold">{product.name}</h3>
         </Link>
+        {unitLabel ? <p className="text-muted-foreground text-xs">{unitLabel}</p> : null}
 
         <OnlinePrice
           pricing={{

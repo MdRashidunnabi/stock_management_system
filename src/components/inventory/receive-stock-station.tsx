@@ -16,6 +16,7 @@ import { getSafeActionData, getSafeActionError } from "@/lib/parse-safe-action-r
 import { playScanTone } from "@/lib/pos/scan-tone";
 import { entityIdSchema } from "@/lib/entity-id";
 import type { ProductSearchResult } from "@/lib/pos/schemas";
+import { qtyUnitLabel } from "@/lib/units";
 import { cn } from "@/lib/utils";
 
 interface BranchOption {
@@ -128,7 +129,9 @@ export function ReceiveStockStation({ branches, defaultBranchId }: Props) {
       const data = getSafeActionData<{ ok: true; previousQty: number; newQty: number }>(res);
       if (!data) return;
       playScanTone(true);
-      toast.success(`Added ${formatQty(addQty)} ${p.base_unit} · now ${formatQty(data.newQty)}`);
+      toast.success(
+        `Added ${formatQty(addQty)} ${qtyUnitLabel(p.base_unit)} · now ${formatQty(data.newQty)}`,
+      );
       setLog((prev) =>
         [
           {
@@ -246,7 +249,7 @@ export function ReceiveStockStation({ branches, defaultBranchId }: Props) {
               <li key={line.at} className="px-4 py-3">
                 <p className="font-medium">{line.name}</p>
                 <p className="text-muted-foreground text-xs tabular-nums">
-                  +{formatQty(line.qty)} {line.unit} · {formatQty(line.previousQty)} →{" "}
+                  +{formatQty(line.qty)} {qtyUnitLabel(line.unit)} · {formatQty(line.previousQty)} →{" "}
                   {formatQty(line.newQty)}
                 </p>
               </li>
@@ -298,7 +301,7 @@ function QtyPad({
             <p className="mt-2 text-sm">
               On hand{" "}
               <span className="font-semibold tabular-nums">
-                {formatQty(product.available)} {product.base_unit}
+                {formatQty(product.available)} {qtyUnitLabel(product.base_unit)}
               </span>
             </p>
           </div>
@@ -310,7 +313,9 @@ function QtyPad({
           </p>
           <p className="mt-1 text-5xl font-semibold tracking-tight tabular-nums">
             {qtyBuffer || "0"}{" "}
-            <span className="text-muted-foreground text-lg font-medium">{product.base_unit}</span>
+            <span className="text-muted-foreground text-lg font-medium">
+              {qtyUnitLabel(product.base_unit)}
+            </span>
           </p>
         </div>
 

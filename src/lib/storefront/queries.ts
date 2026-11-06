@@ -63,6 +63,8 @@ export interface StorefrontProduct {
   name: string;
   sku: string | null;
   barcode: string | null;
+  /** Pack size such as "400g", or "kg" for goods sold by weight. */
+  unit: string;
   /** In-store POS price (not shown on shop when online pricing is used). */
   sellingPrice: number;
   /** Customer-facing online price (after discount). */
@@ -81,8 +83,8 @@ export interface StorefrontProduct {
 }
 
 const PRODUCT_SELECT = `
-  id, name, sku, barcode, selling_price, online_selling_price, online_discount_pct, primary_image_url,
-  category_id, brand_id,
+  id, name, sku, barcode, base_unit, selling_price, online_selling_price, online_discount_pct,
+  primary_image_url, category_id, brand_id,
   categories ( id, name, slug ),
   brands ( id, name, slug )
 `;
@@ -296,6 +298,7 @@ async function attachStock(
     name: string;
     sku: string | null;
     barcode: string | null;
+    base_unit: string | null;
     selling_price: number | string | null;
     online_selling_price: number | string | null;
     online_discount_pct: number | string | null;
@@ -349,6 +352,7 @@ async function attachStock(
       name: r.name,
       sku: r.sku,
       barcode: r.barcode ?? null,
+      unit: r.base_unit ?? "un",
       sellingPrice,
       onlinePrice: online.price,
       compareAtPrice: online.compareAtPrice,

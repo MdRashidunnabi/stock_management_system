@@ -16,6 +16,7 @@ import {
 import { listLookupsForProductForm, listProducts } from "@/lib/catalog/products/actions";
 import { requireRole } from "@/lib/auth/tenant";
 import { listBranchesForCurrentTenant } from "@/lib/pos/actions";
+import { qtyUnitLabel } from "@/lib/units";
 import { cn, formatMoney } from "@/lib/utils";
 
 export const metadata = { title: "Products - ShopOS" };
@@ -33,8 +34,8 @@ interface SearchParams {
 function formatAvailableQty(qty: number, unit: string): string {
   const n = Number(qty);
   if (!Number.isFinite(n)) return "—";
-  if (Math.abs(n - Math.round(n)) < 0.0001) return `${Math.round(n)} ${unit}`;
-  return `${n.toFixed(2)} ${unit}`;
+  if (Math.abs(n - Math.round(n)) < 0.0001) return `${Math.round(n)} ${qtyUnitLabel(unit)}`;
+  return `${n.toFixed(2)} ${qtyUnitLabel(unit)}`;
 }
 
 export default async function ProductsPage({
