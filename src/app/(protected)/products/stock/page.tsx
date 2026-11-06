@@ -24,7 +24,7 @@ export default async function StockListPage({
   const sp = await searchParams;
   const branches = await listBranchesForCurrentTenant();
   const branch = branches.find((row) => row.id === sp.branch) ?? branches[0] ?? null;
-  const rows = await listStockForExport(branch?.id ?? null);
+  const rows = await listStockForExport({ branchId: branch?.id ?? null });
   const headers = ["Name", "SKU", "Barcode", "Category", "Supplier", "On hand", "Unit", "Price"];
   const csvRows = rows.map((row) => [
     row.name,

@@ -242,7 +242,7 @@ export async function listStorefrontCategories(
       position: c.position ?? 0,
       productCount: counts.get(c.id) ?? 0,
     }))
-    .filter((c) => c.productCount > 0);
+    .filter((c) => c.productCount > 0 && c.slug !== "miscellaneous" && c.slug !== "unmatched");
 }
 
 export async function listStorefrontBrands(shop: StorefrontShop): Promise<StorefrontBrand[]> {

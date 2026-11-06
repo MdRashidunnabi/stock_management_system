@@ -82,10 +82,12 @@ export async function listProducts(args: ListProductsArgs = {}) {
   };
 }
 
-export async function listStockForExport(branchId: string | null) {
+export async function listStockForExport(
+  filters: Omit<ListProductsArgs, "page" | "pageSize"> = {},
+) {
   const rows: ProductListRow[] = [];
   for (let page = 1; page <= 40; page += 1) {
-    const batch = await listProducts({ status: "active", page, pageSize: 250, branchId });
+    const batch = await listProducts({ status: "active", ...filters, page, pageSize: 250 });
     rows.push(...batch.rows);
     if (rows.length >= batch.total || batch.rows.length === 0) break;
   }

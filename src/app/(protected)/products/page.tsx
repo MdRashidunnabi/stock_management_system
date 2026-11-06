@@ -85,6 +85,7 @@ export default async function ProductsPage({
     const qs = params.toString();
     return qs ? `/products?${qs}` : "/products";
   };
+  const exportHref = buildHref({ page: undefined }).replace(/^\/products/, "/products/export");
 
   return (
     <div className="space-y-6">
@@ -220,11 +221,21 @@ export default async function ProductsPage({
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Results ({total})</CardTitle>
-          <CardDescription>
-            Page {page} of {totalPages} - {pageSize} per page.
-          </CardDescription>
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1.5">
+            <CardTitle>Results ({total})</CardTitle>
+            <CardDescription>
+              Page {page} of {totalPages} - {pageSize} per page.
+            </CardDescription>
+          </div>
+          {total > 0 ? (
+            <Button asChild variant="outline" size="sm">
+              <a href={exportHref} download>
+                <Download className="size-4" />
+                Download CSV ({total})
+              </a>
+            </Button>
+          ) : null}
         </CardHeader>
         <CardContent className="p-0">
           {rows.length === 0 ? (

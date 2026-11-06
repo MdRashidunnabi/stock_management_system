@@ -72,7 +72,9 @@ export const WEIGHTS_KG = [0.5, 0.75, 1, 1.5, 2] as const;
 
 /** Whole fish is priced after it is weighed. The amount on screen is an estimate. */
 export function isWholeFishCut(label: string | null | undefined): boolean {
-  return /^\s*whole\b/i.test(label || "");
+  const text = label || "";
+  if (/\b(chicken|bird|lamb|beef|mutton|goat)\b/i.test(text)) return false;
+  return /^\s*whole\b/i.test(text);
 }
 
 type CounterRow = { k?: string; s?: string; c?: string };
