@@ -16,7 +16,6 @@ import {
 import { listLookupsForProductForm, listProducts } from "@/lib/catalog/products/actions";
 import { requireRole } from "@/lib/auth/tenant";
 import { listBranchesForCurrentTenant } from "@/lib/pos/actions";
-import { qtyUnitLabel } from "@/lib/units";
 import { cn, formatMoney } from "@/lib/utils";
 
 export const metadata = { title: "Products - ShopOS" };
@@ -31,11 +30,11 @@ interface SearchParams {
   page?: string;
 }
 
-function formatAvailableQty(qty: number, unit: string): string {
+function formatQty(qty: number): string {
   const n = Number(qty);
   if (!Number.isFinite(n)) return "—";
-  if (Math.abs(n - Math.round(n)) < 0.0001) return `${Math.round(n)} ${qtyUnitLabel(unit)}`;
-  return `${n.toFixed(2)} ${qtyUnitLabel(unit)}`;
+  if (Math.abs(n - Math.round(n)) < 0.0001) return String(Math.round(n));
+  return n.toFixed(2);
 }
 
 export default async function ProductsPage({
@@ -252,7 +251,8 @@ export default async function ProductsPage({
                   <TableHead>Category</TableHead>
                   <TableHead>Brand</TableHead>
                   <TableHead>Supplier</TableHead>
-                  <TableHead className="text-right">Available</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead className="text-right">Quantity</TableHead>
                   <TableHead className="text-right">Cost</TableHead>
                   <TableHead className="text-right">Sell</TableHead>
                   <TableHead className="text-center">VAT</TableHead>
@@ -278,7 +278,6 @@ export default async function ProductsPage({
                       <Link href={`/products/${p.id}`} className="hover:underline">
                         {p.name}
                       </Link>
-                      <div className="text-muted-foreground text-xs">{p.base_unit}</div>
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {p.sku ?? <span className="text-muted-foreground">-</span>}
@@ -295,6 +294,7 @@ export default async function ProductsPage({
                     <TableCell className="text-sm">
                       {p.supplier?.name ?? <span className="text-muted-foreground">-</span>}
                     </TableCell>
+                    <TableCell className="text-sm">{p.base_unit}</TableCell>
                     <TableCell className="text-right font-mono text-xs">
                       {p.available_qty === null ? (
                         <span className="text-muted-foreground">—</span>
@@ -308,7 +308,7 @@ export default async function ProductsPage({
                                 : undefined,
                           )}
                         >
-                          {formatAvailableQty(p.available_qty, p.base_unit)}
+                          {formatQty(p.available_qty)}
                         </span>
                       )}
                     </TableCell>

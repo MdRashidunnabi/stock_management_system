@@ -9,9 +9,11 @@ export function qtyUnitLabel(unit: string | null | undefined): string {
   return isPackSize(u) ? `× ${u}` : u;
 }
 
-/** Shown to shoppers beside the price. Nothing for plain "each" items. */
-export function shopUnitLabel(unit: string | null | undefined): string | null {
+/** Shown to shoppers beside the price. Nothing for plain "each" items or when the name has the size. */
+export function shopUnitLabel(unit: string | null | undefined, name?: string): string | null {
   const u = (unit ?? "").trim();
   if (!u || ["un", "ea", "each"].includes(u.toLowerCase())) return null;
-  return isPackSize(u) ? u : `per ${u}`;
+  if (!isPackSize(u)) return `per ${u}`;
+  const squash = (s: string) => s.toLowerCase().replace(/\s+/g, "");
+  return name && squash(name).includes(squash(u)) ? null : u;
 }

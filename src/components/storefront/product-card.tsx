@@ -24,7 +24,7 @@ export function ProductCard({ shopSlug, product }: Props) {
   const canBuy = product.stock.canAddToCart && (counter || max > 0);
   const cartQty = lines.find((l) => l.productId === product.id)?.qty ?? 0;
   const displayQty = canBuy ? (cartQty > 0 ? cartQty : 0) : 0;
-  const unitLabel = shopUnitLabel(product.unit);
+  const unitLabel = shopUnitLabel(product.unit, product.name);
 
   function updateQty(next: number) {
     if (!canBuy) return;
