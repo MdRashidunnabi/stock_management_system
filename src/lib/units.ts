@@ -15,11 +15,13 @@ export function qtyUnitLabel(unit: string | null | undefined): string {
   return isPackSize(u) ? `× ${u}` : u;
 }
 
-/** Shown to shoppers beside the price. Nothing for plain "each" items or when the name has the size. */
+const MEASURES = ["kg", "g", "lb", "l", "ml", "cl"];
+
+/** Shown to shoppers beside the price. Nothing for counted items (pcs, pack, box) or when the name has the size. */
 export function shopUnitLabel(unit: string | null | undefined, name?: string): string | null {
   const u = (unit ?? "").trim();
-  if (!u || ["un", "ea", "each"].includes(u.toLowerCase())) return null;
-  if (!isPackSize(u)) return `per ${u}`;
+  if (!u) return null;
+  if (!isPackSize(u)) return MEASURES.includes(u.toLowerCase()) ? `per ${u}` : null;
   const squash = (s: string) => s.toLowerCase().replace(/\s+/g, "");
   return name && squash(name).includes(squash(u)) ? null : u;
 }
