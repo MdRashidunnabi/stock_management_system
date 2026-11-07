@@ -24,6 +24,15 @@ import {
   withVoucherNote,
 } from "@/lib/vouchers/note";
 import { earnedFromTiers, eligibleSpend, readPosVoucherSettings } from "@/lib/vouchers/rules";
+import {
+  applyPooledStock,
+  borrowForCuts,
+  cutsAlreadyMoved,
+  loadStockLinks,
+  sourcesOf,
+  syncCutCosts,
+  withoutStockPools,
+} from "@/lib/inventory/stock-pools";
 
 const POS_ROLES = ["owner", "manager", "cashier", "warehouse", "accountant"] as const;
 
@@ -54,21 +63,22 @@ export const searchProductsForPos = staffActionClient([...POS_ROLES])
       query: z.string().min(1).max(120),
     }),
   )
-  .action(async ({ parsedInput }): Promise<{ ok: true; rows: ProductSearchResult[] }> => {
+  .action(async ({ parsedInput, ctx }): Promise<{ ok: true; rows: ProductSearchResult[] }> => {
     const supabase = await createClient();
     const q = parsedInput.query.trim();
 
-    const { data: prods, error } = await supabase
+    const { data, error } = await supabase
       .from("products")
       .select(
-        "id, name, primary_image_url, sku, barcode, base_unit, selling_price, vat_code, vat_included, is_active",
+        "id, name, primary_image_url, sku, barcode, base_unit, selling_price, vat_code, vat_included, is_active, unit_conversions",
       )
       .eq("is_active", true)
       .or(productTextSearchOrFilter(q))
       .limit(20);
     if (error) throw new ActionError(error.message);
 
-    const ids = (prods ?? []).map((p) => p.id);
+    const prods = withoutStockPools(data ?? []);
+    const ids = prods.map((p) => p.id);
     if (ids.length === 0) return { ok: true, rows: [] };
 
     // pull branch-level available balance for these products
@@ -81,9 +91,15 @@ export const searchProductsForPos = staffActionClient([...POS_ROLES])
     if (bErr) throw new ActionError(bErr.message);
     const byProduct = new Map<string, number>();
     for (const b of balances ?? []) byProduct.set(b.product_id, Number(b.quantity ?? 0));
+    await applyPooledStock(
+      supabase,
+      { tenantId: ctx.tenant.tenantId, branchId: parsedInput.branchId },
+      prods,
+      byProduct,
+    );
 
     // exact-barcode match first, then exact-sku, then alpha
-    const rows: ProductSearchResult[] = (prods ?? []).map((p) => ({
+    const rows: ProductSearchResult[] = prods.map((p) => ({
       id: p.id,
       name: p.name,
       primary_image_url: p.primary_image_url ?? null,
@@ -132,19 +148,20 @@ export const listPosCategoryProducts = staffActionClient([...POS_ROLES])
       categoryId: entityIdSchema,
     }),
   )
-  .action(async ({ parsedInput }): Promise<{ ok: true; rows: ProductSearchResult[] }> => {
+  .action(async ({ parsedInput, ctx }): Promise<{ ok: true; rows: ProductSearchResult[] }> => {
     const supabase = await createClient();
-    const { data: prods, error } = await supabase
+    const { data, error } = await supabase
       .from("products")
       .select(
-        "id, name, primary_image_url, sku, barcode, base_unit, selling_price, vat_code, vat_included, is_active",
+        "id, name, primary_image_url, sku, barcode, base_unit, selling_price, vat_code, vat_included, is_active, unit_conversions",
       )
       .eq("is_active", true)
       .eq("category_id", parsedInput.categoryId)
       .order("name", { ascending: true })
       .limit(800);
     if (error) throw new ActionError(error.message);
-    const ids = (prods ?? []).map((p) => p.id);
+    const prods = withoutStockPools(data ?? []);
+    const ids = prods.map((p) => p.id);
     const byProduct = new Map<string, number>();
     for (let i = 0; i < ids.length; i += 150) {
       const slice = ids.slice(i, i + 150);
@@ -157,7 +174,13 @@ export const listPosCategoryProducts = staffActionClient([...POS_ROLES])
       if (bErr) throw new ActionError(bErr.message);
       for (const b of balances ?? []) byProduct.set(b.product_id, Number(b.quantity ?? 0));
     }
-    const rows: ProductSearchResult[] = (prods ?? []).map((p) => ({
+    await applyPooledStock(
+      supabase,
+      { tenantId: ctx.tenant.tenantId, branchId: parsedInput.branchId },
+      prods,
+      byProduct,
+    );
+    const rows: ProductSearchResult[] = prods.map((p) => ({
       id: p.id,
       name: p.name,
       primary_image_url: p.primary_image_url ?? null,
@@ -267,6 +290,14 @@ export const commitPosSaleAction = staffActionClient([...POS_ROLES])
       throw new ActionError("That discount is larger than this voucher.");
     }
 
+    const admin = createAdminClient();
+    const cutLinks = await loadStockLinks(
+      admin,
+      ctx.tenant.tenantId,
+      parsedInput.items.map((i) => i.productId),
+    );
+    if (cutLinks.size > 0) await syncCutCosts(admin, ctx.tenant.tenantId, sourcesOf(cutLinks));
+
     if (scanned && !(await claimPosVoucher(scanned))) {
       throw new ActionError("That voucher was just used.");
     }
@@ -299,6 +330,27 @@ export const commitPosSaleAction = staffActionClient([...POS_ROLES])
     if (error) {
       if (scanned) await releasePosVoucher(scanned);
       throw new ActionError(friendlyRpcError(error));
+    }
+
+    if (cutLinks.size > 0) {
+      try {
+        if (!(await cutsAlreadyMoved(admin, ctx.tenant.tenantId, data.sale_id))) {
+          await borrowForCuts(
+            admin,
+            { tenantId: ctx.tenant.tenantId, branchId: parsedInput.branchId },
+            parsedInput.items.map((i) => ({ productId: i.productId, qty: i.qty })),
+            cutLinks,
+            {
+              referenceType: "sale",
+              referenceId: data.sale_id,
+              userId: ctx.user.id,
+              note: `Cut for till sale ${data.receipt_number}`,
+            },
+          );
+        }
+      } catch (err) {
+        console.error("pos.commitSale: cut stock not moved", data.sale_id, err);
+      }
     }
 
     const voucher = await issueTillVoucher({

@@ -279,6 +279,11 @@ export default async function ProductsPage({
                       <Link href={`/products/${p.id}`} className="hover:underline">
                         {p.name}
                       </Link>
+                      {p.stock_note ? (
+                        <div className="text-muted-foreground text-xs font-normal">
+                          {p.stock_note}
+                        </div>
+                      ) : null}
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {p.sku ?? <span className="text-muted-foreground">-</span>}

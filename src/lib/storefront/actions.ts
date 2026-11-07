@@ -12,6 +12,15 @@ import { deliveryAreasFromNotes } from "@/lib/storefront/delivery";
 import { isWholeFishCut } from "@/lib/storefront/cuts";
 import { computeOnlinePriceDisplay } from "@/lib/storefront/pricing";
 import { createStripeCheckout, readShopStripe } from "@/lib/storefront/stripe-shop";
+import {
+  borrowForCuts,
+  loadStockLinks,
+  onlineStockBranch,
+  returnToSource,
+  sourcesOf,
+  syncCutCosts,
+  type CutMove,
+} from "@/lib/inventory/stock-pools";
 import { env } from "@/lib/env";
 
 export type PlaceOrderResult =
@@ -212,7 +221,7 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
   const admin = createAdminClient();
   const { data: shopTenant } = await admin
     .from("tenants")
-    .select("notes")
+    .select("id, notes")
     .eq("slug", shopKey)
     .maybeSingle();
   const stripeKeys = paymentMethod === "online_card" ? readShopStripe(shopTenant?.notes) : null;
@@ -240,6 +249,8 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
     }
   }
 
+  const cuts = shopTenant ? await prepareOnlineCuts(admin, shopTenant.id, items, clientUuid) : null;
+
   const { data, error } = await admin.rpc("commit_online_order", {
     p_tenant_slug: shopKey,
     p_items: items.map((i) => ({
@@ -262,6 +273,7 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
     p_client_uuid: clientUuid ?? undefined,
   });
 
+  if (error && cuts) await cuts.undo();
   if (error) {
     const msg = error.message;
     if (msg.includes("insufficient stock")) {
@@ -452,6 +464,59 @@ export async function placeOnlineOrderAction(input: unknown): Promise<PlaceOrder
     voucherWarning,
     checkoutUrl,
   };
+}
+
+/**
+ * Cuts such as beef mince hold no stock, so the weight ordered is moved in
+ * from the whole beef or lamb first. `undo` puts it back if the order fails.
+ */
+async function prepareOnlineCuts(
+  admin: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+  items: { productId: string; qty: number }[],
+  clientUuid: string | undefined,
+) {
+  try {
+    const links = await loadStockLinks(
+      admin,
+      tenantId,
+      items.map((i) => i.productId),
+    );
+    if (links.size === 0) return null;
+    const branchId = await onlineStockBranch(admin, tenantId);
+    if (!branchId) return null;
+    if (clientUuid) {
+      const { data: seen } = await admin
+        .from("idempotency_keys")
+        .select("key")
+        .eq("tenant_id", tenantId)
+        .eq("key", `online:${clientUuid}`)
+        .maybeSingle();
+      if (seen) return null;
+    }
+    await syncCutCosts(admin, tenantId, sourcesOf(links));
+    const place = { tenantId, branchId };
+    const moved: CutMove[] = await borrowForCuts(admin, place, items, links, {
+      referenceType: "online_order",
+      note: "Cut for online order",
+      cover: true,
+    });
+    return {
+      undo: async () => {
+        try {
+          await returnToSource(admin, place, moved, links, {
+            referenceType: "online_order",
+            note: "Online order not placed",
+          });
+        } catch (err) {
+          console.error("storefront.checkout: cut stock not returned", err);
+        }
+      },
+    };
+  } catch (err) {
+    console.error("storefront.checkout: cut stock not prepared", err);
+    return null;
+  }
 }
 
 async function estimateOnlineProducts(

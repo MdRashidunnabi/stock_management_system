@@ -6,7 +6,7 @@ import { ProductForm } from "@/components/products/product-form";
 import { getProduct, listLookupsForProductForm } from "@/lib/catalog/products/actions";
 import { requireRole } from "@/lib/auth/tenant";
 import { getStorefrontSettingsForTenant } from "@/lib/storefront/settings-queries";
-import { getProductStockByBranch } from "@/lib/inventory/actions";
+import { getProductStockByBranch, getStockPoolInfo } from "@/lib/inventory/actions";
 
 export const metadata = { title: "Edit product - ShopOS" };
 
@@ -19,11 +19,12 @@ export default async function EditProductPage({ params }: Props) {
   const tenant = await requireRole(["owner", "manager", "warehouse"]);
   const canWrite = ["owner", "manager", "warehouse"].includes(tenant.role);
 
-  const [product, lookups, branchStock, storefront] = await Promise.all([
+  const [product, lookups, branchStock, storefront, pool] = await Promise.all([
     getProduct(id),
     listLookupsForProductForm(),
     getProductStockByBranch(id),
     getStorefrontSettingsForTenant(tenant.tenantId),
+    getStockPoolInfo(id),
   ]);
   if (!product) notFound();
 
@@ -44,6 +45,34 @@ export default async function EditProductPage({ params }: Props) {
           {product.is_active ? "Active product" : "Archived product"}
         </p>
       </header>
+
+      {pool?.kind === "cut" ? (
+        <p className="bg-muted/50 rounded-md border px-4 py-3 text-sm">
+          This cut has no stock of its own. Every sale takes the weight off{" "}
+          <Link href={`/products/${pool.source.id}`} className="font-medium underline">
+            {pool.source.name}
+          </Link>
+          , and its cost per kg is that item&apos;s cost. Buy and count stock on that item.
+        </p>
+      ) : null}
+      {pool?.kind === "pool" ? (
+        <div className="bg-muted/50 space-y-2 rounded-md border px-4 py-3 text-sm">
+          <p>
+            Buy this item from the supplier. It is not sold itself: these cuts sell from its stock,
+            and each costs this item&apos;s price per kg.
+          </p>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1">
+            {pool.cuts.map((cut) => (
+              <li key={cut.id}>
+                <Link href={`/products/${cut.id}`} className="underline">
+                  {cut.name}
+                </Link>
+                {cut.sku ? <span className="text-muted-foreground"> ({cut.sku})</span> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <AdjustStockCard
         key={`${product.id}-${branchStock.map((b) => `${b.branchId}:${b.availableQty}`).join("|")}`}

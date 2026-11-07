@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ActionError, staffActionClient } from "@/lib/safe-action";
 import { refundStripeOrder } from "@/lib/storefront/stripe-shop";
 import { makeVoucherCode, parseVoucherNote, withVoucherNote } from "@/lib/vouchers/note";
+import { borrowForCuts, loadStockLinks, returnToSource } from "@/lib/inventory/stock-pools";
 
 const OPS_ROLES = ["owner", "manager", "cashier", "warehouse", "delivery"] as const;
 
@@ -103,10 +104,25 @@ export const resolveOnlineOrderLineAction = staffActionClient([...OPS_ROLES])
       substituteProductId: entityIdSchema.optional(),
     }),
   )
-  .action(async ({ parsedInput }) => {
+  .action(async ({ parsedInput, ctx }) => {
     if (parsedInput.action === "substitute" && !parsedInput.substituteProductId) {
       throw new ActionError("Pick a similar product to send instead.");
     }
+    const admin = createAdminClient();
+    const [{ data: line }, { data: order }] = await Promise.all([
+      admin
+        .from("online_order_items")
+        .select("product_id, quantity")
+        .eq("id", parsedInput.itemId)
+        .eq("tenant_id", ctx.tenant.tenantId)
+        .maybeSingle(),
+      admin
+        .from("online_orders")
+        .select("branch_id")
+        .eq("id", parsedInput.orderId)
+        .eq("tenant_id", ctx.tenant.tenantId)
+        .maybeSingle(),
+    ]);
     const refundedToCard =
       parsedInput.action === "omit"
         ? await refundOmittedLine(parsedInput.orderId, parsedInput.itemId)
@@ -118,6 +134,17 @@ export const resolveOnlineOrderLineAction = staffActionClient([...OPS_ROLES])
       p_substitute_product_id: parsedInput.substituteProductId ?? null,
     });
     if (error) throw new ActionError(friendlyOpsError(error.message));
+    if (line && order) {
+      await moveResolvedCuts(admin, {
+        tenantId: ctx.tenant.tenantId,
+        branchId: order.branch_id,
+        orderId: parsedInput.orderId,
+        userId: ctx.user.id,
+        returnedId: line.product_id,
+        sentId: parsedInput.action === "substitute" ? parsedInput.substituteProductId : undefined,
+        qty: Number(line.quantity ?? 0),
+      });
+    }
     revalidatePath("/online-orders");
     revalidatePath(`/online-orders/${parsedInput.orderId}`);
     revalidatePath("/sales");
@@ -196,6 +223,45 @@ async function refundOmittedLine(orderId: string, itemId: string) {
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/** A cut that came back goes onto the whole beef or lamb; a cut sent instead comes off it. */
+async function moveResolvedCuts(
+  admin: ReturnType<typeof createAdminClient>,
+  input: {
+    tenantId: string;
+    branchId: string;
+    orderId: string;
+    userId: string;
+    returnedId: string;
+    sentId?: string;
+    qty: number;
+  },
+) {
+  if (!(input.qty > 0)) return;
+  try {
+    const ids = [input.returnedId, ...(input.sentId ? [input.sentId] : [])];
+    const links = await loadStockLinks(admin, input.tenantId, ids);
+    if (links.size === 0) return;
+    const place = { tenantId: input.tenantId, branchId: input.branchId };
+    const opts = {
+      referenceType: "online_order",
+      referenceId: input.orderId,
+      userId: input.userId,
+    };
+    await returnToSource(admin, place, [{ cutId: input.returnedId, qty: input.qty }], links, {
+      ...opts,
+      note: "Cut not sent, back to stock",
+    });
+    if (input.sentId) {
+      await borrowForCuts(admin, place, [{ productId: input.sentId, qty: input.qty }], links, {
+        ...opts,
+        note: "Cut sent instead",
+      });
+    }
+  } catch (err) {
+    console.error("online.resolveLine: cut stock not moved", input.orderId, err);
+  }
 }
 
 async function issueVoucherFromNotes(orderId: string) {

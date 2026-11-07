@@ -12,6 +12,8 @@ import { computeOnlinePriceDisplay } from "@/lib/storefront/pricing";
 import { getStockDisplay, type StockDisplay } from "@/lib/storefront/stock-display";
 import { parseShopTemplateId, type ShopTemplateId } from "@/lib/storefront/templates";
 import { productNameSkuOrFilter } from "@/lib/security/postgrest-filter";
+import { applyPooledStock } from "@/lib/inventory/stock-pools";
+import type { Json } from "@/lib/supabase/types";
 
 export interface StorefrontShop {
   tenantId: string;
@@ -84,7 +86,7 @@ export interface StorefrontProduct {
 
 const PRODUCT_SELECT = `
   id, name, sku, barcode, base_unit, selling_price, online_selling_price, online_discount_pct,
-  primary_image_url, category_id, brand_id,
+  primary_image_url, category_id, brand_id, unit_conversions,
   categories ( id, name, slug ),
   brands ( id, name, slug )
 `;
@@ -305,6 +307,7 @@ async function attachStock(
     primary_image_url: string | null;
     category_id: string | null;
     brand_id: string | null;
+    unit_conversions?: Json | null;
     categories:
       | { id: string; name: string; slug: string }
       | { id: string; name: string; slug: string }[]
@@ -332,6 +335,12 @@ async function attachStock(
   for (const b of balances ?? []) {
     byProduct.set(b.product_id, Number(b.quantity ?? 0));
   }
+  await applyPooledStock(
+    admin,
+    { tenantId: shop.tenantId, branchId: shop.branchId },
+    rows,
+    byProduct,
+  );
 
   return rows.map((r) => {
     const cat = Array.isArray(r.categories) ? r.categories[0] : r.categories;

@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { ActionError, staffActionClient } from "@/lib/safe-action";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/types";
+import { isStockPool } from "@/lib/inventory/stock-link";
+import { linksFromRows, settlePools, sourcesOf, syncCutCosts } from "@/lib/inventory/stock-pools";
 import {
   createGoodsReceiptSchema,
   finaliseGoodsReceiptSchema,
@@ -49,12 +53,13 @@ export const createGoodsReceiptAction = staffActionClient([...PURCHASE_ROLES])
 export const finaliseGoodsReceiptAction = staffActionClient([...PURCHASE_ROLES])
   .metadata({ actionName: "purchasing.finaliseGoodsReceipt" })
   .inputSchema(finaliseGoodsReceiptSchema)
-  .action(async ({ parsedInput }) => {
+  .action(async ({ parsedInput, ctx }) => {
     const supabase = await createClient();
     const { data, error } = await supabase
       .rpc("finalise_goods_receipt", { p_gr_id: parsedInput.grId })
       .single();
     if (error) throw new ActionError(friendlyError(error));
+    await updateCutsAfterReceipt(parsedInput.grId, ctx.tenant.tenantId, ctx.user.id);
     revalidatePath("/goods-receipts");
     revalidatePath(`/goods-receipts/${parsedInput.grId}`);
     revalidatePath("/purchase-orders");
@@ -175,6 +180,50 @@ export async function getGoodsReceipt(id: string): Promise<GoodsReceiptFullRow |
 }
 
 /* -------------------------------- Helpers -------------------------------- */
+
+/**
+ * A delivery of whole beef or lamb changes its average cost, and the cuts sold
+ * from it cost the same. A cut received by mistake goes onto its purchase product.
+ */
+async function updateCutsAfterReceipt(grId: string, tenantId: string, userId: string) {
+  try {
+    const admin = createAdminClient();
+    const [{ data: gr }, { data: items }] = await Promise.all([
+      admin
+        .from("goods_receipts")
+        .select("branch_id, gr_number")
+        .eq("id", grId)
+        .eq("tenant_id", tenantId)
+        .maybeSingle(),
+      admin
+        .from("goods_receipt_items")
+        .select("product:products(id, unit_conversions)")
+        .eq("goods_receipt_id", grId)
+        .eq("tenant_id", tenantId),
+    ]);
+    if (!gr) return;
+    const products = (items ?? []).flatMap((row) => {
+      const p = row.product as unknown as
+        | { id: string; unit_conversions: Json | null }
+        | { id: string; unit_conversions: Json | null }[]
+        | null;
+      return Array.isArray(p) ? p : p ? [p] : [];
+    });
+    const cuts = linksFromRows(products);
+    const pools = products.filter((p) => isStockPool(p.unit_conversions)).map((p) => p.id);
+    const sources = [...new Set([...pools, ...sourcesOf(cuts)])];
+    if (sources.length === 0) return;
+    await settlePools(admin, { tenantId, branchId: gr.branch_id }, sources, {
+      referenceType: "goods_receipt",
+      referenceId: grId,
+      userId,
+      note: `Cuts onto purchase stock, ${gr.gr_number}`,
+    });
+    await syncCutCosts(admin, tenantId, sources);
+  } catch (err) {
+    console.error("purchasing.finaliseGoodsReceipt: cuts not updated", grId, err);
+  }
+}
 
 function pickOne<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;

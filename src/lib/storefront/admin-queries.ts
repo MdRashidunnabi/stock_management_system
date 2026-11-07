@@ -3,6 +3,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { FulfillmentStage, UnavailablePolicy } from "@/lib/storefront/fulfillment";
+import { applyPooledStock, withoutStockPools } from "@/lib/inventory/stock-pools";
 
 export interface OnlineOrderRow {
   id: string;
@@ -211,7 +212,7 @@ export async function listSubstituteCandidates(
   const supabase = await createClient();
   let q = supabase
     .from("products")
-    .select("id, name, sku, barcode")
+    .select("id, tenant_id, name, sku, barcode, unit_conversions")
     .eq("is_active", true)
     .is("archived_at", null)
     .neq("id", productId)
@@ -220,7 +221,7 @@ export async function listSubstituteCandidates(
   if (categoryId) q = q.eq("category_id", categoryId);
   const { data, error } = await q;
   if (error) throw new Error(error.message);
-  const rows = data ?? [];
+  const rows = withoutStockPools(data ?? []);
   if (rows.length === 0) return [];
 
   const ids = rows.map((r) => r.id);
@@ -235,6 +236,8 @@ export async function listSubstituteCandidates(
   for (const b of balances ?? []) {
     onHand.set(b.product_id, Number(b.quantity ?? 0));
   }
+  const tenantId = rows[0]?.tenant_id;
+  if (tenantId) await applyPooledStock(supabase, { tenantId, branchId }, rows, onHand);
 
   return rows
     .map((r) => ({

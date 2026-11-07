@@ -130,6 +130,8 @@ export interface ProductListRow {
   supplier: { id: string; name: string; code: string | null } | null;
   /** Available quantity at the branch selected on the products list (if any). */
   available_qty: number | null;
+  /** For whole beef or lamb and the cuts that sell from it, e.g. "Stock from Beef (whole)". */
+  stock_note?: string | null;
 }
 
 export interface ProductFullRow {

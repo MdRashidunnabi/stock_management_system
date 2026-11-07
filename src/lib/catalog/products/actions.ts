@@ -2,8 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import type { z } from "zod";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/types";
 import { ActionError, staffActionClient } from "@/lib/safe-action";
+import { isStockPool, stockLink } from "@/lib/inventory/stock-link";
+import { applyPooledStock, syncCutCosts } from "@/lib/inventory/stock-pools";
 import { productTextSearchOrFilter } from "@/lib/security/postgrest-filter";
 import {
   createProductSchema,
@@ -36,8 +40,8 @@ export async function listProducts(args: ListProductsArgs = {}) {
   let query = supabase
     .from(TABLE)
     .select(
-      `id, name, primary_image_url, sku, barcode, base_unit, vat_code, vat_included,
-       purchase_price, selling_price, is_active, archived_at,
+      `id, tenant_id, name, primary_image_url, sku, barcode, base_unit, vat_code, vat_included,
+       purchase_price, selling_price, is_active, archived_at, unit_conversions,
        category:categories(id, name),
        brand:brands(id, name),
        supplier:suppliers!default_supplier_id(id, name, code)`,
@@ -62,17 +66,28 @@ export async function listProducts(args: ListProductsArgs = {}) {
   const { data, error, count } = await query;
   if (error) throw new Error(`Failed to load products: ${error.message}`);
 
-  const baseRows = (data ?? []) as Omit<ProductListRow, "available_qty">[];
+  const fetched = (data ?? []) as (Omit<ProductListRow, "available_qty"> & {
+    tenant_id: string;
+    unit_conversions: Json | null;
+  })[];
   const stockByProduct = await loadAvailableStockByProductId(
     supabase,
     branchId ?? null,
-    baseRows.map((r) => r.id),
+    fetched.map((r) => r.id),
   );
+  const tenantId = fetched[0]?.tenant_id;
+  if (branchId && tenantId) {
+    await applyPooledStock(supabase, { tenantId, branchId }, fetched, stockByProduct);
+  }
+  const notes = await loadStockNotes(supabase, fetched);
 
-  const rows: ProductListRow[] = baseRows.map((r) => ({
-    ...r,
-    available_qty: stockByProduct.get(r.id) ?? (branchId ? 0 : null),
-  }));
+  const rows: ProductListRow[] = fetched.map(
+    ({ tenant_id: _tenant, unit_conversions: _conversions, ...r }) => ({
+      ...r,
+      available_qty: stockByProduct.get(r.id) ?? (branchId ? 0 : null),
+      stock_note: notes.get(r.id) ?? null,
+    }),
+  );
 
   return {
     rows,
@@ -92,6 +107,35 @@ export async function listStockForExport(
     if (rows.length >= batch.total || batch.rows.length === 0) break;
   }
   return rows;
+}
+
+async function loadStockNotes(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: { id: string; tenant_id: string; unit_conversions: Json | null }[],
+): Promise<Map<string, string>> {
+  const notes = new Map<string, string>();
+  const links = rows.flatMap((r) => {
+    const link = stockLink(r.unit_conversions);
+    return link ? [{ id: r.id, from: link.from }] : [];
+  });
+  if (links.length > 0) {
+    const { data } = await supabase
+      .from(TABLE)
+      .select("id, name")
+      .in("id", [...new Set(links.map((l) => l.from))]);
+    const names = new Map((data ?? []).map((p) => [p.id, p.name]));
+    for (const l of links)
+      notes.set(l.id, `Stock from ${names.get(l.from) ?? "its purchase item"}`);
+  }
+  for (const pool of rows.filter((r) => isStockPool(r.unit_conversions))) {
+    const { count } = await supabase
+      .from(TABLE)
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", pool.tenant_id)
+      .contains("unit_conversions", [{ stock_from: pool.id }]);
+    notes.set(pool.id, `Purchase stock · ${count ?? 0} cuts sell from it`);
+  }
+  return notes;
 }
 
 async function loadAvailableStockByProductId(
@@ -184,12 +228,17 @@ export const updateProductAction = staffActionClient([...writableRoles])
   .action(async ({ parsedInput, ctx }) => {
     const supabase = await createClient();
     const { id, ...rest } = parsedInput;
-    const { error } = await supabase
+    const { data: saved, error } = await supabase
       .from(TABLE)
       .update(toRow(ctx.tenant.tenantId, rest))
       .eq("id", id)
-      .eq("tenant_id", ctx.tenant.tenantId);
+      .eq("tenant_id", ctx.tenant.tenantId)
+      .select("unit_conversions")
+      .maybeSingle();
     if (error) throw new ActionError(friendlyDbError(error));
+    if (isStockPool(saved?.unit_conversions ?? null)) {
+      await syncCutCosts(createAdminClient(), ctx.tenant.tenantId, [id]);
+    }
     revalidatePath("/products");
     revalidatePath(`/products/${id}`);
     revalidatePath(`/shop/${ctx.tenant.tenantSlug}`);

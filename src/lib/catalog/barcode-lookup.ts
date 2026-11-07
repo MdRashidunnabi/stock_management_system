@@ -5,13 +5,16 @@ import { entityIdSchema } from "@/lib/entity-id";
 import { ActionError, staffActionClient } from "@/lib/safe-action";
 import { createClient } from "@/lib/supabase/server";
 import type { ProductSearchResult } from "@/lib/pos/schemas";
+import type { Json } from "@/lib/supabase/types";
+import { applyPooledStock } from "@/lib/inventory/stock-pools";
 
 const LOOKUP_ROLES = ["owner", "manager", "cashier", "warehouse"] as const;
 
 const PRODUCT_COLS =
-  "id, name, primary_image_url, sku, barcode, extra_barcodes, base_unit, selling_price, vat_code, vat_included, is_active";
+  "id, name, primary_image_url, sku, barcode, extra_barcodes, base_unit, selling_price, vat_code, vat_included, is_active, unit_conversions";
 
 type ProductRow = {
+  unit_conversions: Json | null;
   id: string;
   name: string;
   primary_image_url: string | null;
@@ -40,18 +43,20 @@ function toSearchRow(p: ProductRow, available: number): ProductSearchResult {
   };
 }
 
-async function availableFor(productId: string, branchId: string): Promise<number> {
+async function availableFor(product: ProductRow, tenantId: string, branchId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("stock_balances")
     .select("quantity")
-    .eq("product_id", productId)
+    .eq("product_id", product.id)
     .eq("branch_id", branchId)
     .eq("state", "available")
     .is("variant_id", null)
     .maybeSingle();
   if (error) throw new ActionError(error.message);
-  return Number(data?.quantity ?? 0);
+  const stock = new Map([[product.id, Number(data?.quantity ?? 0)]]);
+  await applyPooledStock(supabase, { tenantId, branchId }, [product], stock);
+  return stock.get(product.id) ?? 0;
 }
 
 /**
@@ -66,43 +71,45 @@ export const lookupProductByBarcodeAction = staffActionClient([...LOOKUP_ROLES])
       code: z.string().trim().min(1).max(64),
     }),
   )
-  .action(async ({ parsedInput }): Promise<{ ok: true; product: ProductSearchResult | null }> => {
-    const supabase = await createClient();
-    const code = parsedInput.code.trim();
+  .action(
+    async ({ parsedInput, ctx }): Promise<{ ok: true; product: ProductSearchResult | null }> => {
+      const supabase = await createClient();
+      const code = parsedInput.code.trim();
 
-    const { data: byBarcode, error: bcErr } = await supabase
-      .from("products")
-      .select(PRODUCT_COLS)
-      .eq("is_active", true)
-      .eq("barcode", code)
-      .maybeSingle();
-    if (bcErr) throw new ActionError(bcErr.message);
-
-    let product = (byBarcode as ProductRow | null) ?? null;
-
-    if (!product) {
-      const { data: extras, error: exErr } = await supabase
+      const { data: byBarcode, error: bcErr } = await supabase
         .from("products")
         .select(PRODUCT_COLS)
         .eq("is_active", true)
-        .contains("extra_barcodes", [code])
-        .limit(1);
-      if (!exErr) product = (extras?.[0] as ProductRow | undefined) ?? null;
-    }
-
-    if (!product) {
-      const { data: bySku, error: skuErr } = await supabase
-        .from("products")
-        .select(PRODUCT_COLS)
-        .eq("is_active", true)
-        .eq("sku", code)
+        .eq("barcode", code)
         .maybeSingle();
-      if (skuErr) throw new ActionError(skuErr.message);
-      product = (bySku as ProductRow | null) ?? null;
-    }
+      if (bcErr) throw new ActionError(bcErr.message);
 
-    if (!product) return { ok: true, product: null };
+      let product = (byBarcode as ProductRow | null) ?? null;
 
-    const available = await availableFor(product.id, parsedInput.branchId);
-    return { ok: true, product: toSearchRow(product, available) };
-  });
+      if (!product) {
+        const { data: extras, error: exErr } = await supabase
+          .from("products")
+          .select(PRODUCT_COLS)
+          .eq("is_active", true)
+          .contains("extra_barcodes", [code])
+          .limit(1);
+        if (!exErr) product = (extras?.[0] as ProductRow | undefined) ?? null;
+      }
+
+      if (!product) {
+        const { data: bySku, error: skuErr } = await supabase
+          .from("products")
+          .select(PRODUCT_COLS)
+          .eq("is_active", true)
+          .eq("sku", code)
+          .maybeSingle();
+        if (skuErr) throw new ActionError(skuErr.message);
+        product = (bySku as ProductRow | null) ?? null;
+      }
+
+      if (!product) return { ok: true, product: null };
+
+      const available = await availableFor(product, ctx.tenant.tenantId, parsedInput.branchId);
+      return { ok: true, product: toSearchRow(product, available) };
+    },
+  );
