@@ -16,6 +16,7 @@ import {
 import { listLookupsForProductForm, listProducts } from "@/lib/catalog/products/actions";
 import { requireRole } from "@/lib/auth/tenant";
 import { listBranchesForCurrentTenant } from "@/lib/pos/actions";
+import { unitKind } from "@/lib/units";
 import { cn, formatMoney } from "@/lib/utils";
 
 export const metadata = { title: "Products - ShopOS" };
@@ -294,7 +295,7 @@ export default async function ProductsPage({
                     <TableCell className="text-sm">
                       {p.supplier?.name ?? <span className="text-muted-foreground">-</span>}
                     </TableCell>
-                    <TableCell className="text-sm">{p.base_unit}</TableCell>
+                    <TableCell className="text-sm">{unitKind(p.base_unit)}</TableCell>
                     <TableCell className="text-right font-mono text-xs">
                       {p.available_qty === null ? (
                         <span className="text-muted-foreground">—</span>

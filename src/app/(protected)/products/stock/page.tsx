@@ -4,6 +4,7 @@ import { StockListActions } from "@/components/products/stock-list-actions";
 import { listStockForExport } from "@/lib/catalog/products/actions";
 import { requireRole } from "@/lib/auth/tenant";
 import { listBranchesForCurrentTenant } from "@/lib/pos/actions";
+import { unitKind } from "@/lib/units";
 import {
   Table,
   TableBody,
@@ -25,15 +26,15 @@ export default async function StockListPage({
   const branches = await listBranchesForCurrentTenant();
   const branch = branches.find((row) => row.id === sp.branch) ?? branches[0] ?? null;
   const rows = await listStockForExport({ branchId: branch?.id ?? null });
-  const headers = ["Name", "SKU", "Barcode", "Category", "Supplier", "On hand", "Unit", "Price"];
+  const headers = ["Name", "SKU", "Barcode", "Category", "Supplier", "Unit", "Quantity", "Price"];
   const csvRows = rows.map((row) => [
     row.name,
     row.sku,
     row.barcode,
     row.category?.name,
     row.supplier?.name,
+    unitKind(row.base_unit),
     row.available_qty,
-    row.base_unit,
     row.selling_price,
   ]);
 
@@ -71,8 +72,8 @@ export default async function StockListPage({
                 <TableCell className="font-mono text-xs">{row.barcode ?? "—"}</TableCell>
                 <TableCell>{row.category?.name ?? "—"}</TableCell>
                 <TableCell>{row.supplier?.name ?? "—"}</TableCell>
+                <TableCell>{unitKind(row.base_unit)}</TableCell>
                 <TableCell className="text-right font-mono">{row.available_qty ?? "—"}</TableCell>
-                <TableCell>{row.base_unit}</TableCell>
                 <TableCell className="text-right font-mono">
                   {row.selling_price.toFixed(2)} {tenant.currency}
                 </TableCell>

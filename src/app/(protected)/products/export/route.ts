@@ -1,6 +1,7 @@
 import { listStockForExport } from "@/lib/catalog/products/actions";
 import { requireRole } from "@/lib/auth/tenant";
 import { listBranchesForCurrentTenant } from "@/lib/pos/actions";
+import { unitKind } from "@/lib/units";
 
 const HEADERS = [
   "Name",
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
       p.category?.name,
       p.brand?.name,
       p.supplier?.name,
-      p.base_unit,
+      unitKind(p.base_unit),
       p.available_qty,
       Number(p.purchase_price ?? 0).toFixed(2),
       Number(p.selling_price ?? 0).toFixed(2),

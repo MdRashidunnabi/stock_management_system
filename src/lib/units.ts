@@ -3,6 +3,12 @@ export function isPackSize(unit: string | null | undefined): boolean {
   return /^\d/.test((unit ?? "").trim());
 }
 
+/** The unit without the amount, for unit columns: "2kg" → "kg", "5x80g" → "g", "5pcs" → "pcs". */
+export function unitKind(unit: string | null | undefined): string {
+  const u = (unit ?? "").trim();
+  return u.replace(/^\d+(?:\.\d+)?(?:x\d+(?:\.\d+)?)?/i, "") || u;
+}
+
 /** Text after a quantity: "5 × 10kg" for packs, "2.5 kg" for weighed goods. */
 export function qtyUnitLabel(unit: string | null | undefined): string {
   const u = (unit ?? "").trim();
